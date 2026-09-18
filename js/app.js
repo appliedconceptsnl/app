@@ -324,6 +324,7 @@ function switchTab(tab){
   document.querySelectorAll('.tabbtn[data-tab]').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
   document.querySelectorAll('.mb-item[data-tab]').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
   el('mbTrainBtn').classList.toggle('active', MB_TRAIN_GROUP_TABS.includes(tab));
+  el('mhContactBtn').classList.toggle('active', tab==='contact');
   el('panel-optic').classList.toggle('active', tab==='optic');
   el('panel-profiles').classList.toggle('active', tab==='profiles');
   el('panel-turret').classList.toggle('active', tab==='turret');
@@ -526,6 +527,10 @@ document.querySelectorAll('.more-sheet-item[data-tab]').forEach(btn=>{
   });
 });
 
+// Small "Contact" quick-link in the mobile masthead (desktop already has
+// a full Contact tab in the top tabbar, so this stays hidden there).
+el('mhContactBtn').addEventListener('click', ()=>switchTab('contact'));
+
 /* ---------------------------------------------------------------------
    "Installeer deze app" popup. Chrome/Android/Edge fire beforeinstallprompt
    when the PWA criteria are met and expose a native prompt() we can trigger
@@ -605,6 +610,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.42', date:'18-09-2026', items:[
+      'Mobiel: de bovenbalk staat nu ook vast (blijft altijd in beeld, net als de onderbalk) en is opnieuw ingericht — logo gecentreerd, versienummer klein linksboven, een snelkoppeling naar Contact klein rechtsboven. De dubbele naamsvermelding (logo + los "Applied Concepts"-opschrift) is weg voor een rustiger, overzichtelijker geheel.',
+    ]},
     { version:'v1.41', date:'18-09-2026', items:[
       'Mobiele onderbalk aangepast: Shop staat nu direct in de balk (niet meer verstopt achter "Meer"), en Dry Fire + Train zijn samengevoegd onder één "Train"-knop — alle 6 bestemmingen (Optic, Profielen, Turret, Train, Shop, Contact) passen zo in één oogopslag, zonder te hoeven scrollen.',
       'Bugfix: de rand-iconen in de onderbalk konden half wegvallen achter de afgeronde randen van het scherm — de balk houdt nu rekening met de veilige zone van het toestel.',
