@@ -524,7 +524,8 @@ function initInstallBanner(){
   };
   closeBtn.addEventListener('click', dismiss);
 
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  const ua = navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
   if(isIOS){
     document.getElementById('installBannerText').textContent =
       'Installeer deze app: tik op het deel-icoon onderin Safari en kies "Zet op beginscherm".';
@@ -532,10 +533,22 @@ function initInstallBanner(){
     return;
   }
 
-  // Non-iOS: wait for the browser's own installability signal instead of
-  // assuming support — e.g. desktop Safari/Firefox never fire this event,
-  // and showing a broken "Installeren" button there would be worse than
-  // showing nothing.
+  // Desktop Safari (macOS) never fires beforeinstallprompt either — like
+  // iOS, it needs its own static instructions ("Zet in Dock", Safari 17+ /
+  // macOS Sonoma+) instead of silently showing nothing, which is what a
+  // Mac visitor saw before this branch existed.
+  const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
+  if(isSafari){
+    document.getElementById('installBannerText').textContent =
+      'Installeer deze app: klik in Safari op het deel-icoon (of het Archief-menu) en kies "Zet in Dock".';
+    banner.hidden = false;
+    return;
+  }
+
+  // Everything else (Chrome/Edge/Brave/Android, etc.): wait for the
+  // browser's own installability signal instead of assuming support —
+  // desktop Firefox never fires this event, and showing a broken
+  // "Installeren" button there would be worse than showing nothing.
   let deferredPrompt = null;
   window.addEventListener('beforeinstallprompt', (e)=>{
     e.preventDefault();
@@ -562,6 +575,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.36', date:'18-09-2026', items:[
+      'Bugfix — "Installeer deze app"-melding: Safari op de Mac (desktop) kreeg de melding nooit te zien, omdat die browser dezelfde installatie-methode als Android/Chrome niet ondersteunt. Safari op de Mac krijgt nu net als iPhone een eigen instructie ("Zet in Dock" via het deel-icoon of Archief-menu).',
+    ]},
     { version:'v1.35', date:'18-09-2026', items:[
       'Nieuwe "Installeer deze app"-melding onder de tabbalk: op Android/Chrome verschijnt een echte installeerknop, op iPhone/Safari (waar dat niet mogelijk is via de browser) staat in duidelijke taal hoe je hem zelf via het deel-icoon op het beginscherm zet.',
     ]},
