@@ -317,13 +317,13 @@ function requestPrint(source){
 }
 window.AppliedConceptsPrint = requestPrint;
 
-const MB_DIRECT_TABS = ['optic','profiles','turret','dryfire'];
+const MB_TRAIN_GROUP_TABS = ['dryfire','train'];
 
 function switchTab(tab){
   if(tab !== 'dryfire' && window.AppliedConceptsDryfire) window.AppliedConceptsDryfire.stopTimer();
   document.querySelectorAll('.tabbtn[data-tab]').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
   document.querySelectorAll('.mb-item[data-tab]').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
-  el('mbMoreBtn').classList.toggle('active', !MB_DIRECT_TABS.includes(tab));
+  el('mbTrainBtn').classList.toggle('active', MB_TRAIN_GROUP_TABS.includes(tab));
   el('panel-optic').classList.toggle('active', tab==='optic');
   el('panel-profiles').classList.toggle('active', tab==='profiles');
   el('panel-turret').classList.toggle('active', tab==='turret');
@@ -504,8 +504,11 @@ document.querySelectorAll('.tabbtn[data-tab]').forEach(btn=>{
 });
 
 /* ---------------------------------------------------------------------
-   Mobile bottom tab bar (< 760px, see css/styles.css) — 4 direct tabs
-   plus a "Meer" button that opens a bottom sheet for Train/Shop/Contact.
+   Mobile bottom tab bar (< 760px, see css/styles.css) — 6 direct
+   destinations (Optic/Profielen/Turret/Train/Shop/Contact), all visible
+   at once with no horizontal scrolling. "Train" opens a small bottom
+   sheet to choose between Dry Fire and Train (grouped together since
+   they're both training tools, not calculators).
 --------------------------------------------------------------------- */
 document.querySelectorAll('.mb-item[data-tab]').forEach(btn=>{
   btn.addEventListener('click', ()=>switchTab(btn.dataset.tab));
@@ -514,7 +517,7 @@ document.querySelectorAll('.mb-item[data-tab]').forEach(btn=>{
 const moreSheet = el('moreSheet');
 function openMoreSheet(){ moreSheet.hidden = false; }
 function closeMoreSheet(){ moreSheet.hidden = true; }
-el('mbMoreBtn').addEventListener('click', openMoreSheet);
+el('mbTrainBtn').addEventListener('click', openMoreSheet);
 el('moreSheetScrim').addEventListener('click', closeMoreSheet);
 document.querySelectorAll('.more-sheet-item[data-tab]').forEach(btn=>{
   btn.addEventListener('click', ()=>{
@@ -602,6 +605,11 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.41', date:'18-09-2026', items:[
+      'Mobiele onderbalk aangepast: Shop staat nu direct in de balk (niet meer verstopt achter "Meer"), en Dry Fire + Train zijn samengevoegd onder één "Train"-knop — alle 6 bestemmingen (Optic, Profielen, Turret, Train, Shop, Contact) passen zo in één oogopslag, zonder te hoeven scrollen.',
+      'Bugfix: de rand-iconen in de onderbalk konden half wegvallen achter de afgeronde randen van het scherm — de balk houdt nu rekening met de veilige zone van het toestel.',
+      'Bugfix: op sommige telefoons kon je de hele pagina opzij schuiven — dat kan nu nergens meer in de app.',
+    ]},
     { version:'v1.40', date:'18-09-2026', items:[
       'Mobiel: de horizontale tabbladbalk (die je moest wegschuiven) is op de telefoon vervangen door een vaste onderbalk — Optic, Profielen, Turret en Dry Fire direct bereikbaar, Train/Shop/Contact onder "Meer". Desktop blijft ongewijzigd.',
       'Bugfix: de Shop-pagina stond op mobiel per ongeluk nog in twee kolommen naast elkaar in plaats van één — dat is nu gecorrigeerd.',

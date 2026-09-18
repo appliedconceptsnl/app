@@ -12,6 +12,11 @@
     --gold-dim:#8a7647;
   }
   *{box-sizing:border-box;}
+  /* Hard guarantee against any sideways scroll/swipe, regardless of which
+     sub-pixel rounding or safe-area quirk might otherwise cause a few px
+     of horizontal overflow on a real phone — nothing in this app is meant
+     to scroll horizontally, so this never clips real content. */
+  html,body{overflow-x:hidden;max-width:100%;}
   body{
     margin:0;color:var(--cream);font-family:'Work Sans',sans-serif;
     background-color:var(--bg);
@@ -24,7 +29,12 @@
   }
   h1,h2,h3,.label-font{font-family:'Oswald',sans-serif;letter-spacing:.02em;}
 
-  .appshell{display:flex;flex-direction:column;min-height:100vh;}
+  /* min-height:100vh (fixed) makes a fixed bottom bar jump/disappear as
+     Safari's own toolbar shows and hides on iOS — 100dvh tracks the real
+     visible viewport instead, so the bar stays put without needing a
+     scroll to "settle" into place. vh stays as the fallback for browsers
+     that don't support dvh yet. */
+  .appshell{display:flex;flex-direction:column;min-height:100vh;min-height:100dvh;}
   .masthead{display:flex;align-items:center;gap:12px;padding:12px 22px;background:#0a0a09;border-bottom:1px solid var(--line);flex:0 0 auto;}
   .masthead img{height:32px;width:auto;display:block;}
   .masthead .wordmark{display:flex;flex-direction:column;line-height:1.2;}
@@ -71,17 +81,23 @@
   .mobile-bottombar{
     display:none;
     position:fixed;left:0;right:0;bottom:0;z-index:80;
-    grid-template-columns:repeat(5,1fr);
+    grid-template-columns:repeat(6,1fr);
     background:#0a0a09;border-top:1px solid var(--line);
+    /* left/right insets keep the outer icons clear of the rounded corners /
+       camera-cutout curvature on real phones — without these the first and
+       last items sit exactly under the curve and read as half-clipped. */
     padding-bottom:env(safe-area-inset-bottom,0px);
+    padding-left:env(safe-area-inset-left,0px);
+    padding-right:env(safe-area-inset-right,0px);
   }
   .mb-item{
-    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
-    height:var(--mb-h);padding:8px 2px 0;background:none;border:none;cursor:pointer;
-    color:#6e6e6a;font-family:'Oswald',sans-serif;font-size:9.5px;letter-spacing:.03em;text-transform:uppercase;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+    height:var(--mb-h);min-width:0;padding:8px 1px 0;background:none;border:none;cursor:pointer;
+    color:#6e6e6a;font-family:'Oswald',sans-serif;font-size:8.8px;letter-spacing:.02em;text-transform:uppercase;
     border-top:2px solid transparent;
   }
-  .mb-item svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.6;}
+  .mb-item span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .mb-item svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.6;flex:0 0 auto;}
   .mb-item.active{color:var(--gold);border-top-color:var(--gold);}
   .mb-item.active svg{stroke:var(--gold);}
 
@@ -102,8 +118,6 @@
   }
   .more-sheet-item svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.6;flex:0 0 auto;}
   .more-sheet-item:active{background:rgba(242,236,217,.06);}
-  .more-sheet-item-shop{color:var(--gold);}
-  .more-sheet-item-shop svg{stroke:var(--gold);}
 
   .app{flex:1 1 auto;min-height:0;grid-template-columns:340px 1fr;}
   .tabpanel{display:none;}
