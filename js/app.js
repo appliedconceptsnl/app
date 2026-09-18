@@ -500,11 +500,71 @@ document.querySelectorAll('.tabbtn[data-tab]').forEach(btn=>{
 });
 
 /* ---------------------------------------------------------------------
+   "Installeer deze app" banner. Chrome/Android/Edge fire beforeinstallprompt
+   when the PWA criteria are met and expose a native prompt() we can trigger
+   from our own button; iOS Safari has no such event or prompt at all — the
+   only path there is Share ▸ Zet op beginscherm, so that case gets static
+   instructions instead of a button. Skipped entirely once already installed
+   (standalone display mode) or after the visitor dismisses it once.
+--------------------------------------------------------------------- */
+const INSTALL_DISMISSED_KEY = 'ac_install_banner_dismissed';
+
+function initInstallBanner(){
+  const banner = document.getElementById('installBanner');
+  if(!banner) return;
+  if(localStorage.getItem(INSTALL_DISMISSED_KEY)) return;
+
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  if(isStandalone) return;
+
+  const closeBtn = document.getElementById('installBannerClose');
+  const dismiss = () => {
+    banner.hidden = true;
+    try { localStorage.setItem(INSTALL_DISMISSED_KEY, '1'); } catch(e){}
+  };
+  closeBtn.addEventListener('click', dismiss);
+
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  if(isIOS){
+    document.getElementById('installBannerText').textContent =
+      'Installeer deze app: tik op het deel-icoon onderin Safari en kies "Zet op beginscherm".';
+    banner.hidden = false;
+    return;
+  }
+
+  // Non-iOS: wait for the browser's own installability signal instead of
+  // assuming support — e.g. desktop Safari/Firefox never fire this event,
+  // and showing a broken "Installeren" button there would be worse than
+  // showing nothing.
+  let deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', (e)=>{
+    e.preventDefault();
+    deferredPrompt = e;
+    document.getElementById('installBannerText').textContent =
+      'Installeer deze app op je toestel voor snelle toegang, ook offline.';
+    const installBtn = document.getElementById('installBannerBtn');
+    installBtn.hidden = false;
+    installBtn.addEventListener('click', async ()=>{
+      if(!deferredPrompt) return;
+      installBtn.disabled = true;
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      dismiss();
+    });
+    banner.hidden = false;
+  });
+}
+
+/* ---------------------------------------------------------------------
    Version / changelog panel + calculator bootstrap — wrapped so that any
    unexpected error here never breaks the pass phrase gate above.
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.35', date:'18-09-2026', items:[
+      'Nieuwe "Installeer deze app"-melding onder de tabbalk: op Android/Chrome verschijnt een echte installeerknop, op iPhone/Safari (waar dat niet mogelijk is via de browser) staat in duidelijke taal hoe je hem zelf via het deel-icoon op het beginscherm zet.',
+    ]},
     { version:'v1.34', date:'18-09-2026', items:[
       'Kleine "nieuwe versie beschikbaar"-melding toegevoegd onderaan het scherm: zodra de app op een echte host draait en er een update binnenkomt, zie je een knop om direct te verversen — je hoeft niet zelf te weten dat er iets nieuws is.',
     ]},
@@ -666,6 +726,7 @@ try {
   });
 
   initOptic();
+  initInstallBanner();
 } catch(err){
   console.error('Applied Concepts Zero Calculator — init error:', err);
 }
