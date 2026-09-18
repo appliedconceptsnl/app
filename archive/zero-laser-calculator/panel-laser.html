@@ -1,0 +1,111 @@
+  <!-- ===================== LASER TAB ===================== -->
+  <div class="app tabpanel" id="panel-laser">
+    <aside class="controls">
+      <p class="sub">Voor het inschieten van een gemonteerde (IR-)laser op AR-platform — RAID X(e), AN/PEQ-15-achtigen e.d. Werkwijze op de schijf: je richt met je vizier op POA (zoals altijd), en stelt vervolgens de zichtbare laser zelf af op de berekende LASER-markering.</p>
+
+      <fieldset>
+        <legend>Wapen / label</legend>
+        <label for="weaponLabelL">Naam of kastnummer (op schijf afgedrukt)</label>
+        <input type="text" id="weaponLabelL" placeholder="bv. AR15 #2 — RAID Xe">
+      </fieldset>
+
+      <fieldset>
+        <legend>Hoofdoptiek &amp; montage</legend>
+        <p class="hint">Bepaalt de POI-referentie (kogel-inslag, HOB-afhankelijk) op de schijf — zelfde logica als de Zero Optic Calculator.</p>
+        <label for="sightL">Richtmiddel</label>
+        <select id="sightL"></select>
+
+        <label for="mountL">Montage / riser</label>
+        <select id="mountL"></select>
+
+        <label for="hobValueL">Height over bore (automatisch ingevuld, pas aan indien nodig)</label>
+        <div class="row2">
+          <input type="number" id="hobValueL" step="0.01" min="0">
+          <select id="hobUnitL">
+            <option value="cm">cm</option>
+            <option value="in">inch</option>
+          </select>
+        </div>
+        <p class="hint" id="hobHintL"></p>
+        <p class="datasrc" id="hobSrcL"></p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Laser &amp; montage</legend>
+        <label for="laserType">Lasertype</label>
+        <select id="laserType"></select>
+        <p class="hint" id="laserHint"></p>
+
+        <label for="mountPos">Montagepositie t.o.v. hoofdoptiek</label>
+        <select id="mountPos">
+          <option value="inline">Top-rail, in-line (boven/vóór hoofdoptiek)</option>
+          <option value="hydra">GBRS Hydra (multi-optic, gecentreerd)</option>
+          <option value="skiff">Unity SKIFF (laser-riser onder FAST-montage, gecentreerd)</option>
+          <option value="left">Zijrail — links</option>
+          <option value="right">Zijrail — rechts</option>
+          <option value="manual">Anders / handmatig</option>
+        </select>
+        <p class="hint" id="mountPosHint"></p>
+
+        <label for="offVert">Verticale offset t.o.v. hoofdoptiek (cm)</label>
+        <input type="number" id="offVert" step="0.1" value="0">
+
+        <label for="offHoriz">Horizontale offset t.o.v. hoofdoptiek (cm)</label>
+        <input type="number" id="offHoriz" step="0.1" value="0">
+        <p class="hint">Meet zelf de afstand tussen het hart van de laseruitgang en het hart van je hoofdoptiek, loodrecht gemeten in beide richtingen. Bij Hydra/SKIFF/top-rail in-line staat horizontaal vast op 0 (gecentreerde montage); bij "Anders/handmatig" mag je horizontaal ook negatief invullen voor links.</p>
+
+        <label for="zeroMethod">Zero-methode</label>
+        <select id="zeroMethod">
+          <option value="convergent">Snijpunt — laser en aimpoint komen samen op de nulpunt-afstand</option>
+          <option value="parallel">Evenwijdig — laser houdt vaste offset aan op alle afstanden</option>
+        </select>
+        <p class="hint" id="zeroMethodHint"></p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Eenheden &amp; afstanden</legend>
+        <label for="adjUnitL">Klik-systeem</label>
+        <select id="adjUnitL">
+          <option value="MIL">MIL / MRAD</option>
+          <option value="MOA">MOA</option>
+        </select>
+
+        <label for="clickValL">Klikwaarde laser</label>
+        <select id="clickValL"></select>
+
+        <label for="zeroDistL">Uiteindelijke nulpunt-afstand</label>
+        <select id="zeroDistL"></select>
+
+        <label for="workDistL">Controle-/werkafstand (waar je nu schiet)</label>
+        <select id="workDistL"></select>
+        <p class="hint">Korte-afstand IR-lasers (RAID X/Xe, PEQ-15-achtigen) worden vaak op 10–50 m gezero't.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Papier</legend>
+        <label for="paperSizeL">Formaat</label>
+        <select id="paperSizeL">
+          <option value="a4">A4 (210 × 297 mm)</option>
+          <option value="letter">Letter (8.5 × 11")</option>
+        </select>
+        <p class="hint" id="paperAdviceL"></p>
+      </fieldset>
+
+      <div class="summary" id="summaryBoxL"></div>
+      <div id="fitWarningL"></div>
+
+      <button class="printbtn" id="printBtnL">Print schijf</button>
+      <p class="printnote">Zet in het printvenster de schaal op "100%" / "actual size" (niet "fit to page"), anders klopt het raster niet meer.</p>
+
+      <p class="disclaimer">Er bestaan geen betrouwbare, universele fabriekswaarden voor de montage-offset van laserdevices — dit verschilt te sterk per rail, handguard en montagekeuze. Meet je eigen verticale/horizontale offset t.o.v. de hoofdoptiek en vul die hierboven in. HOB-waarden voor de hoofdoptiek volgen dezelfde fabrieks-/community-cijfers als de Zero Optic Calculator — controleer altijd zelf. Berekening = geometrische (mechanische) offset zonder kogelval, atmosferische omstandigheden of laserdivergentie; hulpmiddel, geen vervanging voor daadwerkelijk inschieten.</p>
+    </aside>
+
+    <main class="preview">
+      <div class="preview-toolbar">
+        <span class="t1">Voorbeeld</span>
+        <span class="t1" id="scaleLabelL"></span>
+      </div>
+      <div class="page-shell" id="pageShellL">
+        <div class="page" id="pageL"></div>
+      </div>
+    </main>

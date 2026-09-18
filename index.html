@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Applied Concepts — Zero Calculator</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32">
+<meta name="theme-color" content="#111110">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AC Zero Calc">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<div class="gate" id="gate">
+  <div class="gate-card">
+    <img src="icons/logo.svg" alt="Applied Concepts logo" class="gate-logo">
+    <div class="gate-name">Applied Concepts</div>
+    <div class="gate-tag">Performance · Development</div>
+    <form id="gateForm" autocomplete="off">
+      <label for="gatePass">Pass phrase</label>
+      <input type="password" id="gatePass" autocomplete="off" spellcheck="false">
+      <button type="submit" class="printbtn gate-btn">Openen</button>
+      <p class="gate-error" id="gateError"></p>
+    </form>
+  </div>
+</div>
+
+<div class="appshell" id="appshell">
+  <header class="masthead">
+    <img src="icons/logo.svg" alt="Applied Concepts logo">
+    <div class="wordmark">
+      <span class="name">Applied Concepts</span>
+      <span class="tag">Performance · Development</span>
+    </div>
+    <button class="versionlink" id="versionLink">v1.34</button>
+  </header>
+  <nav class="tabbar">
+    <button class="tabbtn active" data-tab="optic">Zero Optic Calculator</button>
+    <button class="tabbtn" data-tab="profiles">Wapenprofielen</button>
+    <button class="tabbtn" data-tab="turret">Turret Tape</button>
+    <button class="tabbtn" data-tab="dryfire">Dry Fire</button>
+    <button class="tabbtn" data-tab="train">Train</button>
+    <span class="tabbar-divider"></span>
+    <button class="tabbtn tabbtn-shop" data-tab="shop">Shop</button>
+    <button class="tabbtn" data-tab="contact">Contact</button>
+  </nav>
+
+  <div class="changelog" id="changelog">
+    <div class="changelog-card">
+      <div class="changelog-head">
+        <span>Updates</span>
+        <button class="changelog-close" id="changelogClose">&times;</button>
+      </div>
+      <div class="changelog-body" id="changelogBody"></div>
+    </div>
+  </div>
+
+  <div class="update-toast" id="updateToast" hidden>
+    <span>Nieuwe versie beschikbaar.</span>
+    <button type="button" id="updateToastBtn">Ververs</button>
+  </div>
+
+  <!-- ===================== OPTIC TAB ===================== -->
+  <div class="app tabpanel active" id="panel-optic">
+    <aside class="controls">
+      <p class="sub">Stel richtmiddel, montage en nulpunt in. De schijf schaalt automatisch mee zodat de rasterlijnen op papier fysiek kloppen — print op 100%, niet "aan pagina aanpassen".</p>
+
+      <fieldset>
+        <legend>Wapenplatform</legend>
+        <label for="platformO">Snelkeuze</label>
+        <select id="platformO">
+          <option value="">Handmatig instellen</option>
+          <option value="416">HK416 (standaard)</option>
+          <option value="416_145_lpvo">HK416 14.5" — LPVO hoofdoptiek (100 m)</option>
+          <option value="416_145_rmr">HK416 14.5" — RMR co-optic (25 m)</option>
+        </select>
+        <p class="hint" id="platformHintO">De 14.5" heeft een LPVO als hoofdoptiek (ingeschoten op 100 m voor middellange afstand) met daarbovenop een RMR voor korte afstand (apart ingeschoten op 25 m) — kies hierboven welke van de twee je nu print.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Wapen / label</legend>
+        <label for="weaponLabelO">Naam of kastnummer (op schijf afgedrukt)</label>
+        <input type="text" id="weaponLabelO" placeholder="bv. AR15 #3 — CompM5">
+      </fieldset>
+
+      <fieldset>
+        <legend>Richtmiddel &amp; montage</legend>
+        <label for="sightO">Richtmiddel</label>
+        <select id="sightO"></select>
+
+        <label for="mountO">Montage / riser</label>
+        <select id="mountO"></select>
+
+        <label for="hobValueO">Height over bore (automatisch ingevuld, pas aan indien nodig)</label>
+        <div class="row2">
+          <input type="number" id="hobValueO" step="0.01" min="0">
+          <select id="hobUnitO">
+            <option value="cm">cm</option>
+            <option value="in">inch</option>
+          </select>
+        </div>
+        <p class="hint" id="hobHintO"></p>
+        <p class="datasrc" id="hobSrcO"></p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Eenheden &amp; afstanden</legend>
+        <label for="adjUnitO">Klik-systeem</label>
+        <select id="adjUnitO">
+          <option value="MIL">MIL / MRAD</option>
+          <option value="MOA">MOA</option>
+        </select>
+
+        <label for="clickValO">Klikwaarde richtmiddel</label>
+        <select id="clickValO"></select>
+
+        <label for="zeroDistO">Uiteindelijke nulpunt-afstand</label>
+        <select id="zeroDistO"></select>
+
+        <label for="workDistO">Controle-/werkafstand (waar je nu schiet)</label>
+        <select id="workDistO"></select>
+        <p class="hint">Gelijk aan de nulpunt-afstand? Dan is dit een directe inschietschijf. Kies je een kortere afstand (bv. 25), dan berekent de app waar de groep moet zitten om het verdere nulpunt te bevestigen.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Papier</legend>
+        <label for="paperSizeO">Formaat</label>
+        <select id="paperSizeO">
+          <option value="a4">A4 (210 × 297 mm)</option>
+          <option value="letter">Letter (8.5 × 11")</option>
+        </select>
+        <p class="hint" id="paperAdviceO"></p>
+      </fieldset>
+
+      <div class="summary" id="summaryBoxO"></div>
+      <div id="fitWarningO"></div>
+
+      <button class="printbtn" id="printBtnO">Print schijf</button>
+      <p class="printnote">Zet in het printvenster de schaal op "100%" / "actual size" (niet "fit to page"), anders klopt het raster niet meer.</p>
+
+      <p class="disclaimer">HOB-waarden zijn gangbare fabrieks-/community-cijfers (Aimpoint, GBRS Group, Sig Sauer, Scalarworks e.a.) — controleer altijd zelf de exacte hoogte van jouw eigen montage. Berekening = geometrische (mechanische) offset zonder kogelval, wind of munitie-ballistiek; hulpmiddel, geen vervanging voor daadwerkelijk inschieten.</p>
+    </aside>
+
+    <main class="preview">
+      <div class="preview-toolbar">
+        <span class="t1">Voorbeeld</span>
+        <span class="t1" id="scaleLabelO"></span>
+      </div>
+      <div class="page-shell" id="pageShellO">
+        <div class="page" id="pageO"></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ===================== WAPENPROFIELEN TAB ===================== -->
+  <div class="simplepanel tabpanel" id="panel-profiles">
+    <div class="simplepanel-inner" id="profilesRoot"></div>
+  </div>
+
+  <!-- ===================== TURRET TAPE TAB ===================== -->
+  <div class="app tabpanel" id="panel-turret">
+    <aside class="controls">
+      <p class="sub">Genereer een op-schaal turret-tape: de originele schaalverdeling van je turret (per klik, halve en hele eenheid) plus duidelijk uitgelichte afstandsmarkeringen op de juiste positie — printen of downloaden.</p>
+
+      <fieldset>
+        <legend>Databron</legend>
+        <label for="ttSource">Dope</label>
+        <select id="ttSource">
+          <option value="profile">Wapenprofiel (sniper)</option>
+          <option value="manual">Handmatig invullen</option>
+        </select>
+      </fieldset>
+
+      <fieldset id="ttProfileFields">
+        <legend>Wapenprofiel</legend>
+        <label for="ttProfileSelect">Profiel</label>
+        <select id="ttProfileSelect"></select>
+        <p class="hint">Beheer je profielen (BC, snelheid, nulpunt) via het tabblad Wapenprofielen — de hold per afstand wordt hier automatisch overgenomen.</p>
+      </fieldset>
+
+      <fieldset id="ttManualFields" hidden>
+        <legend>Handmatige dope</legend>
+        <div id="ttManualRows"></div>
+        <button type="button" class="printbtn" id="ttAddManualRow" style="margin-top:8px;">+ Afstand toevoegen</button>
+      </fieldset>
+
+      <fieldset>
+        <legend>Afstandsbereik</legend>
+        <label for="ttRangeInterval">Interval tussen afstanden (m)</label>
+        <select id="ttRangeInterval">
+          <option value="50">50 m — fijnere stappen op kortere afstand</option>
+          <option value="100" selected>100 m — standaard dope-kaart</option>
+        </select>
+
+        <label for="ttRangeMax">Tot afstand (m)</label>
+        <input type="number" id="ttRangeMax" step="50" min="100" max="3000" value="1000">
+        <p class="hint">Geldt voor het wapenprofiel (automatisch berekend) en voor de standaardrijen bij handmatige dope.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Doelafstanden op de tape</legend>
+        <div id="ttDistanceChecks"></div>
+        <div class="tt-extra-dist-row">
+          <input type="number" id="ttExtraDistInput" class="tt-extra-dist-input" min="1" step="1" placeholder="bv. 150">
+          <span>m</span>
+          <button type="button" class="printbtn" id="ttExtraDistAdd">+ Toevoegen</button>
+        </div>
+        <p class="hint" id="ttExtraDistHint">Voeg een extra afstand toe tussen de vaste stappen (bv. 150 m naast 100/200 m) — handig voor 50 m-tussenstappen tot bijvoorbeeld 400 m.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Kijker / turret</legend>
+        <label for="ttBrand">Merk/model (preset)</label>
+        <select id="ttBrand">
+          <option value="sb_st">Schmidt & Bender ST — 0.1 mrad/klik, 12 mrad/omwenteling</option>
+          <option value="std10">Standaard 10 mrad/omwenteling (Tangent Theta, ZCO, Vortex, Nightforce e.a.)</option>
+          <option value="moa15">Standaard 15 MOA/omwenteling — 1/4 MOA/klik</option>
+          <option value="custom">Handmatig instellen</option>
+        </select>
+
+        <label for="ttUnit">Eenheden</label>
+        <select id="ttUnit">
+          <option value="mil">MIL / MRAD</option>
+          <option value="moa">MOA</option>
+        </select>
+
+        <label for="ttClickVal">Klikwaarde</label>
+        <select id="ttClickVal"></select>
+
+        <label for="ttUnitsPerRev">Eenheden per omwenteling</label>
+        <input type="number" id="ttUnitsPerRev" step="0.1" min="0.1" value="10">
+
+        <label for="ttSizeMode">Maat van de turret</label>
+        <select id="ttSizeMode">
+          <option value="diameter">Diameter opgeven (schuifmaat)</option>
+          <option value="circumference">Omtrek opgeven (meetlint)</option>
+        </select>
+
+        <div id="ttSizeDiameterField">
+          <label for="ttDiameter">Diameter van de turret (mm) — meet met een schuifmaat</label>
+          <input type="number" id="ttDiameter" step="0.01" min="1" placeholder="bv. 24.5">
+        </div>
+        <div id="ttSizeCircumferenceField" hidden>
+          <label for="ttCircumferenceInput">Omtrek van de turret (mm) — meet met een meetlint</label>
+          <input type="number" id="ttCircumferenceInput" step="0.01" min="1" placeholder="bv. 77.0">
+        </div>
+
+        <label for="ttWrapComp">Wrap-compensatie (mm)</label>
+        <input type="number" id="ttWrapComp" step="0.01" value="0.5">
+        <p class="hint">Compenseert de dikte van het papier/plakband bij het omwikkelen (gangbare waarde: 0,3–0,7 mm).</p>
+        <p class="datasrc" id="ttCircumferenceOut">—</p>
+
+        <label for="ttTapeWidth">Breedte van de tape (mm)</label>
+        <input type="number" id="ttTapeWidth" step="0.5" min="3" max="30" value="8">
+        <p class="hint">De hoogte van de bruikbare strook (tussen de knip-lijnen) — pas aan op je eigen blanco tape/plakband.</p>
+      </fieldset>
+
+      <div id="ttWarning" class="warn" hidden></div>
+
+      <button class="printbtn" id="printBtnTT">Print turret tape</button>
+      <button class="printbtn" id="downloadBtnTT" style="margin-top:8px;background:transparent;color:var(--cream);border:1px solid var(--line);">Download als SVG (hoge resolutie)</button>
+      <p class="printnote">Print op 100% schaal ("actual size", niet "fit to page") en controleer het liniaaltje onderaan het blad.</p>
+      <p class="disclaimer">Er bestaat geen betrouwbare, universele fabriekswaarde voor turret-diameter of -omtrek — dit verschilt per merk, model en turret-uitvoering, en soms zelfs per exemplaar. Meet je eigen turret (schuifmaat voor diameter, meetlint voor omtrek). De klikwaarde/omwenteling-presets zijn gangbare fabrieks-/community-cijfers — controleer dit voor jouw exacte model.</p>
+    </aside>
+
+    <main class="preview">
+      <div class="preview-toolbar">
+        <span class="t1">Voorbeeld</span>
+        <span class="t1" id="scaleLabelTT"></span>
+      </div>
+      <div class="train-pagetabs" id="ttPageTabs" hidden></div>
+      <div class="page-shell" id="pageShellTT">
+        <div class="page" id="pageTT"></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ===================== DRY FIRE TAB ===================== -->
+  <div class="simplepanel tabpanel" id="panel-dryfire">
+    <div class="simplepanel-inner" id="dryfireRoot"></div>
+  </div>
+
+  <!-- ===================== TRAIN TAB ===================== -->
+  <div class="app tabpanel train-panel" id="panel-train">
+    <aside class="controls">
+      <div class="train-group-toggle" id="trainGroupToggle">
+        <button type="button" class="train-group-btn active" data-group="carbine">Carbine</button>
+        <button type="button" class="train-group-btn" data-group="sniper">Sniper</button>
+      </div>
+
+      <p class="sub">Printbare (A4) oefenschijven. Klik op een oefening voor het voorbeeld rechts. Vink aan wat je wilt printen — meerdere oefeningen tegelijk kan.</p>
+
+      <p class="hint" id="trainEmptyState" hidden>Sniper-oefeningen volgen hier binnenkort.</p>
+
+      <div id="trainListsWrap">
+        <fieldset id="trainBasicsFieldset">
+          <legend id="trainBasicsLegend">Basisoefeningen</legend>
+          <div class="train-list" id="trainListBasics"></div>
+        </fieldset>
+
+        <fieldset id="trainDrillsFieldset">
+          <legend id="trainDrillsLegend">Applied Concepts drills</legend>
+          <div class="train-list" id="trainListDrills"></div>
+        </fieldset>
+
+        <div class="train-selectall">
+          <button type="button" id="trainSelectAll">Selecteer alles</button>
+          <button type="button" id="trainSelectNone">Wis selectie</button>
+        </div>
+
+        <div class="train-pagetabs" id="trainPageTabs" hidden></div>
+
+        <button class="printbtn" id="printBtnT">Print geselecteerde oefeningen</button>
+        <p class="printnote">Zet in het printvenster de schaal op "100%" / "actual size" (niet "fit to page"). Niets aangevinkt? Dan print het oefenblad dat je nu bekijkt.</p>
+      </div>
+    </aside>
+
+    <main class="preview">
+      <div class="preview-toolbar">
+        <span class="t1">Voorbeeld</span>
+        <span class="t1" id="scaleLabelT"></span>
+      </div>
+      <div class="page-shell" id="pageShellT">
+        <div class="page" id="pageT"></div>
+      </div>
+      <p class="hint" id="trainPreviewEmpty" hidden>Sniper-oefeningen volgen hier binnenkort.</p>
+    </main>
+
+    <div class="train-print-batch" id="trainPrintBatch"></div>
+  </div>
+
+  <!-- ===================== SHOP TAB ===================== -->
+  <div class="shop-panel tabpanel" id="panel-shop">
+    <div class="shop-inner">
+      <div class="shop-hero">
+        <div class="shop-viewer" id="shopViewer">
+          <img class="shop-viewer-img" id="shopViewerImg" alt="Custom Grip" hidden>
+          <div class="shop-viewer-placeholder" id="shopViewerPlaceholder">
+            <span class="shop-viewer-placeholder-icon">360°</span>
+            <span>Fotoreeks volgt</span>
+          </div>
+        </div>
+        <p class="hint shop-viewer-hint" id="shopViewerHint">Sleep om zelf te draaien — laat los en hij draait vanzelf verder.</p>
+      </div>
+
+      <div class="shop-info">
+        <span class="shop-kicker">Applied Concepts</span>
+        <h2 class="shop-title">Custom Grip</h2>
+        <div class="shop-price">&euro; 69,95</div>
+        <p class="shop-tagline">De enige greep die om jóúw hand gevormd is.</p>
+        <p class="shop-desc">Elk onderdeel van je wapensysteem wordt tegenwoordig geoptimaliseerd — lasers, lichtschakelaars, montagesystemen. Alleen de pistoolgreep blijft standaard. De Custom Grip verandert dat: een greep die je zelf om een stevige kern heen vormt naar je eigen hand, voor een directere en consistentere grip in elke stelling.</p>
+
+        <div class="shop-steps">
+          <h3>Hoe het werkt</h3>
+          <ol>
+            <li>Je ontvangt de gripkern met duidelijke instructies</li>
+            <li>Je vormt het materiaal om de kern en monteert de greep op je wapen</li>
+            <li>Je zet je handgreep erin — na &plusmn;4 uur grotendeels uitgehard, na 24 uur volledig</li>
+          </ol>
+        </div>
+
+        <div class="shop-order">
+          <h3>Bestellen</h3>
+          <label for="shopPhone">Jouw 06-nummer</label>
+          <input type="tel" id="shopPhone" placeholder="06 12345678" autocomplete="tel">
+          <p class="hint" id="shopPhoneHint"></p>
+          <button class="printbtn shop-orderbtn" id="shopOrderBtn">Bestel via WhatsApp</button>
+          <p class="hint">Je wordt doorgestuurd naar WhatsApp met een kant-en-klaar bestelbericht — controleer 'm daar en verstuur.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="shop-application">
+      <h3>In gebruik</h3>
+      <div class="shop-application-photo" id="shopApplicationPhoto">
+        <span>Foto van montage op een AR volgt</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== CONTACT TAB ===================== -->
+  <div class="simplepanel tabpanel" id="panel-contact">
+    <div class="simplepanel-inner contact-inner">
+      <div class="contact-card">
+        <img src="icons/logo.svg" alt="Applied Concepts logo" class="contact-logo">
+        <h2>Contact</h2>
+        <p class="sub">Vragen, opmerkingen of interesse in Applied Concepts? Stuur een e-mail.</p>
+        <a class="contact-email" id="contactEmailLink" href="mailto:info.appliedconcepts@icloud.com">info.appliedconcepts@icloud.com</a>
+        <button type="button" class="printbtn contact-copybtn" id="contactCopyBtn">E-mailadres kopiëren</button>
+        <p class="hint contact-copyhint" id="contactCopyHint"></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/ballistics.js"></script>
+<script src="js/profiles.js"></script>
+<script src="js/dryfire.js"></script>
+<script src="js/shop.js"></script>
+<script src="js/contact.js"></script>
+<script src="js/train.js"></script>
+<script src="js/turret.js"></script>
+<script src="js/app.js"></script>
+<script>
+// Service worker (offline caching) is only registered on a real deployed host.
+// On localhost — where this app is actively being developed — it stays off so
+// every reload always shows the latest files, no cache-busting rituals needed.
+const isLocalDev = ["localhost", "127.0.0.1"].includes(location.hostname);
+if ("serviceWorker" in navigator && !isLocalDev) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("service-worker.js").catch(() => {});
+  });
+  // "Nieuwe versie beschikbaar" toast: controllerchange fires when a newly
+  // installed service worker (skipWaiting + clients.claim in
+  // service-worker.js) takes over from a previous one. Only show it when
+  // this page was already being controlled by an OLDER worker first —
+  // otherwise the very first-ever visit (no prior controller) would also
+  // fire it, which would be a false "update" on a fresh install.
+  const hadControllerOnLoad = !!navigator.serviceWorker.controller;
+  let reloading = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (reloading || !hadControllerOnLoad) return;
+    const toast = document.getElementById("updateToast");
+    if (toast) toast.hidden = false;
+  });
+  document.getElementById("updateToastBtn")?.addEventListener("click", () => {
+    reloading = true;
+    location.reload();
+  });
+} else if ("serviceWorker" in navigator && isLocalDev) {
+  // Clean up any service worker + caches from earlier local testing.
+  navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
+  if (window.caches) caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+}
+</script>
+</body>
+</html>
