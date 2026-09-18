@@ -39,7 +39,7 @@
       <span class="name">Applied Concepts</span>
       <span class="tag">Performance · Development</span>
     </div>
-    <button class="versionlink" id="versionLink">v1.36</button>
+    <button class="versionlink" id="versionLink">v1.37</button>
   </header>
   <nav class="tabbar">
     <button class="tabbtn active" data-tab="optic">Zero Optic Calculator</button>
@@ -52,11 +52,13 @@
     <button class="tabbtn" data-tab="contact">Contact</button>
   </nav>
 
-  <div class="install-banner" id="installBanner" hidden>
-    <span class="install-banner-text" id="installBannerText"></span>
-    <div class="install-banner-actions">
-      <button type="button" class="install-banner-btn" id="installBannerBtn" hidden>Installeren</button>
-      <button type="button" class="install-banner-close" id="installBannerClose" aria-label="Sluiten">&times;</button>
+  <div class="install-modal" id="installBanner" hidden>
+    <div class="install-modal-card">
+      <button type="button" class="install-modal-close" id="installBannerClose" aria-label="Sluiten">&times;</button>
+      <img src="icons/logo.svg" alt="Applied Concepts logo" class="install-modal-logo">
+      <h2>Installeer deze app</h2>
+      <p class="install-modal-text" id="installBannerText"></p>
+      <button type="button" class="printbtn install-modal-btn" id="installBannerBtn" hidden>Installeren</button>
     </div>
   </div>
 

@@ -500,19 +500,28 @@ document.querySelectorAll('.tabbtn[data-tab]').forEach(btn=>{
 });
 
 /* ---------------------------------------------------------------------
-   "Installeer deze app" banner. Chrome/Android/Edge fire beforeinstallprompt
+   "Installeer deze app" popup. Chrome/Android/Edge fire beforeinstallprompt
    when the PWA criteria are met and expose a native prompt() we can trigger
-   from our own button; iOS Safari has no such event or prompt at all — the
-   only path there is Share ▸ Zet op beginscherm, so that case gets static
-   instructions instead of a button. Skipped entirely once already installed
-   (standalone display mode) or after the visitor dismisses it once.
+   from our own button; iOS Safari and desktop Safari have no such event or
+   prompt at all — the only path there is Share ▸ Zet op beginscherm/Zet in
+   Dock, so those cases get static instructions instead of a button.
+   Skipped entirely once already installed (standalone display mode).
+
+   Dismissal is remembered in sessionStorage, not localStorage, ON PURPOSE
+   (explicit choice, 18-09-2026): closing the popup hides it for the rest of
+   this browser session, but a full close-and-reopen of the app shows it
+   again. This is deliberately noisier than a normal "don't nag" pattern —
+   it's temporary, so dismissals stay visible while iterating on this
+   feature. Revisit once the feature is settled: the plan is to switch this
+   to "gone for good once the app is actually installed" (i.e. gate on
+   isStandalone alone, drop the dismiss-persistence entirely).
 --------------------------------------------------------------------- */
 const INSTALL_DISMISSED_KEY = 'ac_install_banner_dismissed';
 
 function initInstallBanner(){
   const banner = document.getElementById('installBanner');
   if(!banner) return;
-  if(localStorage.getItem(INSTALL_DISMISSED_KEY)) return;
+  if(sessionStorage.getItem(INSTALL_DISMISSED_KEY)) return;
 
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
   if(isStandalone) return;
@@ -520,9 +529,10 @@ function initInstallBanner(){
   const closeBtn = document.getElementById('installBannerClose');
   const dismiss = () => {
     banner.hidden = true;
-    try { localStorage.setItem(INSTALL_DISMISSED_KEY, '1'); } catch(e){}
+    try { sessionStorage.setItem(INSTALL_DISMISSED_KEY, '1'); } catch(e){}
   };
   closeBtn.addEventListener('click', dismiss);
+  banner.addEventListener('click', (e)=>{ if(e.target === banner) dismiss(); });
 
   const ua = navigator.userAgent;
   const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
@@ -575,6 +585,10 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.37', date:'18-09-2026', items:[
+      '"Installeer deze app"-melding is nu een echte, gecentreerde pop-up (zoals een nieuwsbrief-inschrijving) in plaats van een dunne balk onder de tabbladen.',
+      'Tijdelijk (voor testdoeleinden): wegklikken van die pop-up onthoudt de app alleen voor de huidige sessie — sluit je de app volledig af en open je hem opnieuw, dan verschijnt de pop-up weer.',
+    ]},
     { version:'v1.36', date:'18-09-2026', items:[
       'Bugfix — "Installeer deze app"-melding: Safari op de Mac (desktop) kreeg de melding nooit te zien, omdat die browser dezelfde installatie-methode als Android/Chrome niet ondersteunt. Safari op de Mac krijgt nu net als iPhone een eigen instructie ("Zet in Dock" via het deel-icoon of Archief-menu).',
     ]},
