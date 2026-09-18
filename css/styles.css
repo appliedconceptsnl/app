@@ -482,6 +482,9 @@
   .contact-email:hover{color:var(--cream);}
   .contact-copybtn{width:auto;padding:11px 22px;}
   .contact-copyhint{min-height:16px;margin-top:10px;}
+  /* Hidden by default (desktop keeps its own masthead version badge);
+     revealed only under 760px, see the mobile masthead block below. */
+  .contact-version{display:none;}
   @media (max-width:480px){
     .contact-card{padding:30px 20px;}
     .contact-email{font-size:14px;}
@@ -584,22 +587,24 @@
      matters). Keeping every "under 760px" override down here avoids
      re-introducing that class of bug. */
   @media (max-width:760px){
-    :root{ --mh-h: 56px; }
+    :root{ --mh-h: 72px; }
     .masthead{
       position:fixed;top:0;left:0;right:0;z-index:85;
       display:grid;grid-template-columns:1fr auto 1fr;align-items:center;
       height:var(--mh-h);
       padding-top:env(safe-area-inset-top,0px);
-      padding-left:calc(16px + env(safe-area-inset-left,0px));
-      padding-right:calc(16px + env(safe-area-inset-right,0px));
+      padding-left:calc(18px + env(safe-area-inset-left,0px));
+      padding-right:calc(18px + env(safe-area-inset-right,0px));
     }
     .masthead .mh-brand{order:0;justify-content:center;gap:0;}
     .masthead .wordmark{display:none;}
-    .masthead img{height:26px;}
-    .versionlink{order:0;margin-left:0;justify-self:start;font-size:9px;padding:2px 8px;}
+    .masthead img{height:38px;}
+    /* Version badge moves to the Contact tab footer (see .contact-version
+       below) — decluttered out of the masthead entirely on mobile. */
+    .masthead .versionlink{display:none;}
     .masthead .mh-contact{
       display:block;order:0;justify-self:end;
-      font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:.04em;text-transform:uppercase;
+      font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:.04em;text-transform:uppercase;
       color:var(--gold);background:none;border:none;padding:6px 2px;cursor:pointer;
     }
     .masthead .mh-contact.active{color:var(--cream);text-decoration:underline;text-underline-offset:3px;}
@@ -611,4 +616,17 @@
     /* The update-toast floats just above the bottom bar instead of
        overlapping it. */
     .update-toast{bottom:calc(var(--mb-h) + 14px + env(safe-area-inset-bottom,0px));}
+    /* Shop stays gold at rest (not just when active) — mirrors the
+       desktop tabbar's .tabbtn-shop treatment, so it stands out as the
+       one revenue-driving destination in an otherwise neutral bar. */
+    .mb-item[data-tab="shop"]{color:var(--gold);}
+    .mb-item[data-tab="shop"].active{border-top-color:var(--gold);}
+    /* Small, muted version badge at the bottom of the Contact tab —
+       moved out of the masthead (see above). Visible on every viewport
+       width, not just mobile: harmless on desktop, and one less place
+       that needs a mobile-only toggle. */
+    .contact-version{
+      display:block;margin:18px auto 0;width:auto;background:none;border:none;
+      font-size:10px;color:var(--cream-dim);opacity:.6;padding:6px;
+    }
   }

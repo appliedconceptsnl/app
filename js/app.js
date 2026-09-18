@@ -610,6 +610,11 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.43', date:'18-09-2026', items:[
+      'Bugfix: bij inzoomen schaalden de boven- en onderbalk voorheen mee met de rest van de pagina — pinch-zoom staat nu uit, zodat beide balken echt permanent op hun plek blijven staan.',
+      'Mobiele bovenbalk: groter en steviger (meer hoogte, groter logo). Het versienummer is uit de bovenbalk gehaald en staat nu klein onderaan op de Contact-pagina.',
+      'Shop staat weer in goud in de onderbalk, zodat die eruit springt.',
+    ]},
     { version:'v1.42', date:'18-09-2026', items:[
       'Mobiel: de bovenbalk staat nu ook vast (blijft altijd in beeld, net als de onderbalk) en is opnieuw ingericht — logo gecentreerd, versienummer klein linksboven, een snelkoppeling naar Contact klein rechtsboven. De dubbele naamsvermelding (logo + los "Applied Concepts"-opschrift) is weg voor een rustiger, overzichtelijker geheel.',
     ]},
@@ -789,8 +794,14 @@ try {
       <ul>${c.items.map(i=>`<li>${i}</li>`).join('')}</ul>
     </div>
   `).join('');
-  document.getElementById('versionLink').addEventListener('click', ()=>{
-    document.getElementById('changelog').classList.add('open');
+  // The Contact-tab footer badge is a second entry point to the same
+  // changelog (see mobile masthead redesign, v1.43) — keep its text in
+  // sync with the "real" one instead of hardcoding the version twice.
+  el('contactVersionLink').textContent = el('versionLink').textContent;
+  document.querySelectorAll('.versionlink').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.getElementById('changelog').classList.add('open');
+    });
   });
   document.getElementById('changelogClose').addEventListener('click', ()=>{
     document.getElementById('changelog').classList.remove('open');
