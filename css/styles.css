@@ -66,6 +66,45 @@
   .install-modal-text{margin:0 0 22px;color:var(--cream-dim);font-size:13.5px;line-height:1.55;}
   .install-modal-btn{width:auto;padding:11px 26px;margin:0;}
 
+  /* ---- Mobile bottom tab bar (replaces the horizontal .tabbar under 760px) ---- */
+  :root{ --mb-h: 60px; }
+  .mobile-bottombar{
+    display:none;
+    position:fixed;left:0;right:0;bottom:0;z-index:80;
+    grid-template-columns:repeat(5,1fr);
+    background:#0a0a09;border-top:1px solid var(--line);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  .mb-item{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+    height:var(--mb-h);padding:8px 2px 0;background:none;border:none;cursor:pointer;
+    color:#6e6e6a;font-family:'Oswald',sans-serif;font-size:9.5px;letter-spacing:.03em;text-transform:uppercase;
+    border-top:2px solid transparent;
+  }
+  .mb-item svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.6;}
+  .mb-item.active{color:var(--gold);border-top-color:var(--gold);}
+  .mb-item.active svg{stroke:var(--gold);}
+
+  .more-sheet{position:fixed;inset:0;z-index:90;}
+  .more-sheet[hidden]{display:none;}
+  .more-sheet-scrim{position:absolute;inset:0;background:rgba(8,8,7,.72);}
+  .more-sheet-card{
+    position:absolute;left:0;right:0;bottom:0;
+    background:var(--panel);border-top:1px solid var(--line);border-radius:10px 10px 0 0;
+    padding:10px 0 calc(10px + env(safe-area-inset-bottom,0px));
+    box-shadow:0 -12px 40px rgba(0,0,0,.5);
+  }
+  .more-sheet-handle{width:36px;height:4px;border-radius:2px;background:var(--line);margin:4px auto 10px;}
+  .more-sheet-item{
+    display:flex;align-items:center;gap:14px;width:100%;padding:15px 24px;
+    background:none;border:none;cursor:pointer;text-align:left;
+    color:var(--cream);font-family:'Oswald',sans-serif;font-size:15px;letter-spacing:.03em;text-transform:uppercase;
+  }
+  .more-sheet-item svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.6;flex:0 0 auto;}
+  .more-sheet-item:active{background:rgba(242,236,217,.06);}
+  .more-sheet-item-shop{color:var(--gold);}
+  .more-sheet-item-shop svg{stroke:var(--gold);}
+
   .app{flex:1 1 auto;min-height:0;grid-template-columns:340px 1fr;}
   .tabpanel{display:none;}
   .tabpanel.active{display:grid;}
@@ -330,10 +369,17 @@
     .app{grid-template-columns:1fr;}
     .controls{border-right:none;border-bottom:1px solid var(--line);padding-bottom:24px;}
     .masthead{padding:12px 16px;}
-    .tabbar{padding:0 16px;}
     .preview{padding:18px 12px 40px;}
-    .shop-inner{grid-template-columns:1fr;}
-    .shop-viewer{aspect-ratio:4/3;}
+
+    /* Bottom tab bar replaces the horizontal scrolling tabbar entirely */
+    .tabbar{display:none;}
+    .mobile-bottombar{display:grid;}
+    /* Clearance so the fixed bottom bar never covers the last bit of
+       content in any of the panel layouts (two-pane .app, single-column
+       .simplepanel, .shop-panel each scroll independently). */
+    .controls,.preview,.simplepanel,.shop-panel{
+      padding-bottom:calc(var(--mb-h) + 24px + env(safe-area-inset-bottom,0px)) !important;
+    }
   }
 
   /* ---- Shop ---- */
@@ -399,6 +445,10 @@
     aspect-ratio:16/7;background:var(--panel-2);border:1px dashed var(--line);border-radius:2px;
     display:flex;align-items:center;justify-content:center;color:var(--cream-dim);font-size:12.5px;
   }
+  @media (max-width:760px){
+    .shop-inner{grid-template-columns:1fr;}
+    .shop-viewer{aspect-ratio:4/3;}
+  }
 
   /* ---- Contact ---- */
   .contact-inner{display:flex;align-items:center;justify-content:center;min-height:60vh;}
@@ -423,7 +473,7 @@
 
   @media print{
     body{background:#fff;}
-    .masthead,.tabbar,.controls,.preview-toolbar,.gate,.changelog,.install-modal,.update-toast{display:none !important;}
+    .masthead,.tabbar,.controls,.preview-toolbar,.gate,.changelog,.install-modal,.update-toast,.mobile-bottombar,.more-sheet{display:none !important;}
     .appshell{display:block;}
     .tabpanel{display:none !important;}
     .tabpanel.active{display:block !important;}

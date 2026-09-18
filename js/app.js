@@ -317,9 +317,13 @@ function requestPrint(source){
 }
 window.AppliedConceptsPrint = requestPrint;
 
+const MB_DIRECT_TABS = ['optic','profiles','turret','dryfire'];
+
 function switchTab(tab){
   if(tab !== 'dryfire' && window.AppliedConceptsDryfire) window.AppliedConceptsDryfire.stopTimer();
   document.querySelectorAll('.tabbtn[data-tab]').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+  document.querySelectorAll('.mb-item[data-tab]').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+  el('mbMoreBtn').classList.toggle('active', !MB_DIRECT_TABS.includes(tab));
   el('panel-optic').classList.toggle('active', tab==='optic');
   el('panel-profiles').classList.toggle('active', tab==='profiles');
   el('panel-turret').classList.toggle('active', tab==='turret');
@@ -500,6 +504,26 @@ document.querySelectorAll('.tabbtn[data-tab]').forEach(btn=>{
 });
 
 /* ---------------------------------------------------------------------
+   Mobile bottom tab bar (< 760px, see css/styles.css) — 4 direct tabs
+   plus a "Meer" button that opens a bottom sheet for Train/Shop/Contact.
+--------------------------------------------------------------------- */
+document.querySelectorAll('.mb-item[data-tab]').forEach(btn=>{
+  btn.addEventListener('click', ()=>switchTab(btn.dataset.tab));
+});
+
+const moreSheet = el('moreSheet');
+function openMoreSheet(){ moreSheet.hidden = false; }
+function closeMoreSheet(){ moreSheet.hidden = true; }
+el('mbMoreBtn').addEventListener('click', openMoreSheet);
+el('moreSheetScrim').addEventListener('click', closeMoreSheet);
+document.querySelectorAll('.more-sheet-item[data-tab]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    switchTab(btn.dataset.tab);
+    closeMoreSheet();
+  });
+});
+
+/* ---------------------------------------------------------------------
    "Installeer deze app" popup. Chrome/Android/Edge fire beforeinstallprompt
    when the PWA criteria are met and expose a native prompt() we can trigger
    from our own button; iOS Safari and desktop Safari have no such event or
@@ -578,6 +602,10 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.40', date:'18-09-2026', items:[
+      'Mobiel: de horizontale tabbladbalk (die je moest wegschuiven) is op de telefoon vervangen door een vaste onderbalk — Optic, Profielen, Turret en Dry Fire direct bereikbaar, Train/Shop/Contact onder "Meer". Desktop blijft ongewijzigd.',
+      'Bugfix: de Shop-pagina stond op mobiel per ongeluk nog in twee kolommen naast elkaar in plaats van één — dat is nu gecorrigeerd.',
+    ]},
     { version:'v1.39', date:'18-09-2026', items:[
       'Achtergrond teruggezet naar de originele foto (de zelfgemaakte versie uit v1.38 werkte niet goed uit).',
     ]},
