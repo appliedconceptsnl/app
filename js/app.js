@@ -507,30 +507,23 @@ document.querySelectorAll('.tabbtn[data-tab]').forEach(btn=>{
    Dock, so those cases get static instructions instead of a button.
    Skipped entirely once already installed (standalone display mode).
 
-   Dismissal is remembered in sessionStorage, not localStorage, ON PURPOSE
-   (explicit choice, 18-09-2026): closing the popup hides it for the rest of
-   this browser session, but a full close-and-reopen of the app shows it
-   again. This is deliberately noisier than a normal "don't nag" pattern —
-   it's temporary, so dismissals stay visible while iterating on this
-   feature. Revisit once the feature is settled: the plan is to switch this
-   to "gone for good once the app is actually installed" (i.e. gate on
-   isStandalone alone, drop the dismiss-persistence entirely).
+   No dismiss-persistence at all, ON PURPOSE (explicit choice, 18-09-2026):
+   the popup shows every time this init runs, i.e. every fresh page load.
+   Closing it only hides it for the current view. This lines up with the
+   pass phrase gate, which is also never remembered — every time someone
+   has to re-enter the pass phrase, they see the popup again too. Revisit
+   once the feature is settled: the plan is to eventually make it "gone for
+   good once the app is actually installed" (gate on isStandalone alone).
 --------------------------------------------------------------------- */
-const INSTALL_DISMISSED_KEY = 'ac_install_banner_dismissed';
-
 function initInstallBanner(){
   const banner = document.getElementById('installBanner');
   if(!banner) return;
-  if(sessionStorage.getItem(INSTALL_DISMISSED_KEY)) return;
 
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
   if(isStandalone) return;
 
   const closeBtn = document.getElementById('installBannerClose');
-  const dismiss = () => {
-    banner.hidden = true;
-    try { sessionStorage.setItem(INSTALL_DISMISSED_KEY, '1'); } catch(e){}
-  };
+  const dismiss = () => { banner.hidden = true; };
   closeBtn.addEventListener('click', dismiss);
   banner.addEventListener('click', (e)=>{ if(e.target === banner) dismiss(); });
 
@@ -585,6 +578,10 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.38', date:'18-09-2026', items:[
+      '"Installeer deze app"-pop-up verschijnt nu elke keer dat je de app opent (dus elke keer dat je de pass phrase moet invullen), niet meer alleen de eerste keer per sessie.',
+      'Nieuwe achtergrond: een eigen, naadloos herhalende topografische-lijnentekening (geen zichtbare herhaling meer van dezelfde foto) en scherper dan de vorige.',
+    ]},
     { version:'v1.37', date:'18-09-2026', items:[
       '"Installeer deze app"-melding is nu een echte, gecentreerde pop-up (zoals een nieuwsbrief-inschrijving) in plaats van een dunne balk onder de tabbladen.',
       'Tijdelijk (voor testdoeleinden): wegklikken van die pop-up onthoudt de app alleen voor de huidige sessie — sluit je de app volledig af en open je hem opnieuw, dan verschijnt de pop-up weer.',

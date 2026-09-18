@@ -17,8 +17,8 @@
     background-color:var(--bg);
     background-image:
       linear-gradient(180deg, rgba(10,10,9,.72), rgba(10,10,9,.72)),
-      url('../assets/background.jpg');
-    background-size:auto, 1100px auto;
+      url('../assets/background.png');
+    background-size:auto, 900px 900px;
     background-repeat:repeat, repeat;
     background-attachment:fixed, fixed;
   }
@@ -448,8 +448,8 @@
     background-color:var(--bg);
     background-image:
       linear-gradient(180deg, rgba(10,10,9,.72), rgba(10,10,9,.72)),
-      url('../assets/background.jpg');
-    background-size:auto, 1100px auto;
+      url('../assets/background.png');
+    background-size:auto, 900px 900px;
     background-repeat:repeat, repeat;
     background-attachment:fixed, fixed;
   }
