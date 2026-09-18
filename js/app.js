@@ -578,6 +578,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.39', date:'18-09-2026', items:[
+      'Achtergrond teruggezet naar de originele foto (de zelfgemaakte versie uit v1.38 werkte niet goed uit).',
+    ]},
     { version:'v1.38', date:'18-09-2026', items:[
       '"Installeer deze app"-pop-up verschijnt nu elke keer dat je de app opent (dus elke keer dat je de pass phrase moet invullen), niet meer alleen de eerste keer per sessie.',
       'Nieuwe achtergrond: een eigen, naadloos herhalende topografische-lijnentekening (geen zichtbare herhaling meer van dezelfde foto) en scherper dan de vorige.',

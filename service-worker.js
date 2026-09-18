@@ -1,4 +1,4 @@
-const CACHE = 'ac-zero-calc-v31';
+const CACHE = 'ac-zero-calc-v32';
 const ASSETS = [
   './',
   './index.html',
@@ -12,7 +12,7 @@ const ASSETS = [
   './js/contact.js',
   './js/train.js',
   './js/turret.js',
-  './assets/background.png',
+  './assets/background.jpg',
   './icons/logo.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',
