@@ -32,9 +32,10 @@
   </div>
 </div>
 
+<div class="mobile-watermark" aria-hidden="true"></div>
 <div class="appshell" id="appshell">
   <header class="masthead">
-    <button class="versionlink" id="versionLink">v1.43</button>
+    <button class="versionlink" id="versionLink">v1.44</button>
     <div class="mh-brand">
       <img src="icons/logo.svg" alt="Applied Concepts logo">
       <div class="wordmark">
@@ -42,7 +43,6 @@
         <span class="tag">Performance · Development</span>
       </div>
     </div>
-    <button class="mh-contact" id="mhContactBtn">Contact</button>
   </header>
   <nav class="tabbar">
     <button class="tabbtn active" data-tab="optic">Zero Optic Calculator</button>
@@ -125,7 +125,7 @@
   <!-- ===================== OPTIC TAB ===================== -->
   <div class="app tabpanel active" id="panel-optic">
     <aside class="controls">
-      <p class="sub">Stel richtmiddel, montage en nulpunt in. De schijf schaalt automatisch mee zodat de rasterlijnen op papier fysiek kloppen — print op 100%, niet "aan pagina aanpassen".</p>
+      <p class="sub">Vul je richtmiddel, montage en wapen in — je krijgt een inschietschijf op ware grootte, met het punt waar je groep moet zitten om je nulpunt te bevestigen. Print op 100%, niet "aan pagina aanpassen", anders klopt de schaal niet meer.</p>
 
       <fieldset>
         <legend>Wapenplatform</legend>
@@ -133,10 +133,11 @@
         <select id="platformO">
           <option value="">Handmatig instellen</option>
           <option value="416">HK416 (standaard)</option>
-          <option value="416_145_lpvo">HK416 14.5" — LPVO hoofdoptiek (100 m)</option>
-          <option value="416_145_rmr">HK416 14.5" — RMR co-optic (25 m)</option>
+          <option value="416_145">HK416 14.5"</option>
+          <option value="mcx_virtus">SIG MCX Virtus</option>
+          <option value="mcx_rattler">SIG MCX Rattler</option>
         </select>
-        <p class="hint" id="platformHintO">De 14.5" heeft een LPVO als hoofdoptiek (ingeschoten op 100 m voor middellange afstand) met daarbovenop een RMR voor korte afstand (apart ingeschoten op 25 m) — kies hierboven welke van de twee je nu print.</p>
+        <p class="hint" id="platformHintO">Alleen het wapen zelf — vult de naam op de schijf in. Richtmiddel, montage en nulpunt stel je hieronder apart in.</p>
       </fieldset>
 
       <fieldset>
@@ -222,7 +223,7 @@
   <!-- ===================== TURRET TAPE TAB ===================== -->
   <div class="app tabpanel" id="panel-turret">
     <aside class="controls">
-      <p class="sub">Genereer een op-schaal turret-tape: de originele schaalverdeling van je turret (per klik, halve en hele eenheid) plus duidelijk uitgelichte afstandsmarkeringen op de juiste positie — printen of downloaden.</p>
+      <p class="sub">Kies je wapenprofiel en kijker — je krijgt een op-schaal turret-tape met je eigen kliklijnen en de juiste afstandsmarkeringen erop, klaar om te printen of te downloaden en op je kijker te plakken.</p>
 
       <fieldset>
         <legend>Databron</legend>
@@ -350,7 +351,7 @@
         <button type="button" class="train-group-btn" data-group="sniper">Sniper</button>
       </div>
 
-      <p class="sub">Printbare (A4) oefenschijven. Klik op een oefening voor het voorbeeld rechts. Vink aan wat je wilt printen — meerdere oefeningen tegelijk kan.</p>
+      <p class="sub">Kies een oefening — je krijgt een printbare (A4) oefenschijf met alles erop wat je nodig hebt op de baan. Klik op een oefening voor het voorbeeld rechts, vink aan wat je wilt printen — meerdere tegelijk kan.</p>
 
       <p class="hint" id="trainEmptyState" hidden>Sniper-oefeningen volgen hier binnenkort.</p>
 
@@ -451,7 +452,6 @@
         <button type="button" class="printbtn contact-copybtn" id="contactCopyBtn">E-mailadres kopiëren</button>
         <p class="hint contact-copyhint" id="contactCopyHint"></p>
       </div>
-      <button type="button" class="versionlink contact-version" id="contactVersionLink">v1.43</button>
     </div>
   </div>
 </div>

@@ -89,7 +89,7 @@ function acDfCurrentProfile(profiles){
 function acRenderDfSelectExercise(root, profiles){
   root.innerHTML = `
     <div class="simplepanel-head"><div><h2>Dry Fire</h2>
-      <p class="sub">Stap 1 — kies een oefening.</p>
+      <p class="sub">Droogoefenen zonder munitie: kies een oefening en een wapenprofiel — je krijgt een getimede sessie met hold en windcall live in beeld. Stap 1 — kies een oefening.</p>
     </div></div>
 
     <h3 class="dryfire-category">Sniper</h3>

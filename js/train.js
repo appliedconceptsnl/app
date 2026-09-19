@@ -11,6 +11,10 @@ const TR_MARGIN = 0.45;
 const TR_INK = '#171510';
 const TR_DIM = '#6e6e6a';
 const TR_GRAY = '#c7c7c2';
+// Red reads more clearly against a scope reticle (usually black/dark) than
+// the same black ink as the rest of the sheet's line-work — used only for
+// the hourglass aim-point chevrons, never for rings/text/labels.
+const TR_RED = '#d21f1f';
 
 // 1 MOA subtends 2.908 cm at 100 m (pure geometry: 100m * tan(1/60 degree)).
 // Sniper-fundamentals sheets are sized in MOA (angle-based, matches how
@@ -46,7 +50,7 @@ function trAimChevron(cx, cy, opts){
   const triH = moaInAt100m(size);
   const triW = moaInAt100m(size * 1.3);
   const gap = moaInAt100m(opts.gap != null ? opts.gap : size * 0.25);
-  const color = opts.color || TR_INK;
+  const color = opts.color || TR_RED;
   const topApexY = cy - gap/2, topBaseY = topApexY - triH;
   const botApexY = cy + gap/2, botBaseY = botApexY + triH;
   return `<polygon points="${cx.toFixed(4)},${topApexY.toFixed(4)} ${(cx-triW/2).toFixed(4)},${topBaseY.toFixed(4)} ${(cx+triW/2).toFixed(4)},${topBaseY.toFixed(4)}" fill="${color}"/>` +

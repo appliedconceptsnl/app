@@ -188,7 +188,7 @@ function acRenderProfileList(root){
     <div class="simplepanel-head">
       <div>
         <h2>Wapenprofielen</h2>
-        <p class="sub">Leg per systeem munitie- en optiekgegevens vast. Hold per afstand wordt automatisch berekend (standaardatmosfeer op zeeniveau, geen wind/spin drift) — vul windcall zelf in per afstand op basis van je eigen geverifieerde dope.</p>
+        <p class="sub">Vul de munitie- en optiekgegevens van je systeem in — de app berekent automatisch de hold per afstand (standaardatmosfeer op zeeniveau, geen wind/spin drift). Deze profielen gebruik je in Turret Tape en Dry Fire; windcall vul je zelf in op basis van je eigen geverifieerde dope.</p>
       </div>
       <button class="printbtn profile-newbtn" id="profileNewBtn">+ Nieuw wapenprofiel</button>
     </div>

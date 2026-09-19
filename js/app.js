@@ -62,24 +62,21 @@ const MOUNTS = [
 
 const OPTIC_DIST = [25,50,100];
 
-// Weapon-platform quick-fills for the Zero Optic Calculator — pre-selects
-// sight/mount/zero for a known combo and explains what it's for, so it's
-// unambiguous which of the two optics on the 14.5" 416 a given sheet is.
+// Weapon-platform quick-fill for the Zero Optic Calculator — this is now
+// ONLY the weapon itself (fills in the label printed on the sheet). It used
+// to also pre-select a sight/mount/zero combo, but that conflated "which
+// gun" with "which optic setup" in a single dropdown before the user had
+// even gotten to the Richtmiddel & montage section below — removed
+// (18-09-2026) so Wapenplatform stays just the weapon, nothing else.
 const OPTIC_PLATFORMS = {
-  '416': {
-    weaponLabel: 'HK416',
-    hint: 'Standaard HK416 — kies hierboven het eigen richtmiddel/montage zoals normaal.',
-  },
-  '416_145_lpvo': {
-    sightId: 'lpvo', mountId: 'none', zeroDist: 100,
-    weaponLabel: 'HK416 14.5" — LPVO',
-    hint: 'Hoofdoptiek van de 416 14.5" — voor middellange afstand, ingeschoten op 100 m. De RMR erbovenop wordt apart ingeschoten (kies hierboven de RMR-optie).',
-  },
-  '416_145_rmr': {
-    sightId: 'rmr', mountId: 'lpvo_riser', zeroDist: 25,
-    weaponLabel: 'HK416 14.5" — RMR',
-    hint: 'Richtmiddel = RMR, montage = LPVO — dit maakt expliciet dat je de RMR inschiet die op de LPVO gemonteerd zit. Voor korte afstand (CQB), apart ingeschoten op 25 m, los van de LPVO-zero op 100 m. Er is geen gangbare standaardhoogte voor deze combinatie: meet zelf de hoogte van de RMR-lens t.o.v. de loop-as en vul die hieronder in.',
-  },
+  '416': { weaponLabel: 'HK416' },
+  '416_145': { weaponLabel: 'HK416 14.5"' },
+  // SIG MCX spans genuinely different platforms (Virtus = 16" mid-size
+  // rifle, Rattler = compact PDW), not one generic "MCX" — verified via
+  // web search 19-09-2026, no documented rail-height difference from a
+  // standard AR-pattern flat-top, so no separate HOB data needed here.
+  'mcx_virtus': { weaponLabel: 'SIG MCX Virtus' },
+  'mcx_rattler': { weaponLabel: 'SIG MCX Rattler' },
 };
 
 function populateSelect(sel, items, fmt){
@@ -324,7 +321,6 @@ function switchTab(tab){
   document.querySelectorAll('.tabbtn[data-tab]').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
   document.querySelectorAll('.mb-item[data-tab]').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
   el('mbTrainBtn').classList.toggle('active', MB_TRAIN_GROUP_TABS.includes(tab));
-  el('mhContactBtn').classList.toggle('active', tab==='contact');
   el('panel-optic').classList.toggle('active', tab==='optic');
   el('panel-profiles').classList.toggle('active', tab==='profiles');
   el('panel-turret').classList.toggle('active', tab==='turret');
@@ -357,6 +353,11 @@ function initOptic(){
   applyAutoHOB('O');
 
   ['sightO','mountO'].forEach(id=>el(id).addEventListener('change', ()=>{applyAutoHOB('O'); renderOptic();}));
+  // Marks the field as "typed by the user", not auto-filled — see the
+  // dataset.autofilled check in applyAutoHOB() below. Setting .value from
+  // JS never fires a real 'input' event on its own, so this only reacts to
+  // an actual keystroke, never to our own auto-fill.
+  el('hobValueO').addEventListener('input', ()=>{ delete el('hobValueO').dataset.autofilled; });
   ['hobValueO','hobUnitO','clickValO','workDistO','paperSizeO','weaponLabelO'].forEach(id=>{
     el(id).addEventListener('input', renderOptic);
     el(id).addEventListener('change', renderOptic);
@@ -368,14 +369,8 @@ function initOptic(){
 
   el('platformO').addEventListener('change', ()=>{
     const preset = OPTIC_PLATFORMS[el('platformO').value];
-    el('platformHintO').textContent = preset ? preset.hint : 'De 14.5" heeft een LPVO als hoofdoptiek (ingeschoten op 100 m voor middellange afstand) met daarbovenop een RMR voor korte afstand (apart ingeschoten op 25 m) — kies hierboven welke van de twee je nu print.';
-    if(!preset) return;
-    if(preset.sightId) el('sightO').value = SIGHTS.findIndex(s=>s.id===preset.sightId);
-    if(preset.mountId) el('mountO').value = MOUNTS.findIndex(m=>m.id===preset.mountId);
-    if(preset.zeroDist != null) el('zeroDistO').selectedIndex = OPTIC_DIST.indexOf(preset.zeroDist);
+    if(!preset){ renderOptic(); return; }
     if(!el('weaponLabelO').value) el('weaponLabelO').placeholder = preset.weaponLabel;
-    applyAutoHOB('O');
-    refreshWorkDistOptions(OPTIC_DIST,'zeroDistO','workDistO');
     renderOptic();
   });
 
@@ -413,8 +408,16 @@ function applyAutoHOB(suffix){
   const hobUnitEl = el('hobUnit'+suffix);
   if(hobIn != null){
     hobValueEl.value = hobUnitEl.value === 'cm' ? (hobIn/CM_IN).toFixed(2) : hobIn;
-  } else if(!hobValueEl.value){
+    hobValueEl.dataset.autofilled = '1';
+  } else if(!hobValueEl.value || hobValueEl.dataset.autofilled === '1'){
+    // Clear a stale auto-filled number from a *previous* sight/mount combo
+    // (e.g. RMR standalone -> LPVO-als-riser-voor-RMR-piggyback) — without
+    // this, switching to a "no standard value, meet zelf" combo left the
+    // old combo's number sitting there looking like a real answer instead
+    // of the blank it should be. Never touches a value the user typed
+    // themselves (dataset.autofilled only gets set by us, above).
     hobValueEl.value = '';
+    delete hobValueEl.dataset.autofilled;
   }
   src.textContent = srcText ? 'Bron: ' + srcText : '';
 }
@@ -527,10 +530,6 @@ document.querySelectorAll('.more-sheet-item[data-tab]').forEach(btn=>{
   });
 });
 
-// Small "Contact" quick-link in the mobile masthead (desktop already has
-// a full Contact tab in the top tabbar, so this stays hidden there).
-el('mhContactBtn').addEventListener('click', ()=>switchTab('contact'));
-
 /* ---------------------------------------------------------------------
    "Installeer deze app" popup. Chrome/Android/Edge fire beforeinstallprompt
    when the PWA criteria are met and expose a native prompt() we can trigger
@@ -610,6 +609,16 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.44', date:'19-09-2026', items:[
+      'Mobiel: de bovenbalk is volledig verwijderd — geen logo of Contact-snelkoppeling meer bovenaan. In plaats daarvan staat het Applied Concepts-logo nu permanent, groot en heel subtiel op de achtergrond in het midden van het scherm, op elk tabblad.',
+      'Algeheel strakker, afgeronder ontwerp op zowel mobiel als desktop — kaarten, knoppen, invoervelden en pop-ups hebben nu allemaal dezelfde ronde hoeken in plaats van de oude scherpe randjes.',
+      'Elk tabblad (Optic, Profielen, Turret Tape, Dry Fire, Train) heeft een herschreven, duidelijkere uitleg bovenaan over wat je er precies mee doet en wat eruit komt.',
+      'Zero Optic Calculator: "Wapenplatform" bevat nu alleen nog het type wapen (HK416, HK416 14.5", SIG MCX Virtus, SIG MCX Rattler) — richtmiddel, montage en nulpunt stel je daaronder apart in.',
+      'Zero Optic Calculator: SIG Sauer MCX (Virtus en Rattler) toegevoegd als wapenplatform-snelkeuze.',
+      'Bugfix: bij RMR op een LPVO-riser (piggyback) kon de height-over-bore blijven hangen op een oude waarde van een vorige richtmiddel/montage-combinatie — die wordt nu correct leeggemaakt zodat je hem zelf invult.',
+      'Train: de driehoekjes van de hourglass-doelen zijn nu rood, zodat ze goed afsteken tegen je reticle.',
+      'Contact-pagina: versienummer onderaan is weggehaald en de kolom staat weer echt gecentreerd.',
+    ]},
     { version:'v1.43', date:'18-09-2026', items:[
       'Bugfix: bij inzoomen schaalden de boven- en onderbalk voorheen mee met de rest van de pagina — pinch-zoom staat nu uit, zodat beide balken echt permanent op hun plek blijven staan.',
       'Mobiele bovenbalk: groter en steviger (meer hoogte, groter logo). Het versienummer is uit de bovenbalk gehaald en staat nu klein onderaan op de Contact-pagina.',
@@ -794,10 +803,6 @@ try {
       <ul>${c.items.map(i=>`<li>${i}</li>`).join('')}</ul>
     </div>
   `).join('');
-  // The Contact-tab footer badge is a second entry point to the same
-  // changelog (see mobile masthead redesign, v1.43) — keep its text in
-  // sync with the "real" one instead of hardcoding the version twice.
-  el('contactVersionLink').textContent = el('versionLink').textContent;
   document.querySelectorAll('.versionlink').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       document.getElementById('changelog').classList.add('open');

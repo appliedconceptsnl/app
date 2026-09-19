@@ -10,6 +10,11 @@
     --danger:#c9573f;
     --gold:#c9a35c;
     --gold-dim:#8a7647;
+    /* Rounded, card-based look (v1.44) — replaces the earlier sharp
+       2px corners everywhere. --radius for cards/fieldsets/modals,
+       --radius-sm for buttons/inputs/pills. */
+    --radius:16px;
+    --radius-sm:10px;
   }
   *{box-sizing:border-box;}
   /* Hard guarantee against any sideways scroll/swipe, regardless of which
@@ -35,13 +40,15 @@
      scroll to "settle" into place. vh stays as the fallback for browsers
      that don't support dvh yet. */
   .appshell{display:flex;flex-direction:column;min-height:100vh;min-height:100dvh;}
+  /* Hidden by default (desktop keeps its normal masthead logo); shown only
+     under 760px, see the mobile block near the end of this file. */
+  .mobile-watermark{display:none;}
   .masthead{display:flex;align-items:center;gap:12px;padding:12px 22px;background:#0a0a09;border-bottom:1px solid var(--line);flex:0 0 auto;}
   .masthead .mh-brand{display:flex;align-items:center;gap:12px;order:1;}
   .masthead img{height:32px;width:auto;display:block;}
   .masthead .wordmark{display:flex;flex-direction:column;line-height:1.2;}
   .masthead .wordmark .name{font-family:'Oswald',sans-serif;font-size:14px;letter-spacing:.05em;text-transform:uppercase;color:var(--cream);}
   .masthead .wordmark .tag{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--cream-dim);}
-  .masthead .mh-contact{display:none;}
 
   .tabbar{display:flex;gap:2px;padding:0 22px;background:#0d0d0c;border-bottom:1px solid var(--line);overflow-x:auto;flex:0 0 auto;}
   .tabbtn{font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:.04em;text-transform:uppercase;
@@ -65,7 +72,7 @@
   .install-modal[hidden]{display:none;}
   .install-modal-card{
     position:relative;width:360px;max-width:100%;background:var(--panel);
-    border:1px solid var(--line);border-radius:2px;padding:34px 26px 28px;
+    border:1px solid var(--line);border-radius:var(--radius);padding:34px 26px 28px;
     text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.6), 0 0 0 1px #48473f;
   }
   .install-modal-close{
@@ -112,7 +119,7 @@
     padding:10px 0 calc(10px + env(safe-area-inset-bottom,0px));
     box-shadow:0 -12px 40px rgba(0,0,0,.5);
   }
-  .more-sheet-handle{width:36px;height:4px;border-radius:2px;background:var(--line);margin:4px auto 10px;}
+  .more-sheet-handle{width:36px;height:4px;border-radius:var(--radius-sm);background:var(--line);margin:4px auto 10px;}
   .more-sheet-item{
     display:flex;align-items:center;gap:14px;width:100%;padding:15px 24px;
     background:none;border:none;cursor:pointer;text-align:left;
@@ -126,23 +133,23 @@
   .tabpanel.active{display:grid;}
   .controls{background:var(--panel);border-right:1px solid var(--line);padding:18px 20px 60px;overflow-y:auto;position:relative;z-index:1;}
   .sub{color:var(--cream-dim);font-size:12.5px;margin:0 0 20px;line-height:1.5;}
-  fieldset{border:1px solid var(--line);border-radius:2px;padding:14px 14px 16px;margin:0 0 16px;background:var(--panel-2);}
+  fieldset{border:1px solid var(--line);border-radius:var(--radius);padding:14px 14px 16px;margin:0 0 16px;background:var(--panel-2);}
   legend{font-family:'Oswald',sans-serif;font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--cream-dim);padding:0 6px;}
   label{display:block;font-size:12.5px;color:var(--cream-dim);margin:10px 0 5px;}
   label:first-of-type{margin-top:2px;}
   select,input[type=text],input[type=number]{
     width:100%;background:#0c0c0a;border:1px solid var(--line);color:var(--cream);
-    padding:8px 9px;border-radius:2px;font-family:'IBM Plex Mono',monospace;font-size:13px;
+    padding:10px 12px;border-radius:var(--radius-sm);font-family:'IBM Plex Mono',monospace;font-size:13px;
   }
   select:focus,input:focus{outline:1px solid var(--cream);}
   .row2{display:grid;grid-template-columns:1fr 88px;gap:8px;}
   .hint{font-size:11.5px;color:var(--cream-dim);margin-top:6px;line-height:1.5;}
-  .warn{font-size:11.5px;color:#f0b39e;margin-top:6px;line-height:1.5;background:#3a2015;border:1px solid #5c3320;padding:7px 8px;border-radius:2px;}
-  .summary{background:#0c0c0a;border:1px solid var(--line);border-radius:2px;padding:12px 13px;margin:0 0 16px;}
+  .warn{font-size:11.5px;color:#f0b39e;margin-top:6px;line-height:1.5;background:#3a2015;border:1px solid #5c3320;padding:7px 8px;border-radius:var(--radius-sm);}
+  .summary{background:#0c0c0a;border:1px solid var(--line);border-radius:var(--radius);padding:12px 13px;margin:0 0 16px;}
   .summary .row{display:flex;justify-content:space-between;font-family:'IBM Plex Mono',monospace;font-size:12.5px;padding:3px 0;color:var(--cream);}
   .summary .row span:first-child{color:var(--cream-dim);}
   .printbtn{
-    width:100%;background:var(--cream);color:var(--ink);border:none;padding:12px;border-radius:2px;
+    width:100%;background:var(--cream);color:var(--ink);border:none;padding:14px;border-radius:var(--radius-sm);
     font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.06em;font-size:14px;
     cursor:pointer;margin-top:4px;font-weight:600;
   }
@@ -163,14 +170,14 @@
   .train-group-btn{
     flex:1 1 50%;background:#0c0c0a;border:1px solid var(--line);color:var(--cream-dim);
     font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.05em;font-size:13px;font-weight:600;
-    padding:12px;border-radius:2px;cursor:pointer;
+    padding:12px;border-radius:var(--radius-sm);cursor:pointer;
   }
   .train-group-btn:hover{color:var(--cream);border-color:#57564d;}
   .train-group-btn.active{background:var(--cream);color:var(--ink);border-color:var(--cream);}
   .train-list{display:flex;flex-direction:column;gap:6px;}
   .train-item{
     display:flex;align-items:flex-start;gap:9px;width:100%;
-    background:#0c0c0a;border:1px solid var(--line);border-radius:2px;padding:9px 11px;
+    background:#0c0c0a;border:1px solid var(--line);border-radius:var(--radius-sm);padding:9px 11px;
   }
   .train-item:hover{border-color:#57564d;}
   .train-item.selected{border-color:var(--gold-dim);background:rgba(201,163,92,.06);}
@@ -192,7 +199,7 @@
   .train-pagetabs{display:flex;gap:6px;margin:-4px 0 16px;flex-wrap:wrap;}
   .train-pagetab{
     flex:1 1 auto;background:#0c0c0a;border:1px solid var(--line);color:var(--cream-dim);
-    font-family:'IBM Plex Mono',monospace;font-size:11.5px;padding:7px 6px;border-radius:2px;cursor:pointer;
+    font-family:'IBM Plex Mono',monospace;font-size:11.5px;padding:7px 6px;border-radius:var(--radius-sm);cursor:pointer;
   }
   .train-pagetab:hover{color:var(--cream);}
   .train-pagetab.active{border-color:var(--gold);color:var(--gold);}
@@ -206,7 +213,7 @@
   .tt-manual-row .tt-manual-val{width:auto;flex:1 1 auto;min-width:0;}
   .tt-manual-remove{
     flex:0 0 auto;width:26px;height:26px;background:#0c0c0a;border:1px solid var(--line);color:var(--cream-dim);
-    border-radius:2px;cursor:pointer;font-size:15px;line-height:1;
+    border-radius:var(--radius-sm);cursor:pointer;font-size:15px;line-height:1;
   }
   .tt-manual-remove:hover{color:var(--danger);border-color:var(--danger);}
   .tt-dist-check{display:flex;align-items:center;gap:8px;padding:5px 2px;font-size:12.5px;color:var(--cream);cursor:pointer;}
@@ -234,7 +241,7 @@
 
   .profile-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;}
   .profile-card{
-    background:var(--panel-2);border:1px solid var(--line);border-radius:2px;padding:14px 15px;
+    background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius);padding:14px 15px;
     text-align:left;font-family:inherit;color:inherit;display:flex;flex-direction:column;gap:8px;
   }
   button.profile-card{cursor:pointer;}
@@ -247,7 +254,7 @@
   .profile-card-rounds{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--gold);}
   .profile-card-actions{display:flex;gap:8px;margin-top:2px;}
   .profile-card-actions button{
-    flex:1;background:none;border:1px solid var(--line);color:var(--cream-dim);border-radius:2px;
+    flex:1;background:none;border:1px solid var(--line);color:var(--cream-dim);border-radius:var(--radius-sm);
     padding:6px 8px;font-size:11.5px;cursor:pointer;font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.03em;
   }
   .profile-card-actions button:hover{color:var(--cream);border-color:var(--cream-dim);}
@@ -258,7 +265,7 @@
   .profile-form-actions{display:flex;gap:10px;align-items:center;margin-top:8px;}
   .profile-form-actions .printbtn{width:auto;padding:12px 22px;}
   .profile-cancelbtn{
-    background:none;border:1px solid var(--line);color:var(--cream-dim);border-radius:2px;
+    background:none;border:1px solid var(--line);color:var(--cream-dim);border-radius:var(--radius-sm);
     padding:11px 18px;font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.05em;font-size:12.5px;cursor:pointer;
   }
   .profile-cancelbtn:hover{color:var(--cream);border-color:var(--cream-dim);}
@@ -293,11 +300,11 @@
 
   /* ---- Dry Fire session ---- */
   .dryfire-cta{width:auto;padding:12px 22px;margin-top:16px;}
-  .dryfire-mode-fieldset{border:1px solid var(--line);border-radius:2px;padding:14px 14px 16px;margin:0 0 16px;background:var(--panel-2);}
+  .dryfire-mode-fieldset{border:1px solid var(--line);border-radius:var(--radius);padding:14px 14px 16px;margin:0 0 16px;background:var(--panel-2);}
   .dryfire-mode-toggle{display:flex;gap:18px;margin-bottom:12px;}
   .dryfire-mode-toggle label{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--cream);margin:0;}
   .dryfire-distance-checks{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;}
-  .dryfire-check{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--cream);margin:0;background:#0c0c0a;border:1px solid var(--line);padding:7px 9px;border-radius:2px;}
+  .dryfire-check{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--cream);margin:0;background:#0c0c0a;border:1px solid var(--line);padding:7px 9px;border-radius:var(--radius-sm);}
   .ar-selectall{display:inline-flex;width:auto;margin-bottom:12px;}
 
   .dryfire-interval-toggle{flex-wrap:wrap;}
@@ -307,20 +314,20 @@
   .dryfire-stage{
     background:#fff;color:#111;position:relative;box-sizing:border-box;
     display:flex;flex-direction:column;
-    min-height:78vh;border-radius:2px;overflow:hidden;
+    min-height:78vh;border-radius:var(--radius-sm);overflow:hidden;
   }
   .dryfire-stage:fullscreen{min-height:100vh;height:100vh;}
   .dryfire-stage-progress{position:absolute;top:0;left:0;right:0;height:5px;background:#e6e1d2;z-index:2;}
   .dryfire-stage-progress-bar{height:100%;background:#171510;width:100%;}
   .dryfire-stage-stop{
     position:absolute;top:18px;right:18px;background:#171510;color:#f2ecd9;border:none;z-index:2;
-    border-radius:2px;padding:9px 16px;font-family:'Oswald',sans-serif;text-transform:uppercase;
+    border-radius:var(--radius-sm);padding:9px 16px;font-family:'Oswald',sans-serif;text-transform:uppercase;
     letter-spacing:.04em;font-size:12.5px;cursor:pointer;
   }
   .dryfire-stage-stop:hover{background:#000;}
   .dryfire-progress-badge{
     position:absolute;top:18px;left:18px;background:#f2ecd9;color:#171510;z-index:2;
-    border-radius:2px;padding:7px 14px;font-family:'IBM Plex Mono',monospace;font-weight:600;
+    border-radius:var(--radius-sm);padding:7px 14px;font-family:'IBM Plex Mono',monospace;font-weight:600;
     letter-spacing:.03em;font-size:13px;
   }
 
@@ -411,7 +418,7 @@
     background:
       radial-gradient(ellipse 55% 40% at 50% 80%, rgba(0,0,0,.09) 0%, rgba(0,0,0,0) 70%),
       radial-gradient(ellipse 120% 100% at 50% 18%, #fbfbfb 0%, #e7e7e7 45%, #cfcfcf 78%, #c2c2c2 100%);
-    border-radius:2px;overflow:hidden;display:flex;align-items:center;justify-content:center;user-select:none;
+    border-radius:var(--radius-sm);overflow:hidden;display:flex;align-items:center;justify-content:center;user-select:none;
   }
   .shop-viewer::after{
     content:'';position:absolute;left:50%;bottom:9%;width:42%;height:6%;
@@ -443,12 +450,12 @@
   .shop-steps h3{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--cream);margin:0 0 10px;}
   .shop-steps ol{margin:0;padding-left:20px;color:var(--cream-dim);font-size:13px;line-height:1.7;}
 
-  .shop-order{background:var(--panel-2);border:1px solid var(--line);border-radius:2px;padding:16px 16px 18px;}
+  .shop-order{background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius);padding:16px 16px 18px;}
   .shop-order h3{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--cream);margin:0 0 12px;}
   .shop-order label{display:block;font-size:12.5px;color:var(--cream-dim);margin:0 0 6px;}
   .shop-order input{
     width:100%;background:#0c0c0a;border:1px solid var(--line);color:var(--cream);
-    padding:9px 10px;border-radius:2px;font-family:'IBM Plex Mono',monospace;font-size:14px;
+    padding:9px 10px;border-radius:var(--radius-sm);font-family:'IBM Plex Mono',monospace;font-size:14px;
   }
   .shop-order input:focus{outline:1px solid var(--gold);}
   .shop-phone-error{color:#f0b39e;}
@@ -458,7 +465,7 @@
   .shop-application{width:100%;max-width:1040px;margin:36px auto 0;padding:0 26px 50px;}
   .shop-application h3{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--cream);margin:0 0 12px;}
   .shop-application-photo{
-    aspect-ratio:16/7;background:var(--panel-2);border:1px dashed var(--line);border-radius:2px;
+    aspect-ratio:16/7;background:var(--panel-2);border:1px dashed var(--line);border-radius:var(--radius-sm);
     display:flex;align-items:center;justify-content:center;color:var(--cream-dim);font-size:12.5px;
   }
   @media (max-width:760px){
@@ -469,7 +476,7 @@
   /* ---- Contact ---- */
   .contact-inner{display:flex;align-items:center;justify-content:center;min-height:60vh;}
   .contact-card{
-    width:420px;max-width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:2px;
+    width:420px;max-width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius);
     padding:36px 30px;text-align:center;
   }
   .contact-logo{height:48px;width:auto;margin:0 auto 18px;display:block;}
@@ -482,9 +489,6 @@
   .contact-email:hover{color:var(--cream);}
   .contact-copybtn{width:auto;padding:11px 22px;}
   .contact-copyhint{min-height:16px;margin-top:10px;}
-  /* Hidden by default (desktop keeps its own masthead version badge);
-     revealed only under 760px, see the mobile masthead block below. */
-  .contact-version{display:none;}
   @media (max-width:480px){
     .contact-card{padding:30px 20px;}
     .contact-email{font-size:14px;}
@@ -523,7 +527,7 @@
     background-attachment:fixed, fixed;
   }
   .gate-card{
-    width:300px;max-width:88vw;background:var(--panel);border:1px solid var(--line);border-radius:2px;
+    width:300px;max-width:88vw;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
     padding:28px 26px 24px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.6), 0 0 0 1px #48473f;
   }
   .gate-logo{height:46px;width:auto;margin:0 auto 14px;display:block;}
@@ -532,7 +536,7 @@
   .gate-card label{display:block;font-size:11.5px;color:var(--cream-dim);margin:0 0 6px;text-align:left;}
   .gate-card input{
     width:100%;background:#0c0c0a;border:1px solid var(--line);color:var(--cream);
-    padding:10px 10px;border-radius:2px;font-family:'IBM Plex Mono',monospace;font-size:14px;letter-spacing:.1em;
+    padding:10px 10px;border-radius:var(--radius-sm);font-family:'IBM Plex Mono',monospace;font-size:14px;letter-spacing:.1em;
     text-align:center;
   }
   .gate-card input:focus{outline:1px solid var(--cream);}
@@ -549,7 +553,7 @@
     background:rgba(8,8,7,.45);padding:64px 22px 0 0;}
   .changelog.open{display:flex;}
   .changelog-card{width:340px;max-width:88vw;max-height:70vh;overflow-y:auto;background:var(--panel);
-    border:1px solid var(--line);border-radius:2px;box-shadow:0 20px 60px rgba(0,0,0,.6), 0 0 0 1px #48473f;}
+    border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 20px 60px rgba(0,0,0,.6), 0 0 0 1px #48473f;}
   .changelog-head{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;
     border-bottom:1px solid var(--line);font-family:'Oswald',sans-serif;text-transform:uppercase;
     letter-spacing:.05em;font-size:13px;color:var(--cream);}
@@ -567,51 +571,33 @@
   .update-toast{
     position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:95;
     display:flex;align-items:center;gap:14px;
-    background:var(--panel);border:1px solid var(--line);border-radius:2px;
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-sm);
     padding:12px 16px;box-shadow:0 12px 40px rgba(0,0,0,.55), 0 0 0 1px #48473f;
     font-size:13px;color:var(--cream);max-width:90vw;
   }
   .update-toast[hidden]{display:none;}
   .update-toast button{
-    background:var(--cream);color:var(--ink);border:none;border-radius:2px;padding:7px 14px;
+    background:var(--cream);color:var(--ink);border:none;border-radius:var(--radius-sm);padding:7px 14px;
     font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.05em;font-size:12px;
     font-weight:600;cursor:pointer;flex:0 0 auto;
   }
   .update-toast button:hover{background:#e2dabf;}
 
-  /* ---- Mobile masthead: fixed top bar, version/logo/contact reflowed ----
-     Placed at the end of the file on purpose — .masthead/.versionlink/etc.
-     have their base rules scattered earlier in the stylesheet, and a
-     same-specificity mobile override only wins if it comes later in
-     source order (see the .shop-inner bug fixed in v1.40 for why this
-     matters). Keeping every "under 760px" override down here avoids
-     re-introducing that class of bug. */
+  /* ---- Mobile: no top bar at all, static centered watermark logo instead ----
+     Placed at the end of the file on purpose — .masthead/etc. have their
+     base rules scattered earlier in the stylesheet, and a same-specificity
+     mobile override only wins if it comes later in source order (see the
+     .shop-inner bug fixed in v1.40 for why this matters). Keeping every
+     "under 760px" override down here avoids re-introducing that bug. */
   @media (max-width:760px){
-    :root{ --mh-h: 72px; }
-    .masthead{
-      position:fixed;top:0;left:0;right:0;z-index:85;
-      display:grid;grid-template-columns:1fr auto 1fr;align-items:center;
-      height:var(--mh-h);
-      padding-top:env(safe-area-inset-top,0px);
-      padding-left:calc(18px + env(safe-area-inset-left,0px));
-      padding-right:calc(18px + env(safe-area-inset-right,0px));
-    }
-    .masthead .mh-brand{order:0;justify-content:center;gap:0;}
-    .masthead .wordmark{display:none;}
-    .masthead img{height:38px;}
-    /* Version badge moves to the Contact tab footer (see .contact-version
-       below) — decluttered out of the masthead entirely on mobile. */
-    .masthead .versionlink{display:none;}
-    .masthead .mh-contact{
-      display:block;order:0;justify-self:end;
-      font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:.04em;text-transform:uppercase;
-      color:var(--gold);background:none;border:none;padding:6px 2px;cursor:pointer;
-    }
-    .masthead .mh-contact.active{color:var(--cream);text-decoration:underline;text-underline-offset:3px;}
-    /* Clearance so the now-fixed masthead never covers the top of any
-       panel's content — same idea as the bottom bar's own clearance. */
+    /* Removed entirely (18-09-2026) — no logo, no Contact link, no version
+       up top. Brand presence moves to .mobile-watermark below instead;
+       Contact is already one tap away in the bottom bar. */
+    .masthead{display:none;}
+    /* Content now starts at the very top — just enough padding to clear
+       the notch/status bar, no bar height to account for anymore. */
     .controls,.preview,.simplepanel,.shop-panel{
-      padding-top:calc(var(--mh-h) + 18px + env(safe-area-inset-top,0px)) !important;
+      padding-top:calc(18px + env(safe-area-inset-top,0px)) !important;
     }
     /* The update-toast floats just above the bottom bar instead of
        overlapping it. */
@@ -621,12 +607,25 @@
        one revenue-driving destination in an otherwise neutral bar. */
     .mb-item[data-tab="shop"]{color:var(--gold);}
     .mb-item[data-tab="shop"].active{border-top-color:var(--gold);}
-    /* Small, muted version badge at the bottom of the Contact tab —
-       moved out of the masthead (see above). Visible on every viewport
-       width, not just mobile: harmless on desktop, and one less place
-       that needs a mobile-only toggle. */
-    .contact-version{
-      display:block;margin:18px auto 0;width:auto;background:none;border:none;
-      font-size:10px;color:var(--cream-dim);opacity:.6;padding:6px;
+    /* Static, centered brand watermark — replaces the masthead logo.
+       Fixed (not part of the scrolling background), low-opacity so it
+       reads as texture, not UI: recognizable without competing with real
+       content. Same logo asset as desktop, just placed differently.
+       z-index:2 is deliberate: .controls (the scrolling form panel on
+       most tabs) has its own position:relative;z-index:1, which lifts
+       its opaque background above anything at z-index:0/auto — at that
+       level the watermark would be fully hidden behind it on every tab,
+       everywhere, since .controls spans edge-to-edge. Sitting one level
+       above it instead means the logo reads as a faint, permanent
+       imprint across the whole screen (gaps and card surfaces alike),
+       like a watermark on paper — consistent on every tab, and at 8%
+       opacity plus pointer-events:none it never affects legibility or
+       interaction. */
+    .mobile-watermark{
+      display:block;position:fixed;top:50%;left:50%;
+      transform:translate(-50%,-50%);
+      width:220px;height:220px;z-index:2;pointer-events:none;
+      background:url('../icons/logo.svg') center/contain no-repeat;
+      opacity:.08;
     }
   }
