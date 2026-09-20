@@ -267,6 +267,12 @@ function buildTargetSVG(cfg){
 
   svg += `<text x="${(W-MARGIN).toFixed(4)}" y="${(H-0.14).toFixed(4)}" text-anchor="end" font-size="0.10" fill="#8f8f8a" font-family="IBM Plex Mono, monospace">${cfg.footerRight}</text>`;
 
+  // Small QR in the otherwise-empty corner below the click table — scans
+  // straight to the app, so whoever finds a printed sheet on the range can
+  // get it themselves.
+  const qrSize = 0.32;
+  svg += buildAppQrSvg(MARGIN, H-0.18-qrSize, qrSize);
+
   svg += `</svg>`;
   return { svg, fitsOnPage: anyFits, anyShown };
 }
@@ -609,6 +615,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.45', date:'20-09-2026', items:[
+      'Elke printbare oefenschijf (Zero Optic Calculator en alle Train-doelen) heeft nu een kleine QR-code met het Applied Concepts-logo erin, ergens in de rand van het blad. Scannen linkt direct naar de app, zodat iemand die een geprint doel op de baan vindt hem zelf kan installeren.',
+    ]},
     { version:'v1.44', date:'19-09-2026', items:[
       'Mobiel: de bovenbalk is volledig verwijderd — geen logo of Contact-snelkoppeling meer bovenaan. In plaats daarvan staat het Applied Concepts-logo nu permanent, groot en heel subtiel op de achtergrond in het midden van het scherm, op elk tabblad.',
       'Algeheel strakker, afgeronder ontwerp op zowel mobiel als desktop — kaarten, knoppen, invoervelden en pop-ups hebben nu allemaal dezelfde ronde hoeken in plaats van de oude scherpe randjes.',

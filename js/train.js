@@ -75,10 +75,13 @@ function trHeader(W, title, badge){
 }
 
 function trFooter(W, H, name){
-  const ruleY = H - 0.42;
+  const bandH = 0.48;
+  const ruleY = H - bandH;
+  const qrSize = 0.4, qrX = W-TR_MARGIN-qrSize, qrY = ruleY + (bandH-qrSize)/2;
   let s = `<line x1="${TR_MARGIN}" y1="${ruleY.toFixed(4)}" x2="${(W-TR_MARGIN).toFixed(4)}" y2="${ruleY.toFixed(4)}" stroke="${TR_INK}" stroke-width="0.012"/>`;
   s += `<text x="${TR_MARGIN}" y="${(H-0.22).toFixed(4)}" font-size="0.10" fill="#8f8f8a" font-family="IBM Plex Mono, monospace">Applied Concepts — Performance · Development</text>`;
-  s += `<text x="${(W-TR_MARGIN).toFixed(4)}" y="${(H-0.22).toFixed(4)}" text-anchor="end" font-size="0.10" fill="#8f8f8a" font-family="IBM Plex Mono, monospace">Oefenblad — ${name}</text>`;
+  s += `<text x="${(qrX-0.12).toFixed(4)}" y="${(H-0.22).toFixed(4)}" text-anchor="end" font-size="0.10" fill="#8f8f8a" font-family="IBM Plex Mono, monospace">Oefenblad — ${name}</text>`;
+  s += buildAppQrSvg(qrX, qrY, qrSize);
   return s;
 }
 

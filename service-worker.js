@@ -1,10 +1,11 @@
-const CACHE = 'ac-zero-calc-v37';
+const CACHE = 'ac-zero-calc-v38';
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
   './css/styles.css',
   './js/app.js',
+  './js/qr-app.js',
   './js/ballistics.js',
   './js/profiles.js',
   './js/dryfire.js',
