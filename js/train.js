@@ -87,14 +87,24 @@ function trPageOpen(paper){
 }
 
 function trHeader(W, title, badge){
-  const logoH = 0.42, logoW = logoH*LOGO_ASPECT;
-  let s = `<svg x="${(W-TR_MARGIN-logoW).toFixed(4)}" y="0.10" width="${logoW.toFixed(4)}" height="${logoH.toFixed(4)}" viewBox="${LOGO_VIEWBOX}">${LOGO_BLACK_INNER}</svg>`;
+  // Same idea as the Zero Optic Calculator's header: a big logo, sized off
+  // the header's own available height (here the whole 0.06–0.64 band above
+  // the divider, since Train's header doesn't have the extra meta-text
+  // room Optic does), and a divider/badge shortened to stop clear of it
+  // instead of running underneath.
+  const logoTop = 0.06, logoBottom = 0.64;
+  const logoBandH = logoBottom - logoTop;
+  const logoH = logoBandH * 0.92, logoW = logoH*LOGO_ASPECT;
+  const logoY = logoTop + (logoBandH-logoH)/2;
+  const logoX = W - TR_MARGIN - logoW;
+  const textRight = logoX - 0.2;
+  let s = `<svg x="${logoX.toFixed(4)}" y="${logoY.toFixed(4)}" width="${logoW.toFixed(4)}" height="${logoH.toFixed(4)}" viewBox="${LOGO_VIEWBOX}">${LOGO_BLACK_INNER}</svg>`;
   s += `<text x="${TR_MARGIN}" y="0.36" font-size="0.27" font-family="Oswald, sans-serif" font-weight="600" fill="${TR_INK}">${title}</text>`;
   s += `<text x="${TR_MARGIN}" y="0.55" font-size="0.105" letter-spacing="0.02" fill="${TR_DIM}" font-family="IBM Plex Mono, monospace">APPLIED CONCEPTS — PERFORMANCE · DEVELOPMENT</text>`;
   if(badge){
-    s += `<text x="${(W-TR_MARGIN).toFixed(4)}" y="0.55" text-anchor="end" font-size="0.115" font-family="Oswald, sans-serif" font-weight="600" fill="${TR_INK}" letter-spacing="0.02">${badge}</text>`;
+    s += `<text x="${textRight.toFixed(4)}" y="0.55" text-anchor="end" font-size="0.115" font-family="Oswald, sans-serif" font-weight="600" fill="${TR_INK}" letter-spacing="0.02">${badge}</text>`;
   }
-  s += `<line x1="${TR_MARGIN}" y1="0.66" x2="${(W-TR_MARGIN).toFixed(4)}" y2="0.66" stroke="${TR_INK}" stroke-width="0.014"/>`;
+  s += `<line x1="${TR_MARGIN}" y1="0.66" x2="${textRight.toFixed(4)}" y2="0.66" stroke="${TR_INK}" stroke-width="0.014"/>`;
   return s;
 }
 
