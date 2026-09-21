@@ -649,21 +649,33 @@
        Fixed (not part of the scrolling background), low-opacity so it
        reads as texture, not UI: recognizable without competing with real
        content. Same logo asset as desktop, just placed differently.
-       z-index:2 is deliberate: .controls (the scrolling form panel on
-       most tabs) has its own position:relative;z-index:1, which lifts
-       its opaque background above anything at z-index:0/auto — at that
-       level the watermark would be fully hidden behind it on every tab,
-       everywhere, since .controls spans edge-to-edge. Sitting one level
-       above it instead means the logo reads as a faint, permanent
-       imprint across the whole screen (gaps and card surfaces alike),
-       like a watermark on paper — consistent on every tab, and at 8%
-       opacity plus pointer-events:none it never affects legibility or
-       interaction. */
+
+       z-index:0 (i.e. behind real content) only works together with the
+       .appshell rule below. Without it, .controls (the scrolling form
+       panel on most tabs) has its own position:relative;z-index:1, which
+       *escapes* .appshell entirely — a positioned descendant only stays
+       contained by an ancestor that itself establishes a stacking context,
+       which position:relative alone does NOT do; it takes position +
+       an explicit z-index. So .controls (and, on the tabs that don't use
+       it — Contact's card, Shop's product photo — any other opaque
+       surface) was comparing directly against the watermark at the root
+       level and losing, letting the watermark bleed straight across the
+       Contact card and the Shop 3D render instead of sitting behind them. */
     .mobile-watermark{
       display:block;position:fixed;top:50%;left:50%;
       transform:translate(-50%,-50%);
-      width:220px;height:220px;z-index:2;pointer-events:none;
+      width:220px;height:220px;z-index:0;pointer-events:none;
       background:url('../icons/logo.svg') center/contain no-repeat;
       opacity:.08;
     }
+    /* Gives .appshell its own stacking context (position + a real
+       z-index, not z-index:auto) so every opaque surface inside it —
+       .controls included — is contained within it instead of bubbling
+       up to compete with the watermark directly. .appshell then paints
+       above the watermark as a whole, but that's paint order, not an
+       opacity mask: wherever .appshell's own content is transparent
+       (the gaps between cards, the empty space around the Contact card),
+       the watermark still shows through from underneath, exactly like
+       before — just without the bleed-through on opaque surfaces. */
+    .appshell{position:relative;z-index:1;}
   }

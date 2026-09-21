@@ -620,6 +620,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.48', date:'21-09-2026', items:[
+      'Bugfix: het achtergrondlogo op mobiel kon door de Contact-kaart en de 3D-productfoto in de Shop heen schijnen. Het logo zit nu echt achter alle kaarten/foto’s op elk tabblad, en is alleen nog zichtbaar in de lege ruimte eromheen.',
+    ]},
     { version:'v1.47', date:'21-09-2026', items:[
       'Shop: "Stay Up" omgedoopt tot "Hou me op de hoogte", tekst herschreven (geen "af en toe" meer). Op mobiel staat de WhatsApp-knop nu direct naast de kop in plaats van onder een lange tekstblok eronder — de hele kolom is daardoor duidelijk compacter. Desktop-indeling ongewijzigd.',
     ]},
