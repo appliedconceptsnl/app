@@ -35,7 +35,7 @@
 <div class="mobile-watermark" aria-hidden="true"></div>
 <div class="appshell" id="appshell">
   <header class="masthead">
-    <button class="versionlink" id="versionLink">v1.45</button>
+    <button class="versionlink" id="versionLink">v1.46</button>
     <div class="mh-brand">
       <img src="icons/logo.svg" alt="Applied Concepts logo">
       <div class="wordmark">
@@ -56,17 +56,13 @@
   </nav>
 
   <nav class="mobile-bottombar" id="mobileBottombar">
-    <button type="button" class="mb-item" data-tab="optic">
+    <button type="button" class="mb-item" id="mbOpticBtn">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>
       <span>Optic</span>
     </button>
     <button type="button" class="mb-item" data-tab="profiles">
       <svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="1"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="13" y2="16"/></svg>
       <span>Profielen</span>
-    </button>
-    <button type="button" class="mb-item" data-tab="turret">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><line x1="12" y1="3" x2="12" y2="5.5"/></svg>
-      <span>Turret</span>
     </button>
     <button type="button" class="mb-item" id="mbTrainBtn">
       <svg viewBox="0 0 24 24"><path d="M4 20 4 12 12 4l8 8v8z"/><line x1="9" y1="20" x2="9" y2="14"/><line x1="15" y1="20" x2="15" y2="14"/></svg>
@@ -81,6 +77,21 @@
       <span>Contact</span>
     </button>
   </nav>
+
+  <div class="more-sheet" id="opticSheet" hidden>
+    <div class="more-sheet-scrim" id="opticSheetScrim"></div>
+    <div class="more-sheet-card">
+      <div class="more-sheet-handle"></div>
+      <button type="button" class="more-sheet-item" data-tab="optic">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>
+        Zero Calc.
+      </button>
+      <button type="button" class="more-sheet-item" data-tab="turret">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><line x1="12" y1="3" x2="12" y2="5.5"/></svg>
+        Turret Tape
+      </button>
+    </div>
+  </div>
 
   <div class="more-sheet" id="moreSheet" hidden>
     <div class="more-sheet-scrim" id="moreSheetScrim"></div>
@@ -394,6 +405,13 @@
 
   <!-- ===================== SHOP TAB ===================== -->
   <div class="shop-panel tabpanel" id="panel-shop">
+    <div class="shop-stayup">
+      <div class="shop-stayup-text">
+        <span class="shop-stayup-kicker">Stay Up</span>
+        <p>Nieuwe items verschijnen af en toe, in kleine oplages. Meld je aan via WhatsApp en je hoort het als eerste.</p>
+      </div>
+      <button type="button" class="printbtn shop-stayup-btn" id="shopStayUpBtn">Aanmelden via WhatsApp</button>
+    </div>
     <div class="shop-inner">
       <div class="shop-hero">
         <div class="shop-viewer" id="shopViewer">

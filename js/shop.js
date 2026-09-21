@@ -174,11 +174,22 @@ function acShopInitOrderForm(){
   });
 }
 
+function acShopInitStayUp(){
+  const btn = document.getElementById('shopStayUpBtn');
+  if(!btn) return;
+  btn.addEventListener('click', ()=>{
+    const message = 'Hoi, ik wil STAY UP — meld me aan voor nieuwe Applied Concepts drops via WhatsApp.';
+    const url = `https://wa.me/${SHOP_WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank', 'noopener');
+  });
+}
+
 function initShop(){
   if(acShopInited) return;
   acShopInited = true;
   acShopInitViewer();
   acShopInitOrderForm();
+  acShopInitStayUp();
 }
 
 window.AppliedConceptsShop = { init: initShop };

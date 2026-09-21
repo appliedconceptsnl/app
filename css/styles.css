@@ -90,7 +90,7 @@
   .mobile-bottombar{
     display:none;
     position:fixed;left:0;right:0;bottom:0;z-index:80;
-    grid-template-columns:repeat(6,1fr);
+    grid-template-columns:repeat(5,1fr);
     background:#0a0a09;border-top:1px solid var(--line);
     /* left/right insets keep the outer icons clear of the rounded corners /
        camera-cutout curvature on real phones — without these the first and
@@ -408,6 +408,26 @@
   /* ---- Shop ---- */
   .shop-panel{display:none;flex:1 1 auto;overflow-y:auto;}
   .shop-panel.active{display:flex;flex-direction:column;}
+
+  /* Standing "drops happen occasionally, get first word via WhatsApp"
+     banner — deliberately generic (not tied to the Custom Grip or any
+     single product) so it still makes sense once there's more than one
+     item in the shop. Sits above .shop-inner, same page on both mobile
+     and desktop. */
+  .shop-stayup{
+    width:100%;max-width:1040px;margin:26px auto 0;padding:18px 22px;
+    display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;
+    background:var(--panel-2);border:1px solid var(--gold-dim);border-radius:var(--radius);
+  }
+  .shop-stayup-text{flex:1 1 320px;}
+  .shop-stayup-kicker{
+    display:block;font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;
+    text-transform:uppercase;letter-spacing:.14em;color:var(--gold);margin-bottom:4px;
+  }
+  .shop-stayup-text p{margin:0;color:var(--cream-dim);font-size:13.5px;line-height:1.5;}
+  .shop-stayup-btn{background:var(--gold);color:var(--ink);flex:0 0 auto;width:auto;padding:12px 22px;white-space:nowrap;}
+  .shop-stayup-btn:hover{background:#dab672;}
+
   .shop-inner{
     width:100%;max-width:1040px;margin:0 auto;padding:32px 26px 10px;
     display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:start;
@@ -471,6 +491,8 @@
   @media (max-width:760px){
     .shop-inner{grid-template-columns:1fr;}
     .shop-viewer{aspect-ratio:4/3;}
+    .shop-stayup{flex-direction:column;align-items:stretch;text-align:center;margin:18px auto 0;padding:16px 18px;}
+    .shop-stayup-btn{width:100%;}
   }
 
   /* ---- Contact ---- */

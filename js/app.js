@@ -321,12 +321,14 @@ function requestPrint(source){
 window.AppliedConceptsPrint = requestPrint;
 
 const MB_TRAIN_GROUP_TABS = ['dryfire','train'];
+const MB_OPTIC_GROUP_TABS = ['optic','turret'];
 
 function switchTab(tab){
   if(tab !== 'dryfire' && window.AppliedConceptsDryfire) window.AppliedConceptsDryfire.stopTimer();
   document.querySelectorAll('.tabbtn[data-tab]').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
   document.querySelectorAll('.mb-item[data-tab]').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
   el('mbTrainBtn').classList.toggle('active', MB_TRAIN_GROUP_TABS.includes(tab));
+  el('mbOpticBtn').classList.toggle('active', MB_OPTIC_GROUP_TABS.includes(tab));
   el('panel-optic').classList.toggle('active', tab==='optic');
   el('panel-profiles').classList.toggle('active', tab==='profiles');
   el('panel-turret').classList.toggle('active', tab==='turret');
@@ -514,25 +516,28 @@ document.querySelectorAll('.tabbtn[data-tab]').forEach(btn=>{
 });
 
 /* ---------------------------------------------------------------------
-   Mobile bottom tab bar (< 760px, see css/styles.css) — 6 direct
-   destinations (Optic/Profielen/Turret/Train/Shop/Contact), all visible
-   at once with no horizontal scrolling. "Train" opens a small bottom
-   sheet to choose between Dry Fire and Train (grouped together since
-   they're both training tools, not calculators).
+   Mobile bottom tab bar (< 760px, see css/styles.css) — 5 direct
+   destinations (Optic/Profielen/Train/Shop/Contact), all visible at once
+   with no horizontal scrolling. "Optic" and "Train" each open a small
+   bottom sheet to choose between their two grouped tabs (Zero Calc./
+   Turret Tape, and Dry Fire/Train) — fewer icons in the bar itself for a
+   calmer, less cluttered look.
 --------------------------------------------------------------------- */
 document.querySelectorAll('.mb-item[data-tab]').forEach(btn=>{
   btn.addEventListener('click', ()=>switchTab(btn.dataset.tab));
 });
 
-const moreSheet = el('moreSheet');
-function openMoreSheet(){ moreSheet.hidden = false; }
-function closeMoreSheet(){ moreSheet.hidden = true; }
-el('mbTrainBtn').addEventListener('click', openMoreSheet);
-el('moreSheetScrim').addEventListener('click', closeMoreSheet);
+function openSheet(sheet){ sheet.hidden = false; }
+function closeSheet(sheet){ sheet.hidden = true; }
+
+el('mbTrainBtn').addEventListener('click', ()=>openSheet(el('moreSheet')));
+el('moreSheetScrim').addEventListener('click', ()=>closeSheet(el('moreSheet')));
+el('mbOpticBtn').addEventListener('click', ()=>openSheet(el('opticSheet')));
+el('opticSheetScrim').addEventListener('click', ()=>closeSheet(el('opticSheet')));
 document.querySelectorAll('.more-sheet-item[data-tab]').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     switchTab(btn.dataset.tab);
-    closeMoreSheet();
+    closeSheet(btn.closest('.more-sheet'));
   });
 });
 
@@ -615,6 +620,10 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.46', date:'21-09-2026', items:[
+      'Mobiel: "Optic" in de onderbalk opent nu eerst een keuzemenu (Zero Calc. / Turret Tape), net als "Train" al deed voor Dry Fire/Train — de balk zelf telt zo nog maar 5 iconen in plaats van 6, wat rustiger oogt.',
+      'Shop: nieuwe "Stay Up"-kolom bovenaan (mobiel en desktop) — meld je aan via WhatsApp en je hoort het als eerste als er weer een nieuw item verschijnt.',
+    ]},
     { version:'v1.45', date:'20-09-2026', items:[
       'Elke printbare oefenschijf (Zero Optic Calculator en alle Train-doelen) heeft nu een kleine QR-code met het Applied Concepts-logo erin, ergens in de rand van het blad. Scannen linkt direct naar de app, zodat iemand die een geprint doel op de baan vindt hem zelf kan installeren.',
     ]},
