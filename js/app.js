@@ -367,7 +367,7 @@ function switchTab(tab){
   else if(tab==='turret') window.AppliedConceptsTurret.init();
   else if(tab==='dryfire') window.AppliedConceptsDryfire.render();
   else if(tab==='train') window.AppliedConceptsTrain.init();
-  else if(tab==='shop') window.AppliedConceptsShop.init();
+  else if(tab==='shop'){ window.AppliedConceptsShop.init(); window.AppliedConceptsShop.resetView(); }
   else if(tab==='contact') window.AppliedConceptsContact.init();
 }
 
@@ -645,6 +645,12 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.51', date:'21-09-2026', items:[
+      'Shop volledig herbouwd rond het Custom AR Grip-product (herdoopt van "Custom Grip"): prijs is weg, en de pagina is nu een korte, overtuigende landingspagina (kicker, titel, tagline, "Bouw je greep") in plaats van meteen alle info en een bestelformulier te tonen.',
+      '"Bouw je greep" opent nu eerst een eigen productpagina met de volledige uitleg, de bouwstappen en het WhatsApp-bestelformulier — "Hoe het werkt" en "Bestellen" staan niet meer op de Shop-landingspagina zelf.',
+      'Nieuwe "Meer info"-pagina vanaf de productpagina: een korte wetenschappelijke onderbouwing (nauwkeurigheid, triggercontrole, terugslag) van waarom een op maat gevormde greep werkt.',
+      'Toekomstige producten krijgen straks hun eigen versie van deze product- en meer-info-pagina’s, niet een gedeelde/generieke pagina.',
+    ]},
     { version:'v1.50', date:'21-09-2026', items:[
       'Zero Optic Calculator: logo iets kleiner gemaakt (was net te dominant), en de overbodige "Klik ... · Raster ..."-regel in de koptekst is weg — die info staat al in de kliktabel. QR-code verder vergroot.',
       'Dezelfde koptekst-aanpak (groot logo rechtsboven, ingekorte scheidingslijn) is nu doorgevoerd op alle 15 Train-oefenschijven — was eerst alleen op de Zero Optic Calculator. Elk blad gecontroleerd op overlap tussen titel/badge en logo, ook bij de langste titels ("Bipod Pressure Load Test", "Carbine/Pistol Quad-schijf") en badges.',

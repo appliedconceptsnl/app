@@ -168,7 +168,7 @@ function acShopInitOrderForm(){
     phoneHint.classList.remove('shop-phone-error');
 
     const customerPhone = acShopNormalizePhone(raw);
-    const message = `Bestelling Custom Grip (€69,95)\nKlant 06-nummer: ${raw}\n(genormaliseerd: +${customerPhone})`;
+    const message = `Bestelling Custom AR Grip\nKlant 06-nummer: ${raw}\n(genormaliseerd: +${customerPhone})`;
     const url = `https://wa.me/${SHOP_WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank', 'noopener');
   });
@@ -184,12 +184,47 @@ function acShopInitStayUp(){
   });
 }
 
+// Shop is the only tab with more than one "page" — a plain view switch
+// inside the tabpanel (show one .shop-view, hide the rest) rather than a
+// real router, since it's just this one browse -> detail -> science flow.
+// Scrolls the panel back to top on every switch so it reads as a real
+// page change instead of jumping to wherever the old scroll position was.
+function acShopShowView(name){
+  document.querySelectorAll('.shop-view').forEach(el=>{
+    el.classList.toggle('active', el.id === `shopView${name}`);
+  });
+  const panel = document.getElementById('panel-shop');
+  if(panel) panel.scrollTop = 0;
+}
+
+// Resets to the landing view every time the Shop tab is (re-)opened, so
+// leaving mid-flow and coming back doesn't strand you on the detail or
+// science page.
+function acShopResetView(){
+  acShopShowView('Landing');
+}
+
+function acShopInitNav(){
+  const buildBtn = document.getElementById('shopBuildBtn');
+  if(buildBtn) buildBtn.addEventListener('click', ()=>acShopShowView('Detail'));
+
+  const detailBack = document.getElementById('shopDetailBack');
+  if(detailBack) detailBack.addEventListener('click', ()=>acShopShowView('Landing'));
+
+  const moreInfoBtn = document.getElementById('shopMoreInfoBtn');
+  if(moreInfoBtn) moreInfoBtn.addEventListener('click', ()=>acShopShowView('Science'));
+
+  const scienceBack = document.getElementById('shopScienceBack');
+  if(scienceBack) scienceBack.addEventListener('click', ()=>acShopShowView('Detail'));
+}
+
 function initShop(){
   if(acShopInited) return;
   acShopInited = true;
   acShopInitViewer();
+  acShopInitNav();
   acShopInitOrderForm();
   acShopInitStayUp();
 }
 
-window.AppliedConceptsShop = { init: initShop };
+window.AppliedConceptsShop = { init: initShop, resetView: acShopResetView };

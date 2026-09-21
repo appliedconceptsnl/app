@@ -461,10 +461,36 @@
   .shop-viewer-hint{text-align:center;margin-top:10px;}
 
   .shop-kicker{font-family:'Oswald',sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);}
-  .shop-title{font-size:26px;color:var(--cream);margin:6px 0 4px;}
-  .shop-price{font-family:'IBM Plex Mono',monospace;font-size:22px;color:var(--gold);font-weight:600;margin-bottom:14px;}
-  .shop-tagline{font-family:'Oswald',sans-serif;font-size:15px;color:var(--cream);margin:0 0 12px;letter-spacing:.01em;}
-  .shop-desc{color:var(--cream-dim);font-size:13.5px;line-height:1.6;margin:0 0 22px;}
+  .shop-title{
+    font-family:'Oswald',sans-serif;font-weight:700;font-size:34px;letter-spacing:.01em;
+    color:var(--cream);margin:8px 0 10px;line-height:1.05;
+  }
+  /* Two-weight tagline (thin lead-in, bold punch word) — a compact stand-in
+     for a full sentence, reads faster than the paragraph below it. */
+  .shop-tagline{margin:0 0 16px;line-height:1.15;}
+  .shop-tagline-lead{
+    display:block;font-family:'Oswald',sans-serif;font-weight:400;font-size:15px;
+    color:var(--cream-dim);letter-spacing:.02em;text-transform:uppercase;
+  }
+  .shop-tagline-punch{
+    display:block;font-family:'Oswald',sans-serif;font-weight:700;font-size:30px;
+    color:var(--gold);letter-spacing:.01em;text-transform:uppercase;
+  }
+  .shop-desc{color:var(--cream-dim);font-size:13.5px;line-height:1.6;margin:0 0 20px;}
+
+  .shop-hero-cta{background:var(--gold);color:var(--ink);margin:0 0 20px;}
+  .shop-hero-cta:hover{background:#dab672;}
+
+  /* Trust bar — short, spaced-out claims under the primary CTA, same role
+     as the "100% MADE IN USA" row it's modeled after. */
+  .shop-trustbar{
+    display:flex;flex-wrap:wrap;gap:8px 22px;margin:0 0 28px;padding-top:16px;
+    border-top:1px solid var(--line);
+  }
+  .shop-trustbar span{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.04em;
+    text-transform:uppercase;color:var(--cream-dim);white-space:nowrap;
+  }
 
   .shop-steps{margin-bottom:24px;}
   .shop-steps h3{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--cream);margin:0 0 10px;}
@@ -488,6 +514,35 @@
     aspect-ratio:16/7;background:var(--panel-2);border:1px dashed var(--line);border-radius:var(--radius-sm);
     display:flex;align-items:center;justify-content:center;color:var(--cream-dim);font-size:12.5px;
   }
+
+  /* ---- Shop: multi-view (landing / product detail / science) ----
+     A plain "page" switch inside the Shop tab, not a real route — Shop is
+     the only tab that goes more than one level deep, so it manages its own
+     sub-navigation rather than adding a whole router for one flow. */
+  .shop-view{display:none;}
+  .shop-view.active{display:block;}
+  .shop-page-inner{width:100%;max-width:720px;margin:0 auto;padding:32px 26px 60px;}
+  .shop-view-detail .shop-application{width:auto;max-width:none;margin:28px 0 0;padding:0;}
+  .shop-back{
+    background:none;border:none;padding:0;margin-bottom:20px;cursor:pointer;
+    display:inline-flex;align-items:center;gap:6px;
+    font-family:'Oswald',sans-serif;font-size:13px;font-weight:600;letter-spacing:.04em;
+    text-transform:uppercase;color:var(--gold);
+  }
+  .shop-back:hover{color:#dab672;}
+  .shop-desc-lg{font-size:14.5px;margin-bottom:26px;}
+  .shop-moreinfo-link{
+    display:block;width:100%;text-align:center;background:none;cursor:pointer;
+    border:1px solid var(--line);border-radius:var(--radius-sm);padding:14px;margin-top:22px;
+    font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:.03em;color:var(--cream);
+  }
+  .shop-moreinfo-link:hover{border-color:var(--gold);color:var(--gold);}
+  .shop-science-block{margin-bottom:28px;}
+  .shop-science-block h3{
+    font-family:'Oswald',sans-serif;font-weight:600;font-size:15px;text-transform:uppercase;
+    letter-spacing:.03em;color:var(--gold);margin:0 0 8px;
+  }
+  .shop-science-block p{color:var(--cream-dim);font-size:14px;line-height:1.7;margin:0;}
   @media (max-width:760px){
     .shop-inner{grid-template-columns:1fr;}
     .shop-viewer{aspect-ratio:4/3;}
