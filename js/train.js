@@ -44,6 +44,30 @@ function trMoaCircle(cx, cy, moaDiameter, opts){
   return s;
 }
 
+// A fine reference grid around a Zero Target aim point — 1 square = exactly
+// 0.1 mil (0.1 mrad = 1 cm at 100 m, so this is just CM_IN, the same
+// centimeter-inch constant the Zero Optic Calculator's own click grid
+// uses). Lets a shooter read their turret correction straight off the
+// sheet by counting squares from group center to the aim point, instead
+// of estimating it, and printed at the same 100 m distance these
+// fundamentals drills are actually run at.
+function trMilGrid(cx, cy, n, opts){
+  opts = opts || {};
+  const step = CM_IN, half = n*step;
+  const stroke = opts.stroke || '#d8d8d2', sw = opts.strokeWidth != null ? opts.strokeWidth : 0.006;
+  let s = `<g stroke="${stroke}" stroke-width="${sw}">`;
+  for(let i=-n; i<=n; i++){
+    const x = cx + i*step;
+    s += `<line x1="${x.toFixed(4)}" y1="${(cy-half).toFixed(4)}" x2="${x.toFixed(4)}" y2="${(cy+half).toFixed(4)}"/>`;
+  }
+  for(let i=-n; i<=n; i++){
+    const y = cy + i*step;
+    s += `<line x1="${(cx-half).toFixed(4)}" y1="${y.toFixed(4)}" x2="${(cx+half).toFixed(4)}" y2="${y.toFixed(4)}"/>`;
+  }
+  s += `</g>`;
+  return s;
+}
+
 function trAimChevron(cx, cy, opts){
   opts = opts || {};
   const size = opts.size || 0.12;
@@ -438,11 +462,12 @@ function buildZeroTargetSheet(paper){
   const W = paper.w, H = paper.h;
   let svg = trPageOpen(paper);
   svg += trHeader(W, 'ZERO TARGET', '100M · FUNDAMENTALS');
-  svg += trText(TR_MARGIN, 0.85, W-0.9, 0.75, 'Vuur een groep van 3–5 schoten per aanvinkpunt. Geslaagd: groep ≤1 MOA <b>en</b> het groepscentrum valt binnen 0,5 MOA van het middelpunt (stippellijn). Gebruik een nieuw punt per bevestigingspoging — zo kun je meerdere keren bevestigen zonder overlappende gaten.', {fontSize:0.115, lineHeight:1.4});
+  svg += trText(TR_MARGIN, 0.85, W-0.9, 0.85, 'Vuur een groep van 3–5 schoten per aanvinkpunt. Geslaagd: groep ≤1 MOA <b>en</b> het groepscentrum valt binnen 0,5 MOA van het middelpunt (stippellijn). Gebruik een nieuw punt per bevestigingspoging — zo kun je meerdere keren bevestigen zonder overlappende gaten. Elk vakje van het raster is exact 0,1 mil, zodat je de turret-correctie direct van de schijf afleest.', {fontSize:0.115, lineHeight:1.4});
   const cols = [W/2-2.55, W/2, W/2+2.55], rows = [3.3, 6.6, 9.5];
   let n = 1;
   rows.forEach(cy=>{
     cols.forEach(cx=>{
+      svg += trMilGrid(cx, cy, 2);
       svg += trMoaCircle(cx, cy, 0.5, {dashed:true, stroke:TR_DIM, dotMoa:0.15});
       svg += `<text x="${cx.toFixed(4)}" y="${(cy-0.5).toFixed(4)}" text-anchor="middle" font-size="0.13" font-family="Oswald, sans-serif" font-weight="700" fill="${TR_GRAY}">${n}</text>`;
       n++;

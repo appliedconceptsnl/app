@@ -146,26 +146,22 @@ function buildTable(clickVal, adjUnit, gridIn, distOptions, distUnit, x, y, w){
   let g = `<g font-family="IBM Plex Mono, monospace" fill="#171510">`;
   g += `<line x1="${x}" y1="${(y-0.14).toFixed(4)}" x2="${x+w}" y2="${(y-0.14).toFixed(4)}" stroke="#171510" stroke-width="0.012"/>`;
   g += `<text x="${x}" y="${y.toFixed(4)}" font-size="0.13" font-family="Oswald, sans-serif" font-weight="600">KLIKTABEL — ${clickVal} ${adjUnit} PER KLIK</text>`;
-  g += `<text x="${x+w}" y="${y.toFixed(4)}" text-anchor="end" font-size="0.12" fill="#6e6e6a">1 vakje = ${fmtLen(gridIn,'cm')}</text>`;
   const headerY = y+0.24;
   g += `<text x="${x}" y="${headerY.toFixed(4)}" font-size="0.12">Afstand</text>`;
   dists.forEach((d,i)=>{
     g += `<text x="${(x+colW*(i+1)).toFixed(4)}" y="${headerY.toFixed(4)}" font-size="0.12">${d} ${distUnit}</text>`;
   });
   g += `<line x1="${x}" y1="${(headerY+0.08).toFixed(4)}" x2="${x+w}" y2="${(headerY+0.08).toFixed(4)}" stroke="#8f8f8a" stroke-width="0.006"/>`;
+  // Just the one number a shooter actually dials: clicks per whole grid
+  // square, per distance. "Vakjes per klik" (the inverse, fractional-square
+  // framing) and the "1 vakje = X cm" caption were both dropped — neither
+  // is the answer you're reading this table on the range for.
   const row1Y = headerY+0.26;
-  g += `<text x="${x}" y="${row1Y.toFixed(4)}" font-size="0.12">Vakjes per klik</text>`;
-  dists.forEach((d,i)=>{
-    const sizeIn = clickSizeIn(clickVal, adjUnit, d);
-    const squares = (sizeIn/gridIn).toFixed(1);
-    g += `<text x="${(x+colW*(i+1)).toFixed(4)}" y="${row1Y.toFixed(4)}" font-size="0.12">${squares} vakjes</text>`;
-  });
-  const row2Y = row1Y+0.22;
-  g += `<text x="${x}" y="${row2Y.toFixed(4)}" font-size="0.12">Klikken per vakje</text>`;
+  g += `<text x="${x}" y="${row1Y.toFixed(4)}" font-size="0.12">Klikken per vakje</text>`;
   dists.forEach((d,i)=>{
     const sizeIn = clickSizeIn(clickVal, adjUnit, d);
     const clicksPerSquare = (gridIn/sizeIn).toFixed(2);
-    g += `<text x="${(x+colW*(i+1)).toFixed(4)}" y="${row2Y.toFixed(4)}" font-size="0.12">${clicksPerSquare} klik</text>`;
+    g += `<text x="${(x+colW*(i+1)).toFixed(4)}" y="${row1Y.toFixed(4)}" font-size="0.12">${clicksPerSquare} klik</text>`;
   });
   g += `</g>`;
   return g;
@@ -174,7 +170,17 @@ function buildTable(clickVal, adjUnit, gridIn, distOptions, distUnit, x, y, w){
 function buildTargetSVG(cfg){
   const P = cfg.paper;
   const W = P.w, H = P.h;
-  const HEADER_H = 1.05 + cfg.metaRows.length*0.18 + (cfg.instructionLine ? 0.22 : 0), FOOTER_H = 1.55, MARGIN = 0.22;
+  const MARGIN = 0.22;
+  // Header text is a single left-hand column now (see below) — Wapen and
+  // Datum used to share a row with Richtmiddel/Montage via a second column
+  // at W/2, but that column is where the big top-right logo lives now, so
+  // every meta line gets its own row instead. Count them up so the header
+  // (and the grid below it) sizes itself to whatever cfg actually has.
+  let metaLineCount = 2; // Wapen + Datum
+  cfg.metaRows.forEach(row => { metaLineCount += row[1] ? 2 : 1; });
+  const metaFirstY = 0.68, metaLineH = 0.18;
+  const metaLastY = metaFirstY + (metaLineCount-1)*metaLineH;
+  const HEADER_H = metaLastY + (cfg.instructionLine ? 0.22 : 0) + 0.30, FOOTER_H = 1.55;
   const gridTop = HEADER_H, gridBottom = H - FOOTER_H;
   const gridLeft = MARGIN, gridRight = W - MARGIN;
   const cx = W/2;
@@ -242,23 +248,35 @@ function buildTargetSVG(cfg){
       Let op: één of meer offsets vallen buiten dit papierformaat — zie waarschuwing links</text>`;
   }
 
-  const logoH = 0.42, logoW = logoH*LOGO_ASPECT;
-  svg += `<svg x="${(W-MARGIN-logoW).toFixed(4)}" y="0.10" width="${logoW.toFixed(4)}" height="${logoH.toFixed(4)}" viewBox="${LOGO_VIEWBOX}">${LOGO_BLACK_INNER}</svg>`;
+  // Big top-right logo, reaching almost down to the grid — the meta text
+  // used to share a second column at W/2 with the logo's old, much
+  // smaller footprint; that column is entirely the logo's now, so every
+  // meta line below got its own row (see metaLineCount above) instead of
+  // pairing up two-per-row. textRight is how far those lines (and the
+  // shortened divider) are allowed to run before they'd hit the logo.
+  const logoTop = 0.14, logoBottom = HEADER_H - 0.12;
+  const logoH = logoBottom - logoTop, logoW = logoH*LOGO_ASPECT;
+  const logoX = W - MARGIN - logoW;
+  const textRight = logoX - 0.25;
+  svg += `<svg x="${logoX.toFixed(4)}" y="${logoTop.toFixed(4)}" width="${logoW.toFixed(4)}" height="${logoH.toFixed(4)}" viewBox="${LOGO_VIEWBOX}">${LOGO_BLACK_INNER}</svg>`;
 
   let headerSvg = `<g font-family="IBM Plex Mono, monospace" fill="#171510">
     <text x="${MARGIN}" y="0.24" font-size="0.19" font-family="Oswald, sans-serif" font-weight="600">${cfg.titleMain}</text>
     <text x="${MARGIN}" y="0.40" font-size="0.10" letter-spacing="0.01" fill="#6e6e6a">APPLIED CONCEPTS — PERFORMANCE · DEVELOPMENT</text>
-    <line x1="${MARGIN}" y1="0.50" x2="${W-MARGIN}" y2="0.50" stroke="#171510" stroke-width="0.012"/>
-    <text x="${MARGIN}" y="0.68" font-size="0.13">Wapen: ${cfg.weaponLabel || '________________________'}</text>
-    <text x="${W/2+0.1}" y="0.68" font-size="0.13">Datum: ${new Date().toLocaleDateString('nl-NL')}</text>`;
-  cfg.metaRows.forEach((row, i)=>{
-    const rowY = 0.86 + i*0.18;
-    headerSvg += `<text x="${MARGIN}" y="${rowY.toFixed(4)}" font-size="0.13">${row[0]}</text>`;
-    if(row[1]) headerSvg += `<text x="${W/2+0.1}" y="${rowY.toFixed(4)}" font-size="0.13">${row[1]}</text>`;
+    <line x1="${MARGIN}" y1="0.50" x2="${textRight.toFixed(4)}" y2="0.50" stroke="#171510" stroke-width="0.012"/>
+    <text x="${MARGIN}" y="${metaFirstY.toFixed(4)}" font-size="0.13">Wapen: ${cfg.weaponLabel || '________________________'}</text>
+    <text x="${MARGIN}" y="${(metaFirstY+metaLineH).toFixed(4)}" font-size="0.13">Datum: ${new Date().toLocaleDateString('nl-NL')}</text>`;
+  let metaY = metaFirstY + 2*metaLineH;
+  cfg.metaRows.forEach(row=>{
+    headerSvg += `<text x="${MARGIN}" y="${metaY.toFixed(4)}" font-size="0.13">${row[0]}</text>`;
+    metaY += metaLineH;
+    if(row[1]){
+      headerSvg += `<text x="${MARGIN}" y="${metaY.toFixed(4)}" font-size="0.13">${row[1]}</text>`;
+      metaY += metaLineH;
+    }
   });
   if(cfg.instructionLine){
-    const instrY = 0.86 + cfg.metaRows.length*0.18 + 0.12;
-    headerSvg += `<text x="${MARGIN}" y="${instrY.toFixed(4)}" font-size="0.13" font-weight="600">${cfg.instructionLine}</text>`;
+    headerSvg += `<text x="${MARGIN}" y="${(metaY+0.12).toFixed(4)}" font-size="0.13" font-weight="600">${cfg.instructionLine}</text>`;
   }
   headerSvg += `</g>`;
   svg += headerSvg;
@@ -267,11 +285,12 @@ function buildTargetSVG(cfg){
 
   svg += `<text x="${(W-MARGIN).toFixed(4)}" y="${(H-0.14).toFixed(4)}" text-anchor="end" font-size="0.10" fill="#8f8f8a" font-family="IBM Plex Mono, monospace">${cfg.footerRight}</text>`;
 
-  // Small QR in the otherwise-empty corner below the click table — scans
-  // straight to the app, so whoever finds a printed sheet on the range can
-  // get it themselves.
-  const qrSize = 0.32;
-  svg += buildAppQrSvg(MARGIN, H-0.18-qrSize, qrSize);
+  // QR in the corner below the click table — scans straight to the app.
+  // Sized to actually stand out and invite a scan (not just be technically
+  // present); the one-row click table above frees up enough of the
+  // reserved footer height to fit it without touching FOOTER_H.
+  const qrSize = 0.52;
+  svg += buildAppQrSvg(MARGIN, H-0.16-qrSize, qrSize);
 
   svg += `</svg>`;
   return { svg, fitsOnPage: anyFits, anyShown };
@@ -620,6 +639,13 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.49', date:'21-09-2026', items:[
+      'App-naam bij installeren is nu "Applied Concepts" in plaats van "AC Zero Calc" — de app is intussen veel meer dan alleen de zero-calculator. Het app-icoon zelf (192/512px en het iOS-icoon) is ook flink groter uitgevoerd — het beeldmerk vult het icoontje nu bijna helemaal.',
+      'Zero Optic Calculator: het logo rechtsboven op het geprinte vel is veel groter — het loopt nu door tot bijna aan het raster. De scheidingslijn eronder is ingekort zodat hij niet meer dwars door het logo loopt, en alle wapen-/richtmiddelgegevens staan onder elkaar in één kolom (was eerst verdeeld over 2 kolommen naast het logo) zodat er geen overlap meer kan ontstaan, ook niet bij lange namen.',
+      'Kliktabel onderin de Zero Optic Calculator is teruggebracht tot één regel: alleen nog "klikken per vakje" per afstand — de losse "vakjes per klik"-regel en het "1 vakje = ... cm"-bijschrift zijn weg.',
+      'De QR-code op de Zero Optic Calculator is flink groter gemaakt (van 0,32" naar 0,52") — de kortere kliktabel maakte precies genoeg ruimte vrij om hem echt te laten opvallen.',
+      'Train — Zero Target (Sniper): rond elk van de 9 aanvinkpunten staat nu een fijn rastertje van exact 0,1 mil per vakje, zodat je de turret-correctie tussen je groep en het middelpunt direct van de schijf afleest.',
+    ]},
     { version:'v1.48', date:'21-09-2026', items:[
       'Bugfix: het achtergrondlogo op mobiel kon door de Contact-kaart en de 3D-productfoto in de Shop heen schijnen. Het logo zit nu echt achter alle kaarten/foto’s op elk tabblad, en is alleen nog zichtbaar in de lege ruimte eromheen.',
     ]},
