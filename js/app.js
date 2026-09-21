@@ -620,6 +620,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.47', date:'21-09-2026', items:[
+      'Shop: "Stay Up" omgedoopt tot "Hou me op de hoogte", tekst herschreven (geen "af en toe" meer). Op mobiel staat de WhatsApp-knop nu direct naast de kop in plaats van onder een lange tekstblok eronder — de hele kolom is daardoor duidelijk compacter. Desktop-indeling ongewijzigd.',
+    ]},
     { version:'v1.46', date:'21-09-2026', items:[
       'Mobiel: "Optic" in de onderbalk opent nu eerst een keuzemenu (Zero Calc. / Turret Tape), net als "Train" al deed voor Dry Fire/Train — de balk zelf telt zo nog maar 5 iconen in plaats van 6, wat rustiger oogt.',
       'Shop: nieuwe "Stay Up"-kolom bovenaan (mobiel en desktop) — meld je aan via WhatsApp en je hoort het als eerste als er weer een nieuw item verschijnt.',

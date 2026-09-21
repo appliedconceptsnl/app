@@ -491,8 +491,24 @@
   @media (max-width:760px){
     .shop-inner{grid-template-columns:1fr;}
     .shop-viewer{aspect-ratio:4/3;}
-    .shop-stayup{flex-direction:column;align-items:stretch;text-align:center;margin:18px auto 0;padding:16px 18px;}
-    .shop-stayup-btn{width:100%;}
+    /* Desktop's single row (kicker+text on the left, button on the right)
+       reads as one tall stacked column on a narrow phone — kicker, then a
+       multi-line paragraph, then a full-width button underneath.
+       display:contents lifts the kicker and paragraph out of
+       .shop-stayup-text so all three pieces (kicker/button/text) become
+       direct flex items of .shop-stayup, letting them be reordered
+       independently: kicker and button share a tight top row (button
+       right next to the heading, not stacked far below it), and the
+       (now single-line) description sits underneath — noticeably
+       shorter overall than the old three-block stack. */
+    .shop-stayup{
+      flex-wrap:wrap;align-items:center;gap:8px 12px;
+      margin:16px auto 0;padding:14px 16px;
+    }
+    .shop-stayup-text{display:contents;}
+    .shop-stayup-kicker{order:1;margin-bottom:0;}
+    .shop-stayup-btn{order:2;padding:8px 14px;font-size:12.5px;}
+    .shop-stayup-text p{order:3;flex:1 1 100%;font-size:12.5px;}
   }
 
   /* ---- Contact ---- */
