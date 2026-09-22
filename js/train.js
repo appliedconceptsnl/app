@@ -472,14 +472,15 @@ function buildZeroTargetSheet(paper){
   const W = paper.w, H = paper.h;
   let svg = trPageOpen(paper);
   svg += trHeader(W, 'ZERO TARGET', '100M · FUNDAMENTALS');
-  svg += trText(TR_MARGIN, 0.85, W-0.9, 0.85, 'Vuur een groep van 3–5 schoten per aanvinkpunt. Geslaagd: groep ≤1 MOA <b>en</b> het groepscentrum valt binnen 0,5 MOA van het middelpunt (stippellijn). Gebruik een nieuw punt per bevestigingspoging — zo kun je meerdere keren bevestigen zonder overlappende gaten. Elk vakje van het raster is exact 0,1 mil, zodat je de turret-correctie direct van de schijf afleest.', {fontSize:0.115, lineHeight:1.4});
+  svg += trText(TR_MARGIN, 0.85, W-0.9, 0.85, 'Vuur één schot per aanvinkpunt — geslaagd is elk schot dat binnen de stippellijn van 1 MOA valt. Gebruik per schot een nieuw punt, zo heb je voor elk schot een fris Zero Target, zonder overlappende gaten. Elk vakje van het raster is exact 0,1 mil, zodat je de turret-correctie direct van de schijf afleest.', {fontSize:0.115, lineHeight:1.4});
   const cols = [W/2-2.55, W/2, W/2+2.55], rows = [3.3, 6.6, 9.5];
+  const zeroTargetR = moaInAt100m(1)/2; // matches the 1 MOA circle below — keeps the number label clear of it regardless of circle size
   let n = 1;
   rows.forEach(cy=>{
     cols.forEach(cx=>{
       svg += trMilGrid(cx, cy, 2);
-      svg += trMoaCircle(cx, cy, 0.5, {dashed:true, stroke:TR_DIM, dotMoa:0.15});
-      svg += `<text x="${cx.toFixed(4)}" y="${(cy-0.5).toFixed(4)}" text-anchor="middle" font-size="0.13" font-family="Oswald, sans-serif" font-weight="700" fill="${TR_GRAY}">${n}</text>`;
+      svg += trMoaCircle(cx, cy, 1, {dashed:true, stroke:TR_DIM, dotMoa:0.15});
+      svg += `<text x="${cx.toFixed(4)}" y="${(cy-zeroTargetR-0.08).toFixed(4)}" text-anchor="middle" font-size="0.13" font-family="Oswald, sans-serif" font-weight="700" fill="${TR_GRAY}">${n}</text>`;
       n++;
     });
   });
@@ -679,7 +680,7 @@ const TRAIN_EXERCISES = [
   { id:'twotwofour', group:'carbine', cat:'drills', name:'2-2-4', desc:'2 links, 2 rechts, transitie naar Glock, 2 links, 2 rechts.', build:(p)=>[buildTwoTwoFourSheet(p)] },
   { id:'triangle', group:'carbine', cat:'drills', name:'Triangle', desc:'4 posities, 4 doelen (A–D), bewegend/dynamisch vuren + speed reload — met overzichtblad en doelbladen.', pageNames:['Overzicht', 'Doel A', 'Doel B', 'Doel C', 'Doel D'], build:(p)=>[buildTriangleOverviewSheet(p), buildTriangleTargetSheet(p,'A'), buildTriangleTargetSheet(p,'B'), buildTriangleTargetSheet(p,'C'), buildTriangleTargetSheet(p,'D')] },
 
-  { id:'zerotarget', group:'sniper', cat:'basis', name:'Zero Target', desc:'9 aanvinkpunten, 0,5 MOA-tolerantie — bevestig je nulpunt zonder oude gaten te hergebruiken.', build:(p)=>[buildZeroTargetSheet(p)] },
+  { id:'zerotarget', group:'sniper', cat:'basis', name:'Zero Target', desc:'9 aanvinkpunten, één schot per punt binnen 1 MOA — bevestig je nulpunt zonder oude gaten te hergebruiken.', build:(p)=>[buildZeroTargetSheet(p)] },
   { id:'npanobag', group:'sniper', cat:'basis', name:'NPA & No-Bag Target', desc:'4 cirkels (2 → 0,4 MOA), zonder achterzak — bouw je Natural Point of Aim en bevestig hem.', build:(p)=>[buildNpaNoBagSheet(p)] },
   { id:'consistency', group:'sniper', cat:'basis', name:'Consistency Check Target', desc:'15x 1 MOA — één schot per cirkel, verspreid over meerdere sessies.', build:(p)=>[buildConsistencyCheckSheet(p)] },
   { id:'bipodpressure', group:'sniper', cat:'drills', name:'Bipod Pressure Load Test', desc:'Normaal vs. voorwaarts/neutraal/achterwaarts — vergelijk de POI-verschuiving.', build:(p)=>[buildBipodPressureSheet(p)] },

@@ -671,6 +671,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.56', date:'22-09-2026', items:[
+      'Train — Zero Target (Sniper): de stippellijn om elk aanvinkpunt is nu 1 MOA (was 0,5 MOA) — geslaagd is een schot dat daarbinnen valt. De oefening is aangepast naar één schot per punt (was een groep van 3–5), zodat je bij elk schot een fris Zero Target hebt zonder oude gaten te hergebruiken. Het fijne referentie-raster eromheen blijft in mil (0,1 mil per vakje).',
+    ]},
     { version:'v1.55', date:'22-09-2026', items:[
       'PWA-polish: geen wit flits-scherm meer bij het opstarten (achtergrondkleur wordt nu al geschilderd voordat de losse stylesheet geladen is) en de installatienaam op iOS toont voortaan overal "Applied Concepts" i.p.v. het oude "AC Zero Calc".',
       'Lettertypes (Oswald, IBM Plex Mono, Work Sans) worden niet meer van Google Fonts geladen maar zitten nu in de app zelf — de app toont voortaan ook echt in zijn eigen typografie als hij volledig offline gebruikt wordt.',

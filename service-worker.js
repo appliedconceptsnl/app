@@ -1,4 +1,4 @@
-const CACHE = 'ac-zero-calc-v48';
+const CACHE = 'ac-zero-calc-v49';
 const ASSETS = [
   './',
   './index.html',
