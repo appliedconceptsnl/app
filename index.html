@@ -10,10 +10,14 @@
 <meta name="theme-color" content="#111110">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="AC Zero Calc">
+<meta name="apple-mobile-web-app-title" content="Applied Concepts">
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- Paints the correct background before any stylesheet has loaded, so a
+     standalone/installed launch never shows a white flash while css/styles.css
+     is still on its way — matches --bg / manifest background_color. -->
+<style>html,body{background:#111110;}</style>
+
+<link rel="stylesheet" href="css/fonts.css">
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -35,7 +39,7 @@
 <div class="mobile-watermark" aria-hidden="true"></div>
 <div class="appshell" id="appshell">
   <header class="masthead">
-    <button class="versionlink" id="versionLink">v1.54</button>
+    <button class="versionlink" id="versionLink">v1.55</button>
     <div class="mh-brand">
       <img src="icons/logo.svg" alt="Applied Concepts logo">
       <div class="wordmark">

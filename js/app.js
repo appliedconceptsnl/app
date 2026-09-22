@@ -671,6 +671,11 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.55', date:'22-09-2026', items:[
+      'PWA-polish: geen wit flits-scherm meer bij het opstarten (achtergrondkleur wordt nu al geschilderd voordat de losse stylesheet geladen is) en de installatienaam op iOS toont voortaan overal "Applied Concepts" i.p.v. het oude "AC Zero Calc".',
+      'Lettertypes (Oswald, IBM Plex Mono, Work Sans) worden niet meer van Google Fonts geladen maar zitten nu in de app zelf — de app toont voortaan ook echt in zijn eigen typografie als hij volledig offline gebruikt wordt.',
+      'App-snelkoppelingen toegevoegd: lang indrukken op het geïnstalleerde app-icoon geeft nu direct-naar-Turret-Tape, -Wapenprofielen, -Train en -Dry-Fire.',
+    ]},
     { version:'v1.54', date:'22-09-2026', items:[
       'Zero Optic Calculator: de HOB werd nog niet automatisch ingevuld bij "LPVO" en "RMR" — dat is nu gefixt. LPVO kiezen zet de montage automatisch op "Geen aparte montage" (9 cm HOB); RMR kiezen zet de montage automatisch op "LPVO (als riser)" (13 cm HOB), want in deze setup zit de RMR altijd piggyback op de LPVO.',
     ]},
@@ -921,6 +926,15 @@ try {
 
   initOptic();
   initInstallBanner();
+
+  // Lands on the requested tab when opened via a manifest "shortcut" (long-press
+  // the installed app icon -> Turret Tape / Profielen / Train / Dry Fire).
+  // Runs after initOptic() so it overrides that default tab when a valid one
+  // is requested; the pass phrase gate still shows on top regardless.
+  const requestedTab = new URLSearchParams(location.search).get('tab');
+  if(['optic','profiles','turret','dryfire','train','shop','contact'].includes(requestedTab)){
+    switchTab(requestedTab);
+  }
 } catch(err){
   console.error('Applied Concepts Zero Calculator — init error:', err);
 }

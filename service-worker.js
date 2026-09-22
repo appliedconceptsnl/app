@@ -1,9 +1,20 @@
-const CACHE = 'ac-zero-calc-v47';
+const CACHE = 'ac-zero-calc-v48';
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
   './css/styles.css',
+  './css/fonts.css',
+  './fonts/oswald-500-700-latin.woff2',
+  './fonts/oswald-500-700-latin-ext.woff2',
+  './fonts/work-sans-400-600-latin.woff2',
+  './fonts/work-sans-400-600-latin-ext.woff2',
+  './fonts/ibm-plex-mono-400-latin.woff2',
+  './fonts/ibm-plex-mono-400-latin-ext.woff2',
+  './fonts/ibm-plex-mono-500-latin.woff2',
+  './fonts/ibm-plex-mono-500-latin-ext.woff2',
+  './fonts/ibm-plex-mono-600-latin.woff2',
+  './fonts/ibm-plex-mono-600-latin-ext.woff2',
   './js/app.js',
   './js/qr-app.js',
   './js/ballistics.js',
