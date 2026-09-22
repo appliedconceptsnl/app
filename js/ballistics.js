@@ -116,7 +116,7 @@ function simulateDropAtDistances({ effectiveBC, dragTable, muzzleVelocityFps, si
     if(velocity < 50 || y < -15000) break;
 
     while(nextIdx < targetDistancesFt.length && x >= targetDistancesFt[nextIdx]){
-      results.push({ distanceFt: targetDistancesFt[nextIdx], x, y });
+      results.push({ distanceFt: targetDistancesFt[nextIdx], x, y, velocity });
       nextIdx++;
     }
     if(nextIdx >= targetDistancesFt.length) break;
@@ -216,4 +216,71 @@ function computeHoldTableMil(profile, distancesM){
   return holdByDistance;
 }
 
-window.AppliedConceptsBallistics = { computeHoldTableMil, G1_DRAG_TABLE, G7_DRAG_TABLE };
+/**
+ * Finds where the true (gravity-drop) trajectory crosses the line of sight
+ * a second time downrange of the zero distance — the "far zero" every
+ * flat-fired zero has, since the bullet keeps rising above the sight line
+ * after the near zero before gravity pulls it back down through it again —
+ * plus the drop/velocity/energy 100 m past that far zero. Returns null if
+ * no far zero is found within maxRangeM (shouldn't happen for realistic
+ * small-arms inputs, but a subsonic/garbage BC could produce one).
+ */
+function computeTrajectoryProfile({ dragModel, bc, customDragFactor, muzzleVelocityFps, sightHeightCm, zeroDistanceM, bulletWeightGr, maxRangeM }){
+  const dragTable = dragTableFor(dragModel);
+  const customFactor = (customDragFactor && customDragFactor > 0) ? customDragFactor : 1;
+  const effectiveBC = bc * customFactor;
+  const sightHeightFt = (sightHeightCm || 0) / 30.48;
+  const zeroDistanceFt = zeroDistanceM * BALLISTICS_FT_PER_M;
+  const maxM = maxRangeM || 800;
+
+  const barrelElevationRad = solveSightAngleRad({ effectiveBC, dragTable, muzzleVelocityFps, sightHeightFt, zeroDistanceFt });
+
+  // 1 m sampling — fine enough to interpolate the far-zero crossing and the
+  // +100 m point to sub-meter precision without costing anything real in a
+  // single-click browser computation.
+  const targetDistancesFt = [];
+  for(let d = 1; d <= maxM; d += 1) targetDistancesFt.push(d * BALLISTICS_FT_PER_M);
+  const calcStepFt = getCalculationStepFt(10 * BALLISTICS_FT_PER_M);
+
+  const results = simulateDropAtDistances({
+    effectiveBC, dragTable, muzzleVelocityFps, sightHeightFt, barrelElevationRad,
+    targetDistancesFt, calcStepFt,
+  }).map(r => ({ m: r.distanceFt / BALLISTICS_FT_PER_M, yCm: r.y * 30.48, velocityFps: r.velocity }));
+
+  // Walk past the near zero, then find the next sample where height above
+  // the line of sight (yCm > 0) drops back to/through 0 — linear-interpolate
+  // between the two bracketing samples for the actual crossing distance.
+  let farZeroM = null;
+  for(let i = 1; i < results.length; i++){
+    const prev = results[i-1], cur = results[i];
+    if(cur.m <= zeroDistanceM + 1) continue;
+    if(prev.yCm > 0 && cur.yCm <= 0){
+      const t = prev.yCm / (prev.yCm - cur.yCm);
+      farZeroM = prev.m + t * (cur.m - prev.m);
+      break;
+    }
+  }
+  if(farZeroM == null) return null;
+
+  const targetM = farZeroM + 100;
+  let sample = results.find(r => r.m >= targetM);
+  if(!sample) sample = results[results.length - 1];
+
+  const energyFtLbs = v => (bulletWeightGr * v * v) / 450240; // standard small-arms KE formula
+  const energyJ = ftLbs => ftLbs * 1.35582;
+
+  const muzzleEnergyFtLbs = energyFtLbs(muzzleVelocityFps);
+  const targetEnergyFtLbs = energyFtLbs(sample.velocityFps);
+
+  return {
+    nearZeroM: zeroDistanceM,
+    farZeroM,
+    targetM: sample.m,
+    dropCm: -sample.yCm, // yCm is negative (below LOS) past the far zero — report the positive drop magnitude
+    velocityFpsAtTarget: sample.velocityFps,
+    muzzleEnergyJ: energyJ(muzzleEnergyFtLbs), muzzleEnergyFtLbs,
+    energyJAtTarget: energyJ(targetEnergyFtLbs), energyFtLbsAtTarget: targetEnergyFtLbs,
+  };
+}
+
+window.AppliedConceptsBallistics = { computeHoldTableMil, computeTrajectoryProfile, G1_DRAG_TABLE, G7_DRAG_TABLE };

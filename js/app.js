@@ -90,6 +90,24 @@ const OPTIC_PLATFORMS = {
   'mcx_rattler': { weaponLabel: 'SIG MCX Rattler' },
 };
 
+// Average NATO-standard 5.56x45mm ammunition (M855A1 62gr EPR reference —
+// current US/NATO service load) per platform's typical barrel length, used
+// ONLY for the "kogelbaan"-info block below (22-09-2026, on request: "altijd
+// de gemiddelde waarde en op basis van NATO standaard munitie"). This is
+// published/typical data, NOT a chronographed measurement of the user's own
+// rifle — real drop varies with the actual ammo lot, barrel and conditions.
+// '416' has no documented length in OPTIC_PLATFORMS above; treated here as
+// the other common short HK416 configuration (11") alongside the explicit
+// 14.5" entry. MCX Rattler is normally a .300 BLK-first platform, but is
+// kept in 5.56 NATO here for a consistent "NATO standard" framing across
+// every platform, at its much shorter ~6.75" barrel.
+const OPTIC_PLATFORM_AMMO = {
+  '416':         { caliber:'5.56×45mm NATO — 11", M855A1 62gr (gem.)', bulletWeightGr:62, muzzleVelocityFps:2750, bc:0.304, dragModel:'G1' },
+  '416_145':     { caliber:'5.56×45mm NATO — 14.5", M855A1 62gr (gem.)', bulletWeightGr:62, muzzleVelocityFps:2920, bc:0.304, dragModel:'G1' },
+  'mcx_virtus':  { caliber:'5.56×45mm NATO — 16", M855A1 62gr (gem.)', bulletWeightGr:62, muzzleVelocityFps:2970, bc:0.304, dragModel:'G1' },
+  'mcx_rattler': { caliber:'5.56×45mm NATO — 6.75", M855A1 62gr (gem.)', bulletWeightGr:62, muzzleVelocityFps:2300, bc:0.304, dragModel:'G1' },
+};
+
 function populateSelect(sel, items, fmt){
   sel.innerHTML = items.map((v,i)=>`<option value="${i}">${fmt(v)}</option>`).join('');
 }
@@ -174,6 +192,22 @@ function buildTable(clickVal, adjUnit, gridIn, distOptions, distUnit, x, y, w){
     const clicksPerSquare = (gridIn/sizeIn).toFixed(2);
     g += `<text x="${(x+colW*(i+1)).toFixed(4)}" y="${row1Y.toFixed(4)}" font-size="0.12">${clicksPerSquare} klik</text>`;
   });
+  g += `</g>`;
+  return g;
+}
+
+// Compact "kogelbaan"-info block, printed beside the QR code — where the
+// true (gravity-drop) trajectory crosses the line of sight the 2nd time
+// downrange of the zero itself (the 1st crossing, trivially), plus the drop
+// and retained energy 100 m past that 2nd crossing. Only rendered when a
+// Wapenplatform preset is selected (see OPTIC_PLATFORM_AMMO) — average NATO-
+// standard ammunition data, not measured for the user's specific rifle.
+function buildTrajectoryBlock(x, y, w, traj, caliber){
+  let g = `<g font-family="IBM Plex Mono, monospace" fill="#171510">`;
+  g += `<text x="${x}" y="${(y+0.13).toFixed(4)}" font-size="0.11" font-family="Oswald, sans-serif" font-weight="600">KOGELBAAN — ${caliber}</text>`;
+  g += `<text x="${x}" y="${(y+0.30).toFixed(4)}" font-size="0.105">1e kruispunt (inschiet): ${traj.nearZeroM} m &#183; 2e kruispunt: ${traj.farZeroM.toFixed(0)} m</text>`;
+  g += `<text x="${x}" y="${(y+0.47).toFixed(4)}" font-size="0.105">Drop @ +100 m na 2e kruispunt: ${traj.dropCm.toFixed(0)} cm &#183; Energie daar: ${traj.energyJAtTarget.toFixed(0)} J (${traj.energyFtLbsAtTarget.toFixed(0)} ft-lbs)</text>`;
+  g += `<text x="${x}" y="${(y+0.60).toFixed(4)}" font-size="0.085" fill="#8f8f8a">Gemiddelde NATO-standaardmunitie — geen gemeten data voor dit exemplaar.</text>`;
   g += `</g>`;
   return g;
 }
@@ -310,6 +344,19 @@ function buildTargetSVG(cfg){
   // reserved footer height to fit it without touching FOOTER_H.
   const qrSize = 0.6;
   svg += buildAppQrSvg(MARGIN, H-0.1-qrSize, qrSize);
+
+  if(cfg.trajectory){
+    const trajX = MARGIN + qrSize + 0.25;
+    svg += buildTrajectoryBlock(trajX, H-0.1-qrSize, (W-MARGIN)-trajX, cfg.trajectory, cfg.trajectoryCaliber);
+  } else if(cfg.trajectoryNote){
+    // Shorter than the on-screen version (cfg.trajectoryNote) — this has to
+    // fit on one printed line next to the QR code instead of wrapping.
+    const trajX = MARGIN + qrSize + 0.25;
+    const shortNote = cfg.trajectoryNote.includes('HOB in')
+      ? 'Vul de HOB in om de kogelbaan te berekenen.'
+      : 'Kogelbaan: geen 2e kruispunt binnen bereik voor dit nulpunt/HOB.';
+    svg += `<text x="${trajX.toFixed(4)}" y="${(H-0.1-qrSize+0.2).toFixed(4)}" font-size="0.1" fill="#8f8f8a" font-family="IBM Plex Mono, monospace">${shortNote}</text>`;
+  }
 
   svg += `</svg>`;
   return { svg, fitsOnPage: anyFits, anyShown };
@@ -493,6 +540,22 @@ function hobInches(suffix){
   return el('hobUnit'+suffix).value === 'cm' ? v*CM_IN : v;
 }
 
+// Only available when a Wapenplatform preset is selected (see
+// OPTIC_PLATFORM_AMMO) and a real HOB is filled in — without a known
+// caliber/ammo there's nothing to simulate a trajectory from.
+function computeOpticTrajectory(zeroDist, hobIn){
+  const ammo = OPTIC_PLATFORM_AMMO[el('platformO').value];
+  if(!ammo || !(hobIn > 0.03) || !window.AppliedConceptsBallistics) return null;
+  return window.AppliedConceptsBallistics.computeTrajectoryProfile({
+    dragModel: ammo.dragModel,
+    bc: ammo.bc,
+    muzzleVelocityFps: ammo.muzzleVelocityFps,
+    sightHeightCm: hobIn / CM_IN,
+    zeroDistanceM: zeroDist,
+    bulletWeightGr: ammo.bulletWeightGr,
+  });
+}
+
 function getStateOptic(){
   const unit = el('adjUnitO').value;
   const zeroDist = OPTIC_DIST[el('zeroDistO').value];
@@ -509,6 +572,15 @@ function getStateOptic(){
   const noMarkerCaption = (workDist < zeroDist && hobIn <= 0.03)
     ? 'Vul de height-over-bore in om de POI te tonen — nu op 0.'
     : 'Directe controle op nulpunt-afstand — POI hoort hier te vallen';
+  const platformAmmo = OPTIC_PLATFORM_AMMO[el('platformO').value] || null;
+  const trajectory = platformAmmo ? computeOpticTrajectory(zeroDist, hobIn) : null;
+  // Explains an empty trajectory block instead of just silently omitting it —
+  // a small HOB zeroed at a longer distance (e.g. a red dot at 100 m) often
+  // has no 2nd crossing within practical range at all, which is correct
+  // physics, not a bug, but looks broken without this note.
+  let trajectoryNote = null;
+  if(platformAmmo && !(hobIn > 0.03)) trajectoryNote = 'Vul de HOB in om de kogelbaan te berekenen.';
+  else if(platformAmmo && !trajectory) trajectoryNote = 'Geen 2e kruispunt binnen bereik voor deze combinatie van nulpunt en HOB (vaak bij een klein HOB op een verder nulpunt, bv. een rooddot op 100 m).';
   return {
     paper: PAGE_DIMS[el('paperSizeO').value],
     paperKey: el('paperSizeO').value,
@@ -530,6 +602,7 @@ function getStateOptic(){
     sameDistanceCaption: noMarkerCaption,
     footerRight: 'Applied Concepts — Zero Optic Calculator',
     hobDisplay, off,
+    trajectory, trajectoryCaliber: platformAmmo ? platformAmmo.caliber : null, trajectoryNote,
   };
 }
 
@@ -545,6 +618,12 @@ function renderOptic(){
     <div class="row"><span>Nulpunt</span><span>${s.zeroDist} m</span></div>
     <div class="row"><span>Controle-afstand</span><span>${s.workDist} m</span></div>
     <div class="row"><span>Mech. offset</span><span>${s.off>0.03? fmtLen(s.off,'cm') : '≈ 0 (zelfde punt)'}</span></div>
+    ${s.trajectory ? `
+    <div class="row"><span>1e kruispunt (inschiet)</span><span>${s.trajectory.nearZeroM} m</span></div>
+    <div class="row"><span>2e kruispunt</span><span>${s.trajectory.farZeroM.toFixed(0)} m</span></div>
+    <div class="row"><span>Drop @ +100 m na 2e kruispunt</span><span>${s.trajectory.dropCm.toFixed(0)} cm</span></div>
+    <div class="row"><span>Energie op die afstand</span><span>${s.trajectory.energyJAtTarget.toFixed(0)} J (${s.trajectory.energyFtLbsAtTarget.toFixed(0)} ft-lbs)</span></div>
+    ` : (s.trajectoryNote ? `<p class="hint">${s.trajectoryNote}</p>` : '')}
   `;
 
   const warn = el('fitWarningO');
@@ -671,6 +750,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.57', date:'22-09-2026', items:[
+      'Zero Optic Calculator: nieuw "kogelbaan"-blok (op het blad en in het voorbeeld) zodra je een Wapenplatform kiest — toont het 1e kruispunt (je ingestelde nulpunt), het 2e kruispunt waar de echte kogelbaan de vizierlijn weer kruist, de drop 100 m daarna, en de energie op die afstand (J/ft-lbs). Gebaseerd op gemiddelde NATO-standaardmunitie (M855A1) per platform, geen gemeten data voor jouw exemplaar — bewust geen "letaal tot"-claim, want dat hangt af van doel, kogelconstructie en plaatsing, niet alleen van energie.',
+    ]},
     { version:'v1.56', date:'22-09-2026', items:[
       'Train — Zero Target (Sniper): de stippellijn om elk aanvinkpunt is nu 1 MOA (was 0,5 MOA) — geslaagd is een schot dat daarbinnen valt. De oefening is aangepast naar één schot per punt (was een groep van 3–5), zodat je bij elk schot een fris Zero Target hebt zonder oude gaten te hergebruiken. Het fijne referentie-raster eromheen blijft in mil (0,1 mil per vakje).',
     ]},
