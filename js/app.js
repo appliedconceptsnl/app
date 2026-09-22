@@ -645,6 +645,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.52', date:'22-09-2026', items:[
+      'Shop-productpagina: de "Meer info"-pagina met de wetenschap achter de greep is niet langer een aparte pagina — die uitleg staat nu direct op de productpagina zelf, boven "Wat je moet doen". Zo lees je de onderbouwing voordat je bij het bestelformulier onderaan bent, niet erna.',
+    ]},
     { version:'v1.51', date:'21-09-2026', items:[
       'Shop volledig herbouwd rond het Custom AR Grip-product (herdoopt van "Custom Grip"): prijs is weg, en de pagina is nu een korte, overtuigende landingspagina (kicker, titel, tagline, "Bouw je greep") in plaats van meteen alle info en een bestelformulier te tonen.',
       '"Bouw je greep" opent nu eerst een eigen productpagina met de volledige uitleg, de bouwstappen en het WhatsApp-bestelformulier — "Hoe het werkt" en "Bestellen" staan niet meer op de Shop-landingspagina zelf.',

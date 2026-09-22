@@ -210,12 +210,6 @@ function acShopInitNav(){
 
   const detailBack = document.getElementById('shopDetailBack');
   if(detailBack) detailBack.addEventListener('click', ()=>acShopShowView('Landing'));
-
-  const moreInfoBtn = document.getElementById('shopMoreInfoBtn');
-  if(moreInfoBtn) moreInfoBtn.addEventListener('click', ()=>acShopShowView('Science'));
-
-  const scienceBack = document.getElementById('shopScienceBack');
-  if(scienceBack) scienceBack.addEventListener('click', ()=>acShopShowView('Detail'));
 }
 
 function initShop(){

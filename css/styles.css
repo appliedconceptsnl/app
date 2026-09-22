@@ -531,18 +531,19 @@
   }
   .shop-back:hover{color:#dab672;}
   .shop-desc-lg{font-size:14.5px;margin-bottom:26px;}
-  .shop-moreinfo-link{
-    display:block;width:100%;text-align:center;background:none;cursor:pointer;
-    border:1px solid var(--line);border-radius:var(--radius-sm);padding:14px;margin-top:22px;
-    font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:.03em;color:var(--cream);
+  /* Inline on the product-detail page, above "Wat je moet doen" — the
+     conversion logic being: explain why it works before what to do and
+     before the order form, not after. By the time someone's scrolled to
+     "Bestellen" it's too late to still be making the case. */
+  .shop-science{margin-bottom:26px;}
+  .shop-science > h3{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--cream);margin:0 0 14px;}
+  .shop-science-block{margin-bottom:20px;}
+  .shop-science-block:last-child{margin-bottom:0;}
+  .shop-science-block h4{
+    font-family:'Oswald',sans-serif;font-weight:600;font-size:14px;text-transform:uppercase;
+    letter-spacing:.03em;color:var(--gold);margin:0 0 6px;
   }
-  .shop-moreinfo-link:hover{border-color:var(--gold);color:var(--gold);}
-  .shop-science-block{margin-bottom:28px;}
-  .shop-science-block h3{
-    font-family:'Oswald',sans-serif;font-weight:600;font-size:15px;text-transform:uppercase;
-    letter-spacing:.03em;color:var(--gold);margin:0 0 8px;
-  }
-  .shop-science-block p{color:var(--cream-dim);font-size:14px;line-height:1.7;margin:0;}
+  .shop-science-block p{color:var(--cream-dim);font-size:13.5px;line-height:1.65;margin:0;}
   @media (max-width:760px){
     .shop-inner{grid-template-columns:1fr;}
     .shop-viewer{aspect-ratio:4/3;}
