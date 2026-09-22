@@ -48,10 +48,14 @@ const SIGHTS = [
   {id:'mro', label:'Trijicon MRO', hobIn:1.60, src:'Gangbare lower 1/3 montagehoogte (1.60–1.66")'},
   {id:'eotech', label:'EOTech EXPS / XPS', hobIn:1.70, src:'Indicatief, varieert sterk per montage'},
   {id:'holosun', label:'Holosun (Micro, bv. 510C)', hobIn:1.63, src:'Met gangbare lower 1/3 spacer'},
-  {id:'rmr', label:'RMR (Trijicon)', hobIn:null, src:'Hoogte hangt volledig af van de montage — standalone of piggyback op een LPVO; vul zelf in'},
-  {id:'lpvo', label:'LPVO (vergrotende richtkijker)', hobIn:null, src:'Volledig afhankelijk van ringen/montage — vul zelf in'},
-  {id:'lpvo_sig_hk416_14', label:'Sig Sauer LPVO — 14" HK416 (gemeten)', hobIn:9*CM_IN, src:'Zelf gemeten — Sig Sauer LPVO op 14" HK416'},
-  {id:'rmr_on_lpvo_hk416_14', label:'RMR op Sig Sauer LPVO — 14" HK416 (gemeten, piggyback)', hobIn:13*CM_IN, src:'Zelf gemeten — RMR bovenop de Sig Sauer LPVO, 14" HK416'},
+  // RMR zit in deze setup altijd piggyback op de LPVO — kiezen van RMR zet
+  // de montage hieronder daarom automatisch op "LPVO (als riser)", en de HOB
+  // komt dus van díe montage-preset (13 cm), niet van dit richtmiddel zelf.
+  {id:'rmr', label:'RMR (Trijicon)', hobIn:null, src:'Hoogte hangt af van de montage — bij deze setup automatisch de LPVO-riser hieronder'},
+  // LPVO is hier het richtmiddel zelf, standaard gemonteerd (geen aparte
+  // montage) — kiezen zet de montage hieronder daarom automatisch op "Geen
+  // aparte montage" en gebruikt de zelf gemeten HOB van 9 cm.
+  {id:'lpvo', label:'LPVO (vergrotende richtkijker)', hobIn:9*CM_IN, src:'Zelf gemeten — Sig Sauer LPVO op 14" HK416'},
   {id:'manual_sight', label:'Anders / handmatig', hobIn:null, src:''},
 ];
 
@@ -63,7 +67,7 @@ const MOUNTS = [
   {id:'unityfast', label:'Unity FAST', hobIn:2.26, src:'Unity Tactical FAST-montagesysteem'},
   {id:'hydra_t2', label:'GBRS Hydra — T1/T2/CompM4/CompM5/Sig/MRO', hobIn:2.91, src:'GBRS Group — 2.91" optic centerline'},
   {id:'hydra_eotech', label:'GBRS Hydra — EOTech EXPS/XPS', hobIn:2.91, src:'GBRS Group officieel — bewust dezelfde 2.91" centerline als de T2-variant (zie toelichting)'},
-  {id:'lpvo_riser', label:'LPVO (als riser voor RMR piggyback)', hobIn:null, src:'Meet de hoogte van de RMR-lens t.o.v. de loop-as op jouw specifieke LPVO + piggyback-montage'},
+  {id:'lpvo_riser', label:'LPVO (als riser voor RMR piggyback)', hobIn:13*CM_IN, src:'Zelf gemeten — RMR bovenop de Sig Sauer LPVO, 14" HK416'},
   {id:'manual_mount', label:'Handmatig invoeren', hobIn:null, src:''},
 ];
 
@@ -394,7 +398,21 @@ function initOptic(){
   el('hobUnitO').value = 'cm';
   applyAutoHOB('O');
 
-  ['sightO','mountO'].forEach(id=>el(id).addEventListener('change', ()=>{applyAutoHOB('O'); renderOptic();}));
+  // RMR/LPVO always go together in this setup: RMR sits piggyback on the
+  // LPVO (so its montage is always the LPVO-riser), and LPVO is itself the
+  // richtmiddel, normally mounted (no separate montage) — so picking one of
+  // these two sights auto-selects the matching montage before the HOB
+  // auto-fill runs, instead of leaving whatever montage happened to be
+  // selected before.
+  el('sightO').addEventListener('change', ()=>{
+    const sight = SIGHTS[el('sightO').value];
+    const mountSel = el('mountO');
+    if(sight.id === 'lpvo') mountSel.value = MOUNTS.findIndex(m=>m.id==='none');
+    else if(sight.id === 'rmr') mountSel.value = MOUNTS.findIndex(m=>m.id==='lpvo_riser');
+    applyAutoHOB('O');
+    renderOptic();
+  });
+  el('mountO').addEventListener('change', ()=>{ applyAutoHOB('O'); renderOptic(); });
   // Marks the field as "typed by the user", not auto-filled — see the
   // dataset.autofilled check in applyAutoHOB() below. Setting .value from
   // JS never fires a real 'input' event on its own, so this only reacts to
@@ -653,6 +671,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.54', date:'22-09-2026', items:[
+      'Zero Optic Calculator: de HOB werd nog niet automatisch ingevuld bij "LPVO" en "RMR" — dat is nu gefixt. LPVO kiezen zet de montage automatisch op "Geen aparte montage" (9 cm HOB); RMR kiezen zet de montage automatisch op "LPVO (als riser)" (13 cm HOB), want in deze setup zit de RMR altijd piggyback op de LPVO.',
+    ]},
     { version:'v1.53', date:'22-09-2026', items:[
       'Shop-bestelformulier: het 06-nummer-veld is weg — WhatsApp toont je nummer al zodra je het gesprek opent, dus dat opnieuw laten intypen was een overbodige stap. "Bestel via WhatsApp" opent nu direct het gesprek, met een reactietijd-verwachting (meestal binnen 2 uur) erbij.',
       'Turret Tape: de merk/model-presets zijn nu specifiek — Schmidt & Bender 12x (regulier, Ø 30 mm), Ultra Short (SOF, Ø 38 mm) en High Performance (SOF, Ø 38 mm) vullen naast de klikwaarde nu ook meteen de turretdiameter in.',
