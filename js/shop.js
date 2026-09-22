@@ -140,35 +140,15 @@ function acShopInitViewer(){
   viewer.style.cursor = 'grab';
 }
 
-function acShopNormalizePhone(raw){
-  let digits = (raw || '').replace(/[^0-9+]/g, '');
-  if(digits.startsWith('+31')) digits = digits.slice(1);
-  else if(digits.startsWith('0031')) digits = digits.slice(2);
-  else if(digits.startsWith('0')) digits = '31' + digits.slice(1);
-  else if(!digits.startsWith('31')) digits = '31' + digits;
-  return digits.replace(/\+/g, '');
-}
-
 function acShopInitOrderForm(){
-  const phoneInput = document.getElementById('shopPhone');
-  const phoneHint = document.getElementById('shopPhoneHint');
   const orderBtn = document.getElementById('shopOrderBtn');
   if(!orderBtn) return;
 
+  // No 06-nummer field: WhatsApp already reveals the sender's own number
+  // the moment they open the chat, so asking for it again here was a
+  // redundant extra step before the send.
   orderBtn.addEventListener('click', ()=>{
-    const raw = (phoneInput.value || '').trim();
-    const digitsOnly = raw.replace(/[^0-9]/g, '');
-    if(digitsOnly.length < 9){
-      phoneHint.textContent = 'Vul een geldig 06-nummer in.';
-      phoneHint.classList.add('shop-phone-error');
-      phoneInput.focus();
-      return;
-    }
-    phoneHint.textContent = '';
-    phoneHint.classList.remove('shop-phone-error');
-
-    const customerPhone = acShopNormalizePhone(raw);
-    const message = `Bestelling Custom AR Grip\nKlant 06-nummer: ${raw}\n(genormaliseerd: +${customerPhone})`;
+    const message = 'Bestelling Custom AR Grip\nHoi, ik wil graag een Custom AR Grip bestellen.';
     const url = `https://wa.me/${SHOP_WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank', 'noopener');
   });

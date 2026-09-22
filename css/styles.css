@@ -498,14 +498,7 @@
 
   .shop-order{background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius);padding:16px 16px 18px;}
   .shop-order h3{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--cream);margin:0 0 12px;}
-  .shop-order label{display:block;font-size:12.5px;color:var(--cream-dim);margin:0 0 6px;}
-  .shop-order input{
-    width:100%;background:#0c0c0a;border:1px solid var(--line);color:var(--cream);
-    padding:9px 10px;border-radius:var(--radius-sm);font-family:'IBM Plex Mono',monospace;font-size:14px;
-  }
-  .shop-order input:focus{outline:1px solid var(--gold);}
-  .shop-phone-error{color:#f0b39e;}
-  .shop-orderbtn{background:var(--gold);color:var(--ink);margin-top:12px;}
+  .shop-orderbtn{background:var(--gold);color:var(--ink);}
   .shop-orderbtn:hover{background:#dab672;}
 
   .shop-application{width:100%;max-width:1040px;margin:36px auto 0;padding:0 26px 50px;}

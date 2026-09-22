@@ -35,7 +35,7 @@
 <div class="mobile-watermark" aria-hidden="true"></div>
 <div class="appshell" id="appshell">
   <header class="masthead">
-    <button class="versionlink" id="versionLink">v1.52</button>
+    <button class="versionlink" id="versionLink">v1.53</button>
     <div class="mh-brand">
       <img src="icons/logo.svg" alt="Applied Concepts logo">
       <div class="wordmark">
@@ -286,7 +286,9 @@
         <legend>Kijker / turret</legend>
         <label for="ttBrand">Merk/model (preset)</label>
         <select id="ttBrand">
-          <option value="sb_st">Schmidt & Bender ST — 0.1 mrad/klik, 12 mrad/omwenteling</option>
+          <option value="sb_12x">Schmidt & Bender 12x (regulier) — Ø 30 mm</option>
+          <option value="sb_ultrashort">Schmidt & Bender Ultra Short (SOF) — Ø 38 mm</option>
+          <option value="sb_highperformance">Schmidt & Bender High Performance (SOF) — Ø 38 mm</option>
           <option value="std10">Standaard 10 mrad/omwenteling (Tangent Theta, ZCO, Vortex, Nightforce e.a.)</option>
           <option value="moa15">Standaard 15 MOA/omwenteling — 1/4 MOA/klik</option>
           <option value="custom">Handmatig instellen</option>
@@ -486,11 +488,8 @@
 
         <div class="shop-order">
           <h3>Bestellen</h3>
-          <label for="shopPhone">Jouw 06-nummer</label>
-          <input type="tel" id="shopPhone" placeholder="06 12345678" autocomplete="tel">
-          <p class="hint" id="shopPhoneHint"></p>
           <button class="printbtn shop-orderbtn" id="shopOrderBtn">Bestel via WhatsApp</button>
-          <p class="hint">Je wordt doorgestuurd naar WhatsApp met een kant-en-klaar bestelbericht — controleer 'm daar en verstuur.</p>
+          <p class="hint">Reageert meestal binnen 2 uur. Je wordt doorgestuurd naar WhatsApp met een kant-en-klaar bestelbericht — controleer 'm daar en verstuur.</p>
         </div>
       </div>
     </div>

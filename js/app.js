@@ -50,6 +50,8 @@ const SIGHTS = [
   {id:'holosun', label:'Holosun (Micro, bv. 510C)', hobIn:1.63, src:'Met gangbare lower 1/3 spacer'},
   {id:'rmr', label:'RMR (Trijicon)', hobIn:null, src:'Hoogte hangt volledig af van de montage — standalone of piggyback op een LPVO; vul zelf in'},
   {id:'lpvo', label:'LPVO (vergrotende richtkijker)', hobIn:null, src:'Volledig afhankelijk van ringen/montage — vul zelf in'},
+  {id:'lpvo_sig_hk416_14', label:'Sig Sauer LPVO — 14" HK416 (gemeten)', hobIn:9*CM_IN, src:'Zelf gemeten — Sig Sauer LPVO op 14" HK416'},
+  {id:'rmr_on_lpvo_hk416_14', label:'RMR op Sig Sauer LPVO — 14" HK416 (gemeten, piggyback)', hobIn:13*CM_IN, src:'Zelf gemeten — RMR bovenop de Sig Sauer LPVO, 14" HK416'},
   {id:'manual_sight', label:'Anders / handmatig', hobIn:null, src:''},
 ];
 
@@ -236,11 +238,17 @@ function buildTargetSVG(cfg){
     const startX = cx + ux*(S/2), startY = targetCy + uy*(S/2);
     const endX = mCx - ux*(markerBS/2), endY = mCy - uy*(markerBS/2);
 
+    // POI marker uses the gold accent instead of the frame's ink color — the
+    // black square frame/POA dot sit at the same coordinates the marker is
+    // drawn relative to, and near the zero distance the offset is small
+    // enough that the marker can land partly inside the black frame itself.
+    // A near-black-on-black marker there would be unreadable.
+    const markerColor = '#c9a35c';
     svg += `<rect x="${(mCx-markerBS/2).toFixed(4)}" y="${(mCy-markerBS/2).toFixed(4)}" width="${markerBS.toFixed(4)}" height="${markerBS.toFixed(4)}"
-      fill="none" stroke="#171510" stroke-width="0.02" stroke-dasharray="0.06,0.05"/>`;
-    svg += `<circle cx="${mCx.toFixed(4)}" cy="${mCy.toFixed(4)}" r="${(cfg.gridIn*0.18).toFixed(4)}" fill="#171510"/>`;
-    svg += `<line x1="${startX.toFixed(4)}" y1="${startY.toFixed(4)}" x2="${endX.toFixed(4)}" y2="${endY.toFixed(4)}" stroke="#171510" stroke-width="0.01"/>`;
-    svg += `<text x="${mCx.toFixed(4)}" y="${(mCy+markerBS/2+0.16).toFixed(4)}" text-anchor="middle" font-size="0.13" font-weight="600" fill="#171510" font-family="IBM Plex Mono, monospace">${m.label}</text>`;
+      fill="none" stroke="${markerColor}" stroke-width="0.026" stroke-dasharray="0.06,0.05"/>`;
+    svg += `<circle cx="${mCx.toFixed(4)}" cy="${mCy.toFixed(4)}" r="${(cfg.gridIn*0.18).toFixed(4)}" fill="${markerColor}"/>`;
+    svg += `<line x1="${startX.toFixed(4)}" y1="${startY.toFixed(4)}" x2="${endX.toFixed(4)}" y2="${endY.toFixed(4)}" stroke="${markerColor}" stroke-width="0.013"/>`;
+    svg += `<text x="${mCx.toFixed(4)}" y="${(mCy+markerBS/2+0.16).toFixed(4)}" text-anchor="middle" font-size="0.13" font-weight="700" fill="${markerColor}" font-family="IBM Plex Mono, monospace">${m.label}</text>`;
     if(m.detail) svg += `<text x="${mCx.toFixed(4)}" y="${(mCy+markerBS/2+0.33).toFixed(4)}" text-anchor="middle" font-size="0.11" fill="#6e6e6a">${m.detail}</text>`;
   });
   const anyShown = (cfg.markers || []).some(m=>m.show);
@@ -645,6 +653,12 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.53', date:'22-09-2026', items:[
+      'Shop-bestelformulier: het 06-nummer-veld is weg — WhatsApp toont je nummer al zodra je het gesprek opent, dus dat opnieuw laten intypen was een overbodige stap. "Bestel via WhatsApp" opent nu direct het gesprek, met een reactietijd-verwachting (meestal binnen 2 uur) erbij.',
+      'Turret Tape: de merk/model-presets zijn nu specifiek — Schmidt & Bender 12x (regulier, Ø 30 mm), Ultra Short (SOF, Ø 38 mm) en High Performance (SOF, Ø 38 mm) vullen naast de klikwaarde nu ook meteen de turretdiameter in.',
+      'Zero Optic Calculator: twee gemeten HOB-presets toegevoegd (Sig Sauer LPVO en RMR-piggyback op die LPVO, beide op een 14" HK416).',
+      'Zero Optic Calculator: het POI-vak, de kliklijn en het label hebben nu een eigen goudkleur in plaats van dezelfde inktkleur als de schijf — zo blijft de POI zichtbaar ook als hij (deels) in het zwarte vak van de schijf valt.',
+    ]},
     { version:'v1.52', date:'22-09-2026', items:[
       'Shop-productpagina: de "Meer info"-pagina met de wetenschap achter de greep is niet langer een aparte pagina — die uitleg staat nu direct op de productpagina zelf, boven "Wat je moet doen". Zo lees je de onderbouwing voordat je bij het bestelformulier onderaan bent, niet erna.',
     ]},

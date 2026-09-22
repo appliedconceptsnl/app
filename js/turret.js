@@ -35,10 +35,12 @@ const TT_CLICK_PRESETS_MIL = [0.1, 0.05, 0.2];
 const TT_CLICK_PRESETS_MOA = [0.25, 0.125, 0.5, 1];
 
 const TT_TURRET_PRESETS = [
-  { id:'sb_st', label:'Schmidt & Bender ST — 0.1 mrad/klik, 12 mrad/omwenteling', unit:'mil', clickVal:0.1, unitsPerRev:12 },
-  { id:'std10', label:'Standaard 10 mrad/omwenteling (Tangent Theta, ZCO, Vortex, Nightforce e.a.) — 0.1 mrad/klik', unit:'mil', clickVal:0.1, unitsPerRev:10 },
-  { id:'moa15', label:'Standaard 15 MOA/omwenteling — 1/4 MOA/klik', unit:'moa', clickVal:0.25, unitsPerRev:15 },
-  { id:'custom', label:'Handmatig instellen', unit:null, clickVal:null, unitsPerRev:null },
+  { id:'sb_12x', label:'Schmidt & Bender 12x (regulier) — 0.1 mrad/klik, 12 mrad/omwenteling, Ø 30 mm', unit:'mil', clickVal:0.1, unitsPerRev:12, diameterMm:30 },
+  { id:'sb_ultrashort', label:'Schmidt & Bender Ultra Short (SOF) — 0.1 mrad/klik, 12 mrad/omwenteling, Ø 38 mm', unit:'mil', clickVal:0.1, unitsPerRev:12, diameterMm:38 },
+  { id:'sb_highperformance', label:'Schmidt & Bender High Performance (SOF) — 0.1 mrad/klik, 12 mrad/omwenteling, Ø 38 mm', unit:'mil', clickVal:0.1, unitsPerRev:12, diameterMm:38 },
+  { id:'std10', label:'Standaard 10 mrad/omwenteling (Tangent Theta, ZCO, Vortex, Nightforce e.a.) — 0.1 mrad/klik', unit:'mil', clickVal:0.1, unitsPerRev:10, diameterMm:null },
+  { id:'moa15', label:'Standaard 15 MOA/omwenteling — 1/4 MOA/klik', unit:'moa', clickVal:0.25, unitsPerRev:15, diameterMm:null },
+  { id:'custom', label:'Handmatig instellen', unit:null, clickVal:null, unitsPerRev:null, diameterMm:null },
 ];
 
 let ttState = {
@@ -434,6 +436,19 @@ function ttApplyTurretPreset(id){
   ttPopulateClickOptions();
   document.getElementById('ttClickVal').value = preset.clickVal;
   document.getElementById('ttUnitsPerRev').value = preset.unitsPerRev;
+
+  // Known factory diameter (e.g. Schmidt & Bender) — a starting point, not a
+  // substitute for measuring your own turret (fabricagetolerantie/uitvoering
+  // kan afwijken, zie de disclaimer). User can still overtype it afterward.
+  if(preset.diameterMm){
+    ttState.sizeMode = 'diameter';
+    ttState.diameterMm = preset.diameterMm;
+    document.getElementById('ttSizeMode').value = 'diameter';
+    document.getElementById('ttSizeDiameterField').hidden = false;
+    document.getElementById('ttSizeCircumferenceField').hidden = true;
+    document.getElementById('ttDiameter').value = preset.diameterMm;
+    ttUpdateCircumferenceOut();
+  }
 }
 
 // Rebuilds the click-value dropdown for the current unit. If the previously
@@ -522,7 +537,9 @@ function initTurret(){
   document.getElementById('ttExtraDistAdd').addEventListener('click', addExtraDistance);
   document.getElementById('ttExtraDistInput').addEventListener('keydown', e=>{ if(e.key === 'Enter'){ e.preventDefault(); addExtraDistance(); } });
 
-  document.getElementById('ttBrand').addEventListener('change', e=>ttApplyTurretPreset(e.target.value) || ttUpdateAll());
+  const brandSel = document.getElementById('ttBrand');
+  ttApplyTurretPreset(brandSel.value); // sync state to the preset shown by default on load
+  brandSel.addEventListener('change', e=>ttApplyTurretPreset(e.target.value) || ttUpdateAll());
   document.getElementById('ttUnit').addEventListener('change', e=>{
     ttSetUnit(e.target.value);
     ttPopulateClickOptions(); // also corrects ttState.clickVal if it doesn't exist for the new unit
