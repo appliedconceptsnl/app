@@ -769,6 +769,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.62', date:'23-09-2026', items:[
+      'WhatsApp-nummer bijgewerkt naar het definitieve nummer — gold voor zowel "Bestel via WhatsApp" (Shop) als "Vraag pass phrase aan", het testnummer is vervangen.',
+    ]},
     { version:'v1.61', date:'23-09-2026', items:[
       '"Vraag pass phrase aan" gaat nu direct naar WhatsApp — het verzoek-sjabloon (naam/eenheid/functie) vul je daar zelf in, in plaats van eerst een los formulier in de app.',
     ]},

@@ -7,7 +7,7 @@
 
 const SHOP_FRAMES = Array.from({length:56}, (_,i) => `assets/shop/custom-grip-360-nobg/frame-${String(i+1).padStart(2,'0')}.png`);
 
-const SHOP_WHATSAPP_NUMBER = '31638666620'; // 0638666620 in internationaal formaat, zonder + of voorloopnul
+const SHOP_WHATSAPP_NUMBER = '31657302106'; // 0657302106 in internationaal formaat, zonder + of voorloopnul — het definitieve nummer, ter vervanging van het testnummer
 
 let acShopInited = false;
 let acShopRotate = { frame: 0, dir: 1, dragging: false, dragStartX: 0, dragStartFrame: 0, rafId: null, lastTs: null, ready: false };
