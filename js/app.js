@@ -770,6 +770,11 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.66', date:'23-09-2026', items:[
+      'Train — Opwarm-schijf (Carbine): de labels (Press Out, Reload, Draw, Draw, en de cijfers 1-4) staan nu allemaal echt gecentreerd in hun cirkel, met de korte instructietekst eronder — voorheen stonden de labels met instructietekst naar boven geschoven.',
+      'Train — 2-2-4 (Carbine): een korte beschrijving van de oefening toegevoegd boven het vuurschema.',
+      'Train — "Triangle"-oefening verwijderd (Carbine).',
+    ]},
     { version:'v1.65', date:'23-09-2026', items:[
       'De app is verhuisd naar een nieuw GitHub-adres: https://appliedconceptsnl.github.io/app/ — installeer de app opnieuw vanaf dit adres als je hem nog op het oude adres had staan (het oude adres werkt niet meer). De QR-code op elk afdrukbaar blad wijst voortaan ook naar dit nieuwe adres.',
     ]},

@@ -166,10 +166,16 @@ function trGridCell(cx, cy, r, cell){
     s += `<text x="${cx.toFixed(4)}" y="${(cy-r*0.72).toFixed(4)}" text-anchor="middle" font-size="0.135" font-family="Oswald, sans-serif" font-weight="600" fill="${TR_INK}">×${cell.count}</text>`;
   }
   const labelFs = cell.big ? r*0.6 : r*0.32;
-  const labelY = cell.instr ? cy - r*0.28 : cy + labelFs*0.34;
+  // Label always sits dead-center in the circle now, whether or not there's
+  // instruction text — it used to shift up to make room for that text, which
+  // read as off-center. The instr text (when present) goes below it instead,
+  // well clear of the circle's edge (there's easily room for both).
+  const labelY = cy + labelFs*0.34;
   s += `<text x="${cx.toFixed(4)}" y="${labelY.toFixed(4)}" text-anchor="middle" font-size="${labelFs.toFixed(3)}" font-family="Oswald, sans-serif" font-weight="700" fill="${cell.big ? TR_GRAY : TR_INK}">${cell.label}</text>`;
   if(cell.instr){
-    s += trText(cx-r*0.75, cy+labelFs*0.18, r*1.5, r*0.85, cell.instr, {fontSize:0.078, align:'center', lineHeight:1.3});
+    const instrY = labelY + labelFs*0.55;
+    const instrH = (cy+r) - instrY - r*0.08;
+    s += trText(cx-r*0.75, instrY, r*1.5, instrH, cell.instr, {fontSize:0.078, align:'center', lineHeight:1.3});
   }
   return s;
 }
@@ -347,113 +353,9 @@ function buildTwoTwoFourSheet(paper){
     '4. 2 schoten — linker doel (pistool)',
     '5. 2 schoten — rechter doel (pistool)',
   ].map(l=>`<div style="padding:2px 0;">${l}</div>`).join('');
-  svg += trText(TR_MARGIN, 0.85, W-0.9, 2.0, `<div style="font-family:'Oswald',sans-serif;font-weight:600;font-size:1.13em;letter-spacing:.02em;margin-bottom:4px;">2-2-4 — VUURSCHEMA (8 SCHOTEN TOTAAL, 4 PER DOEL)</div>${stepsHtml}`, {fontSize:0.115, lineHeight:1.3});
+  svg += trText(TR_MARGIN, 0.85, W-0.9, 2.3, `<div style="margin-bottom:8px;">Vuurdrill die precisie combineert met een snelle transitie van primair wapen naar pistool, op twee doelen.</div><div style="font-family:'Oswald',sans-serif;font-weight:600;font-size:1.13em;letter-spacing:.02em;margin-bottom:4px;">2-2-4 — VUURSCHEMA (8 SCHOTEN TOTAAL, 4 PER DOEL)</div>${stepsHtml}`, {fontSize:0.115, lineHeight:1.3});
   svg += trText(TR_MARGIN, 10.15, W-0.9, 0.6, 'Wapen (primair): __________ &nbsp;&nbsp;·&nbsp;&nbsp; Afstand: __________', {fontSize:0.115, color:TR_DIM});
   svg += trFooter(W, H, '2-2-4-schijf');
-  svg += `</svg>`;
-  return svg;
-}
-
-/* ---- Sheet 10-14: Triangle (overzicht + doelen A-D) ----
-   Bewegingsoefening met 4 schutterposities, 2 dekkingspunten en 4 doelen.
-   Doelbladen hergebruiken het IPSC-silhouet (AC_IPSC_PATH/AC_IPSC_HEAD_A/
-   AC_IPSC_TORSO_A) uit js/dryfire.js — zelfde silhouet, nu als printbaar
-   A4-doelblad in plaats van een scherm-overlay. */
-function trIpscSilhouette(cx, topY, height){
-  const w = height * (AC_IPSC_VIEWBOX_W/AC_IPSC_VIEWBOX_H);
-  const x = cx - w/2;
-  let s = `<svg x="${x.toFixed(4)}" y="${topY.toFixed(4)}" width="${w.toFixed(4)}" height="${height.toFixed(4)}" viewBox="0 0 ${AC_IPSC_VIEWBOX_W} ${AC_IPSC_VIEWBOX_H}">`;
-  s += `<path d="${AC_IPSC_PATH}" fill="none" stroke="${TR_INK}" stroke-width="4"/>`;
-  s += `<rect x="${AC_IPSC_TORSO_A.x}" y="${AC_IPSC_TORSO_A.y}" width="${AC_IPSC_TORSO_A.w}" height="${AC_IPSC_TORSO_A.h}" fill="none" stroke="${TR_INK}" stroke-width="2" stroke-dasharray="7,6"/>`;
-  s += `<rect x="${AC_IPSC_HEAD_A.x}" y="${AC_IPSC_HEAD_A.y}" width="${AC_IPSC_HEAD_A.w}" height="${AC_IPSC_HEAD_A.h}" fill="none" stroke="${TR_INK}" stroke-width="2" stroke-dasharray="7,6"/>`;
-  s += `</svg>`;
-  return s;
-}
-
-function buildTriangleTargetSheet(paper, letter){
-  const W = paper.w, H = paper.h;
-  let svg = trPageOpen(paper);
-  svg += trHeader(W, `DOEL ${letter}`, 'TRIANGLE');
-  svg += trIpscSilhouette(W/2, 1.85, 7.4);
-  svg += trText(TR_MARGIN, 9.75, W-0.9, 0.55, 'Generiek IPSC-silhouet (lichaam + hoofd A-zone) — zie het overzichtblad "Triangle" voor positie, volgorde en aantal schoten per doel.', {fontSize:0.115, color:TR_DIM, align:'center', lineHeight:1.4});
-  svg += trFooter(W, H, `Triangle — Doel ${letter}`);
-  svg += `</svg>`;
-  return svg;
-}
-
-function trPosMarker(p, n){
-  return `<circle cx="${p.x.toFixed(4)}" cy="${p.y.toFixed(4)}" r="0.22" fill="var(--paper)" stroke="${TR_INK}" stroke-width="0.024"/>` +
-    `<text x="${p.x.toFixed(4)}" y="${(p.y+0.065).toFixed(4)}" text-anchor="middle" font-size="0.19" font-family="Oswald, sans-serif" font-weight="700" fill="${TR_INK}">${n}</text>`;
-}
-function trMiniTarget(p, label){
-  return `<rect x="${(p.x-0.22).toFixed(4)}" y="${(p.y-0.32).toFixed(4)}" width="0.44" height="0.64" rx="0.05" fill="${TR_INK}"/>` +
-    `<text x="${p.x.toFixed(4)}" y="${(p.y+0.11).toFixed(4)}" text-anchor="middle" font-size="0.17" font-family="Oswald, sans-serif" font-weight="700" fill="#fff">${label}</text>`;
-}
-function trPathArrow(p1, p2){
-  return `<line x1="${p1.x.toFixed(4)}" y1="${p1.y.toFixed(4)}" x2="${p2.x.toFixed(4)}" y2="${p2.y.toFixed(4)}" stroke="${TR_INK}" stroke-width="0.022" stroke-dasharray="0.09,0.07" marker-end="url(#trArrowHead)"/>`;
-}
-function trBarricade(cx, cy, w, h){
-  return `<rect x="${(cx-w/2).toFixed(4)}" y="${(cy-h/2).toFixed(4)}" width="${w.toFixed(4)}" height="${h.toFixed(4)}" fill="#e2e2dc" stroke="${TR_INK}" stroke-width="0.018"/>`;
-}
-function trDistLabel(p1, p2, label){
-  const mx = (p1.x+p2.x)/2, my = (p1.y+p2.y)/2;
-  return `<rect x="${(mx-0.34).toFixed(4)}" y="${(my-0.13).toFixed(4)}" width="0.68" height="0.26" fill="var(--paper)"/>` +
-    `<text x="${mx.toFixed(4)}" y="${(my+0.06).toFixed(4)}" text-anchor="middle" font-size="0.14" font-family="IBM Plex Mono, monospace" font-weight="600" fill="${TR_INK}">${label}</text>`;
-}
-
-function buildTriangleOverviewSheet(paper){
-  const W = paper.w, H = paper.h;
-  let svg = trPageOpen(paper);
-  svg += trHeader(W, 'TRIANGLE — OVERZICHT');
-  svg += `<defs><marker id="trArrowHead" markerWidth="8" markerHeight="8" refX="5.5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="${TR_INK}"/></marker></defs>`;
-
-  const mapTop = 0.95, mapBottom = 6.35, mapLeft = TR_MARGIN, mapRight = W-TR_MARGIN;
-  svg += `<rect x="${mapLeft}" y="${mapTop}" width="${(mapRight-mapLeft).toFixed(4)}" height="${(mapBottom-mapTop).toFixed(4)}" fill="none" stroke="${TR_DIM}" stroke-width="0.012" stroke-dasharray="0.05,0.05"/>`;
-
-  const posA = { x: mapLeft+2.15, y: mapTop+0.55 };
-  const posB = { x: mapLeft+3.35, y: mapTop+0.55 };
-  const posC = { x: mapRight-0.85, y: mapTop+2.5 };
-  const posD = { x: mapRight-0.85, y: mapTop+3.95 };
-  const pos1 = { x: mapLeft+0.9, y: mapBottom-0.55 };
-  const pos2 = { x: mapRight-1.55, y: mapBottom-0.65 };
-  const pos3 = { x: mapRight-1.55, y: mapTop+3.2 };
-  const pos4 = { x: mapLeft+1.55, y: mapTop+1.65 };
-
-  svg += trPathArrow(pos1, pos2);
-  svg += trPathArrow(pos2, pos3);
-  svg += trPathArrow(pos3, pos4);
-
-  svg += trBarricade(pos2.x+0.55, pos2.y-0.15, 0.34, 0.95);
-  svg += trBarricade(pos4.x-0.1, pos4.y+0.6, 0.95, 0.3);
-
-  svg += trMiniTarget(posA, 'A');
-  svg += trMiniTarget(posB, 'B');
-  svg += trMiniTarget(posC, 'C');
-  svg += trMiniTarget(posD, 'D');
-
-  svg += trDistLabel(pos1, pos2, '7 m');
-  svg += trDistLabel(pos2, pos3, '15 m');
-  svg += trDistLabel(pos3, pos4, '20 m');
-
-  svg += trPosMarker(pos1, '1');
-  svg += trPosMarker(pos2, '2');
-  svg += trPosMarker(pos3, '3');
-  svg += trPosMarker(pos4, '4');
-
-  svg += trText(mapLeft, mapBottom+0.12, mapRight-mapLeft, 0.3, '○ schutterspositie &nbsp;·&nbsp; pijl (- - -) = beweging/rennen &nbsp;·&nbsp; grijs blok = dekking/barricade &nbsp;·&nbsp; zwart blokje = doel', {fontSize:0.105, color:TR_DIM, align:'center'});
-
-  const stepsHtml = [
-    ['1', 'Positie 1 (start).', 'Op het startsein (speedtimer): 2 lichaamsschoten + 1 hoofdschot op doel A, en 2 lichaamsschoten + 1 hoofdschot op doel B.'],
-    ['2', 'Verplaats naar Positie 2 (achter dekking).', 'Vanuit dekking: 4 gerichte lichaamsschoten op doel C.'],
-    ['3', 'Kom de hoek van de barricade om (Positie 2).', 'Dynamisch (tijdens het lopen): 2 lichaamsschoten + 1 hoofdschot op doel D.'],
-    ['4', 'Verplaats via de aangegeven route, de hoek om, richting Positie 3.', 'Dynamisch (terwijl je naar voren beweegt): 3 patronen, verdeeld over doel C en D.'],
-    ['5', 'Verplaats via de route naar de volgende barricade (Positie 4).', 'Tijdens het rennen: speed reload — geen schoten tijdens deze verplaatsing.'],
-    ['6', 'Kom de hoek om bij Positie 4.', 'Dynamisch: 2 patronen, verdeeld over doel A en B.'],
-  ].map(([n, title, body])=>`<div style="padding:4px 0;"><span style="font-weight:700;">${n}. ${title}</span><br>${body}</div>`).join('');
-  svg += trText(TR_MARGIN, 6.95, W-0.9, 3.55, `<div style="font-family:'Oswald',sans-serif;font-weight:600;font-size:1.1em;letter-spacing:.02em;margin-bottom:4px;">VUURSCHEMA (18 PATRONEN TOTAAL &nbsp;·&nbsp; 4 POSITIES &nbsp;·&nbsp; 1 RELOAD TIJDENS BEWEGING)</div>${stepsHtml}`, {fontSize:0.115, lineHeight:1.32});
-
-  svg += trText(TR_MARGIN, 10.75, W-0.9, 0.4, 'Dynamische/bewegende oefening — alleen uitvoeren onder toezicht en volgens de geldende baanregels.', {fontSize:0.105, color:TR_DIM});
-  svg += trFooter(W, H, 'Triangle — Overzicht');
   svg += `</svg>`;
   return svg;
 }
@@ -678,7 +580,6 @@ const TRAIN_EXERCISES = [
   { id:'quad', group:'carbine', cat:'basis', name:'Carbine/Pistol Quad-schijf', desc:'2 cirkels — low/high ready + slide lock reload.', build:(p)=>[buildQuadSheet(p)] },
   { id:'onetofive', group:'carbine', cat:'drills', name:'1 to 5', desc:'1-2-3-4-5 schoten over links/midden/rechts — 3 losse bladen.', pageNames:['Links', 'Midden', 'Rechts'], build:(p)=>[buildOneToFiveSheet(p,'links'), buildOneToFiveSheet(p,'midden'), buildOneToFiveSheet(p,'rechts')] },
   { id:'twotwofour', group:'carbine', cat:'drills', name:'2-2-4', desc:'2 links, 2 rechts, transitie naar Glock, 2 links, 2 rechts.', build:(p)=>[buildTwoTwoFourSheet(p)] },
-  { id:'triangle', group:'carbine', cat:'drills', name:'Triangle', desc:'4 posities, 4 doelen (A–D), bewegend/dynamisch vuren + speed reload — met overzichtblad en doelbladen.', pageNames:['Overzicht', 'Doel A', 'Doel B', 'Doel C', 'Doel D'], build:(p)=>[buildTriangleOverviewSheet(p), buildTriangleTargetSheet(p,'A'), buildTriangleTargetSheet(p,'B'), buildTriangleTargetSheet(p,'C'), buildTriangleTargetSheet(p,'D')] },
 
   { id:'zerotarget', group:'sniper', cat:'basis', name:'Zero Target', desc:'9 aanvinkpunten, één schot per punt binnen 1 MOA — bevestig je nulpunt zonder oude gaten te hergebruiken.', build:(p)=>[buildZeroTargetSheet(p)] },
   { id:'npanobag', group:'sniper', cat:'basis', name:'NPA & No-Bag Target', desc:'4 cirkels (2 → 0,4 MOA), zonder achterzak — bouw je Natural Point of Aim en bevestig hem.', build:(p)=>[buildNpaNoBagSheet(p)] },
