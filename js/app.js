@@ -37,6 +37,36 @@ const el = id => document.getElementById(id);
   passInput.focus();
 })();
 
+/* ---------------------------------------------------------------------
+   "Vraag pass phrase aan" — for someone who has the installed app but no
+   pass phrase yet. Opens WhatsApp with a pre-filled request; the pass
+   phrase itself is never sent automatically, that's still a manual reply.
+   Reuses SHOP_WHATSAPP_NUMBER (js/shop.js, loaded before this script) —
+   same real-world contact, no reason to duplicate the number.
+--------------------------------------------------------------------- */
+(function(){
+  const toggle = document.getElementById('gateRequestToggle');
+  const form = document.getElementById('gateRequestForm');
+  if(!toggle || !form) return;
+
+  toggle.addEventListener('click', function(){
+    const opening = form.hidden;
+    form.hidden = !opening;
+    toggle.textContent = opening ? 'Annuleren' : 'Geen pass phrase? Vraag toegang aan';
+    if(opening) document.getElementById('gateReqName').focus();
+  });
+
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    const naam = (document.getElementById('gateReqName').value || '').trim();
+    const eenheid = (document.getElementById('gateReqUnit').value || '').trim();
+    const functie = (document.getElementById('gateReqRole').value || '').trim();
+    const message = `Verzoek pass phrase\nNaam: ${naam || '-'}\nEenheid: ${eenheid || '-'}\nFunctie: ${functie || '-'}`;
+    const url = `https://wa.me/${SHOP_WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank', 'noopener');
+  });
+})();
+
 const CLICKS = { MOA:[1,0.5,0.25], MIL:[0.1,0.2] };
 const PAGE_DIMS = { a4:{w:8.2677,h:11.6929,label:'A4'}, letter:{w:8.5,h:11,label:'Letter'} };
 
@@ -750,6 +780,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.60', date:'23-09-2026', items:[
+      'Pass phrase-scherm: nieuwe link "Geen pass phrase? Vraag toegang aan" voor mensen die de app al hebben maar nog geen pass phrase — vult naam, eenheid en functie in en stuurt een kant-en-klaar WhatsApp-verzoek. De pass phrase zelf wordt nooit automatisch verstuurd, dat blijft een handmatig antwoord.',
+    ]},
     { version:'v1.59', date:'23-09-2026', items:[
       'Shop-productpagina: "De techniek" is nu een echte knop (gouden vulling, zoals "Bestel via WhatsApp" maar kleiner) in plaats van een simpele tekstregel — duidelijker dat er iets uit te klappen valt.',
     ]},

@@ -33,13 +33,26 @@
       <button type="submit" class="printbtn gate-btn">Openen</button>
       <p class="gate-error" id="gateError"></p>
     </form>
+
+    <button type="button" class="gate-request-toggle" id="gateRequestToggle">Geen pass phrase? Vraag toegang aan</button>
+
+    <form id="gateRequestForm" class="gate-request-form" autocomplete="off" hidden>
+      <label for="gateReqName">Naam</label>
+      <input type="text" id="gateReqName" autocomplete="off" required>
+      <label for="gateReqUnit">Eenheid</label>
+      <input type="text" id="gateReqUnit" autocomplete="off">
+      <label for="gateReqRole">Functie</label>
+      <input type="text" id="gateReqRole" autocomplete="off">
+      <button type="submit" class="printbtn gate-request-btn">Verzoek versturen via WhatsApp</button>
+      <p class="gate-request-hint">Je wordt doorgestuurd naar WhatsApp met een kant-en-klaar verzoek — de pass phrase zelf wordt niet automatisch verstuurd.</p>
+    </form>
   </div>
 </div>
 
 <div class="mobile-watermark" aria-hidden="true"></div>
 <div class="appshell" id="appshell">
   <header class="masthead">
-    <button class="versionlink" id="versionLink">v1.59</button>
+    <button class="versionlink" id="versionLink">v1.60</button>
     <div class="mh-brand">
       <img src="icons/logo.svg" alt="Applied Concepts logo">
       <div class="wordmark">
