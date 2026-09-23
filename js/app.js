@@ -770,6 +770,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.67', date:'23-09-2026', items:[
+      'App-icoon (icon-192/icon-512, gebruikt bij installeren op desktop/Android) iets kleiner gemaakt — het beeldmerk vulde bijna de volledige rand, waardoor de "A" en "D" van "APPLIED" bij installeren op de Mac net tegen de rand van het icoon aankwamen. Het iOS-icoon (apple-touch-icon) is ongewijzigd, die stond al goed.',
+    ]},
     { version:'v1.66', date:'23-09-2026', items:[
       'Train — Opwarm-schijf (Carbine): de labels (Press Out, Reload, Draw, Draw, en de cijfers 1-4) staan nu allemaal echt gecentreerd in hun cirkel, met de korte instructietekst eronder — voorheen stonden de labels met instructietekst naar boven geschoven.',
       'Train — 2-2-4 (Carbine): een korte beschrijving van de oefening toegevoegd boven het vuurschema.',
