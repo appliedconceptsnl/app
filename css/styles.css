@@ -648,24 +648,14 @@
   .gate-error{font-size:11.5px;color:#f0b39e;min-height:16px;margin:10px 0 0;}
 
   /* "Vraag pass phrase aan" — for someone with the installed app but no
-     pass phrase yet. Deliberately a separate, secondary control below the
-     real pass-phrase form, not competing with it. */
-  .gate-request-toggle{
-    background:none;border:none;padding:0;margin-top:16px;cursor:pointer;
-    font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--gold);
-    text-decoration:underline;text-underline-offset:2px;
+     pass phrase yet. Goes straight to WhatsApp with the request template
+     ready to fill in there (no in-app fields) — a secondary/outline style
+     below "Openen" so it doesn't compete with it. */
+  .gate-request-btn{
+    background:transparent;color:var(--cream);border:1px solid var(--line);
+    margin-top:14px;
   }
-  .gate-request-toggle:hover{color:#dab672;}
-  .gate-request-form{margin-top:16px;padding-top:16px;border-top:1px solid var(--line);}
-  .gate-request-form label{display:block;font-size:11.5px;color:var(--cream-dim);margin:0 0 6px;text-align:left;}
-  .gate-request-form input{
-    width:100%;background:#0c0c0a;border:1px solid var(--line);color:var(--cream);
-    padding:9px 10px;border-radius:var(--radius-sm);font-family:'Work Sans',sans-serif;font-size:13px;
-    text-align:left;letter-spacing:normal;margin-bottom:10px;
-  }
-  .gate-request-form input:focus{outline:1px solid var(--cream);}
-  .gate-request-btn{background:var(--gold);color:var(--ink);margin-top:2px;}
-  .gate-request-btn:hover{background:#dab672;}
+  .gate-request-btn:hover{background:#1f1f1c;}
   .gate-request-hint{font-size:10.5px;color:var(--cream-dim);margin:10px 0 0;line-height:1.45;}
 
   /* ---- Version / changelog ---- */

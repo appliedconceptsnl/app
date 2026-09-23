@@ -39,29 +39,18 @@ const el = id => document.getElementById(id);
 
 /* ---------------------------------------------------------------------
    "Vraag pass phrase aan" — for someone who has the installed app but no
-   pass phrase yet. Opens WhatsApp with a pre-filled request; the pass
-   phrase itself is never sent automatically, that's still a manual reply.
-   Reuses SHOP_WHATSAPP_NUMBER (js/shop.js, loaded before this script) —
-   same real-world contact, no reason to duplicate the number.
+   pass phrase yet. Goes straight to WhatsApp with the request template
+   ready to fill in there (naam/eenheid/functie left blank on purpose, no
+   in-app form) — the pass phrase itself is never sent automatically,
+   that's still a manual reply. Reuses SHOP_WHATSAPP_NUMBER (js/shop.js,
+   loaded before this script) — same real-world contact, no reason to
+   duplicate the number.
 --------------------------------------------------------------------- */
 (function(){
-  const toggle = document.getElementById('gateRequestToggle');
-  const form = document.getElementById('gateRequestForm');
-  if(!toggle || !form) return;
-
-  toggle.addEventListener('click', function(){
-    const opening = form.hidden;
-    form.hidden = !opening;
-    toggle.textContent = opening ? 'Annuleren' : 'Geen pass phrase? Vraag toegang aan';
-    if(opening) document.getElementById('gateReqName').focus();
-  });
-
-  form.addEventListener('submit', function(e){
-    e.preventDefault();
-    const naam = (document.getElementById('gateReqName').value || '').trim();
-    const eenheid = (document.getElementById('gateReqUnit').value || '').trim();
-    const functie = (document.getElementById('gateReqRole').value || '').trim();
-    const message = `Verzoek pass phrase\nNaam: ${naam || '-'}\nEenheid: ${eenheid || '-'}\nFunctie: ${functie || '-'}`;
+  const btn = document.getElementById('gateRequestBtn');
+  if(!btn) return;
+  btn.addEventListener('click', function(){
+    const message = 'Verzoek pass phrase\nNaam: \nEenheid: \nFunctie: ';
     const url = `https://wa.me/${SHOP_WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank', 'noopener');
   });
@@ -780,6 +769,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.61', date:'23-09-2026', items:[
+      '"Vraag pass phrase aan" gaat nu direct naar WhatsApp — het verzoek-sjabloon (naam/eenheid/functie) vul je daar zelf in, in plaats van eerst een los formulier in de app.',
+    ]},
     { version:'v1.60', date:'23-09-2026', items:[
       'Pass phrase-scherm: nieuwe link "Geen pass phrase? Vraag toegang aan" voor mensen die de app al hebben maar nog geen pass phrase — vult naam, eenheid en functie in en stuurt een kant-en-klaar WhatsApp-verzoek. De pass phrase zelf wordt nooit automatisch verstuurd, dat blijft een handmatig antwoord.',
     ]},
