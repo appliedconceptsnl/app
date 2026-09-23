@@ -192,16 +192,19 @@ function acShopInitNav(){
   if(detailBack) detailBack.addEventListener('click', ()=>acShopShowView('Landing'));
 }
 
-// "De techniek" starts collapsed on the product page — the CSS expand/
-// collapse is driven purely by the button's own aria-expanded attribute
-// (see .shop-science-toggle[aria-expanded="true"] + .shop-science-body in
-// css/styles.css), so toggling it here is the only JS this needs.
+// "De techniek" starts collapsed — the CSS expand/collapse is driven
+// purely by the button's own aria-expanded attribute (see
+// .shop-science-toggle[aria-expanded="true"] + .shop-science-body in
+// css/styles.css), so toggling it here is the only JS this needs. Wired
+// generically since the same toggle now appears in two places (the Shop
+// landing teaser and the product-detail page), each its own independent
+// instance.
 function acShopInitScienceToggle(){
-  const toggle = document.getElementById('shopScienceToggle');
-  if(!toggle) return;
-  toggle.addEventListener('click', ()=>{
-    const expanded = toggle.getAttribute('aria-expanded') === 'true';
-    toggle.setAttribute('aria-expanded', String(!expanded));
+  document.querySelectorAll('.shop-science-toggle').forEach(toggle=>{
+    toggle.addEventListener('click', ()=>{
+      const expanded = toggle.getAttribute('aria-expanded') === 'true';
+      toggle.setAttribute('aria-expanded', String(!expanded));
+    });
   });
 }
 

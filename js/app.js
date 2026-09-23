@@ -769,6 +769,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.63', date:'23-09-2026', items:[
+      'Shop-landingspagina: de uitklapbare "De techniek"-knop staat nu ook al op de eerste Custom AR Grip-pagina (naast "Bouw je greep"), niet meer alleen op de productpagina erachter.',
+    ]},
     { version:'v1.62', date:'23-09-2026', items:[
       'WhatsApp-nummer bijgewerkt naar het definitieve nummer — gold voor zowel "Bestel via WhatsApp" (Shop) als "Vraag pass phrase aan", het testnummer is vervangen.',
     ]},
