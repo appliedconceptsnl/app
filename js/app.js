@@ -39,18 +39,19 @@ const el = id => document.getElementById(id);
 
 /* ---------------------------------------------------------------------
    "Vraag pass phrase aan" — for someone who has the installed app but no
-   pass phrase yet. Goes straight to WhatsApp with the request template
-   ready to fill in there (naam/eenheid/functie left blank on purpose, no
-   in-app form) — the pass phrase itself is never sent automatically,
-   that's still a manual reply. Reuses SHOP_WHATSAPP_NUMBER (js/shop.js,
-   loaded before this script) — same real-world contact, no reason to
-   duplicate the number.
+   pass phrase yet. Goes straight to WhatsApp with just "Verzoek pass
+   phrase" — deliberately no naam/eenheid/functie template (22-09-2026:
+   "ik hoef geen verdere info, als ik die wil kan ik er zelf om vragen").
+   The pass phrase itself is never sent automatically, that's still a
+   manual reply. Reuses SHOP_WHATSAPP_NUMBER (js/shop.js, loaded before
+   this script) — same real-world contact, no reason to duplicate the
+   number.
 --------------------------------------------------------------------- */
 (function(){
   const btn = document.getElementById('gateRequestBtn');
   if(!btn) return;
   btn.addEventListener('click', function(){
-    const message = 'Verzoek pass phrase\nNaam: \nEenheid: \nFunctie: ';
+    const message = 'Verzoek pass phrase';
     const url = `https://wa.me/${SHOP_WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank', 'noopener');
   });
@@ -769,6 +770,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.64', date:'23-09-2026', items:[
+      '"Vraag pass phrase aan" stuurt nu alleen nog "Verzoek pass phrase" — geen naam/eenheid/functie meer in het bericht, dat vraag je zelf op als je het nodig hebt.',
+    ]},
     { version:'v1.63', date:'23-09-2026', items:[
       'Shop-landingspagina: de uitklapbare "De techniek"-knop staat nu ook al op de eerste Custom AR Grip-pagina (naast "Bouw je greep"), niet meer alleen op de productpagina erachter.',
     ]},
