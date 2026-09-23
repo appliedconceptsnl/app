@@ -192,11 +192,25 @@ function acShopInitNav(){
   if(detailBack) detailBack.addEventListener('click', ()=>acShopShowView('Landing'));
 }
 
+// "De techniek" starts collapsed on the product page — the CSS expand/
+// collapse is driven purely by the button's own aria-expanded attribute
+// (see .shop-science-toggle[aria-expanded="true"] + .shop-science-body in
+// css/styles.css), so toggling it here is the only JS this needs.
+function acShopInitScienceToggle(){
+  const toggle = document.getElementById('shopScienceToggle');
+  if(!toggle) return;
+  toggle.addEventListener('click', ()=>{
+    const expanded = toggle.getAttribute('aria-expanded') === 'true';
+    toggle.setAttribute('aria-expanded', String(!expanded));
+  });
+}
+
 function initShop(){
   if(acShopInited) return;
   acShopInited = true;
   acShopInitViewer();
   acShopInitNav();
+  acShopInitScienceToggle();
   acShopInitOrderForm();
   acShopInitStayUp();
 }

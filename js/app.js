@@ -750,6 +750,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.58', date:'23-09-2026', items:[
+      'Shop-productpagina: "Waarom dit werkt" heet nu "De techniek" en is een uitklapbare knop geworden — staat standaard dichtgeklapt, klik erop om de onderbouwing (nauwkeurigheid/triggercontrole/terugslag) uit te vouwen.',
+    ]},
     { version:'v1.57', date:'22-09-2026', items:[
       'Zero Optic Calculator: nieuw "kogelbaan"-blok (op het blad en in het voorbeeld) zodra je een Wapenplatform kiest — toont het 1e kruispunt (je ingestelde nulpunt), het 2e kruispunt waar de echte kogelbaan de vizierlijn weer kruist, de drop 100 m daarna, en de energie op die afstand (J/ft-lbs). Gebaseerd op gemiddelde NATO-standaardmunitie (M855A1) per platform, geen gemeten data voor jouw exemplaar — bewust geen "letaal tot"-claim, want dat hangt af van doel, kogelconstructie en plaatsing, niet alleen van energie.',
     ]},
