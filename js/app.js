@@ -750,6 +750,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.59', date:'23-09-2026', items:[
+      'Shop-productpagina: "De techniek" is nu een echte knop (gouden vulling, zoals "Bestel via WhatsApp" maar kleiner) in plaats van een simpele tekstregel — duidelijker dat er iets uit te klappen valt.',
+    ]},
     { version:'v1.58', date:'23-09-2026', items:[
       'Shop-productpagina: "Waarom dit werkt" heet nu "De techniek" en is een uitklapbare knop geworden — staat standaard dichtgeklapt, klik erop om de onderbouwing (nauwkeurigheid/triggercontrole/terugslag) uit te vouwen.',
     ]},
