@@ -24,14 +24,15 @@ Applied Concepts-website/server. Geen eigen server? Gratis en simpel via
 **GitHub Pages**:
 
 1. Maak een gratis account op github.com (indien nog niet aanwezig).
-2. Maak een nieuwe (public) repository, bijvoorbeeld `zero-calculator`.
+2. Maak een nieuwe (public) repository (deze app staat nu op GitHub als `app`, onder het account `appliedconceptsnl`).
 3. Upload de complete inhoud van deze map (dus `index.html`,
    `manifest.json`, `service-worker.js` en de map `icons/` met alle
    bestanden erin) naar die repository.
 4. Ga naar **Settings → Pages** in die repository, zet "Source" op de
    branch waar je net naar hebt geüpload (meestal `main`), map `/ (root)`.
 5. Na ongeveer een minuut staat de app live op een adres als:
-   `https://<jouw-gebruikersnaam>.github.io/zero-calculator/`
+   `https://<jouw-gebruikersnaam>.github.io/<repository-naam>/`
+   — voor deze app dus: `https://appliedconceptsnl.github.io/app/`
 
 Dat is de link die je met iedereen deelt.
 

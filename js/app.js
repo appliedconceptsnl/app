@@ -770,6 +770,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.65', date:'23-09-2026', items:[
+      'De app is verhuisd naar een nieuw GitHub-adres: https://appliedconceptsnl.github.io/app/ — installeer de app opnieuw vanaf dit adres als je hem nog op het oude adres had staan (het oude adres werkt niet meer). De QR-code op elk afdrukbaar blad wijst voortaan ook naar dit nieuwe adres.',
+    ]},
     { version:'v1.64', date:'23-09-2026', items:[
       '"Vraag pass phrase aan" stuurt nu alleen nog "Verzoek pass phrase" — geen naam/eenheid/functie meer in het bericht, dat vraag je zelf op als je het nodig hebt.',
     ]},
