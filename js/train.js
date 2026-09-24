@@ -275,11 +275,11 @@ function buildThrottleSheet(paper){
   const corners = [
     {dx:-2.55, dy:-2.7, label:'1'},
     {dx:2.55, dy:-2.7, label:'2'},
-    {dx:-2.55, dy:2.7, label:'2'},
-    {dx:2.55, dy:2.7, label:'1'},
+    {dx:-2.55, dy:2.7, label:'3'},
+    {dx:2.55, dy:2.7, label:'2'},
   ];
   corners.forEach(c=>{ svg += trBlankCircle(cx+c.dx, cy+c.dy, 0.62, c.label); });
-  svg += trText(TR_MARGIN, 1.1, 3.6, 1.0, 'Op start van de tijdklok: draw en engageer een willekeurige cirkel. Elk cijfer geeft aan hoeveel treffers in die cirkel nodig zijn.', {fontSize:0.115, lineHeight:1.4});
+  svg += trText(TR_MARGIN, 1.1, 4.4, 1.6, 'Op start van de tijdklok/shottimer: draw en engage. Vuur 2 schoten op de centrale grote cirkel, dan een willekeurige kleine cirkel — het cijfer geeft het aantal schoten in die cirkel aan — en kom daarna terug op de centrale cirkel met nogmaals 2 schoten.', {fontSize:0.115, lineHeight:1.4});
   svg += trText(TR_MARGIN, 10.5, 5.0, 0.5, 'AFSTAND: 4,5 m &nbsp;·&nbsp; UITRUSTING: 10 patronen &nbsp;·&nbsp; ELKE MISSER: +1 sec', {fontSize:0.105, color:TR_DIM});
   svg += trFooter(W, H, 'Throttle Control-schijf');
   svg += `</svg>`;
@@ -576,7 +576,7 @@ const TRAIN_EXERCISES = [
   { id:'warmup', group:'carbine', cat:'basis', name:'Opwarm-schijf', desc:'12 korte reeksen — draw, reload, press out, sterke/ondersteunende hand.', build:(p)=>[buildWarmupSheet(p)] },
   { id:'flinch', group:'carbine', cat:'basis', name:'Flinch-schijf', desc:'24 stippen in 4 reeksen — compressed, draw, transitie, op tijd.', build:(p)=>[buildFlinchSheet(p)] },
   { id:'tripleten', group:'carbine', cat:'basis', name:'Triple Ten-schijf', desc:'3 cirkels, 10 patronen elk — draw en vuur snel op tijd.', build:(p)=>[buildTripleTenSheet(p)] },
-  { id:'throttle', group:'carbine', cat:'basis', name:'Throttle Control-schijf', desc:'Willekeurige cirkel — het cijfer bepaalt het aantal treffers.', build:(p)=>[buildThrottleSheet(p)] },
+  { id:'throttle', group:'carbine', cat:'basis', name:'Throttle Control-schijf', desc:'2 schoten centraal, willekeurige kleine cirkel (aantal = cijfer), weer 2 schoten centraal.', build:(p)=>[buildThrottleSheet(p)] },
   { id:'quad', group:'carbine', cat:'basis', name:'Carbine/Pistol Quad-schijf', desc:'2 cirkels — low/high ready + slide lock reload.', build:(p)=>[buildQuadSheet(p)] },
   { id:'onetofive', group:'carbine', cat:'drills', name:'1 to 5', desc:'1-2-3-4-5 schoten over links/midden/rechts — 3 losse bladen.', pageNames:['Links', 'Midden', 'Rechts'], build:(p)=>[buildOneToFiveSheet(p,'links'), buildOneToFiveSheet(p,'midden'), buildOneToFiveSheet(p,'rechts')] },
   { id:'twotwofour', group:'carbine', cat:'drills', name:'2-2-4', desc:'2 links, 2 rechts, transitie naar Glock, 2 links, 2 rechts.', build:(p)=>[buildTwoTwoFourSheet(p)] },

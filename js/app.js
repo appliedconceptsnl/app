@@ -770,6 +770,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.68', date:'24-09-2026', items:[
+      'Train — Throttle Control-schijf (Carbine): de aantallen op de kleine cirkels zijn nu 1, 2, 3, 2. De oefening is aangepast naar 2 schoten op de centrale cirkel, dan een willekeurige kleine cirkel (aantal schoten = het cijfer), en weer terug naar de centrale cirkel met 2 schoten.',
+    ]},
     { version:'v1.67', date:'23-09-2026', items:[
       'App-icoon (icon-192/icon-512, gebruikt bij installeren op desktop/Android) iets kleiner gemaakt — het beeldmerk vulde bijna de volledige rand, waardoor de "A" en "D" van "APPLIED" bij installeren op de Mac net tegen de rand van het icoon aankwamen. Het iOS-icoon (apple-touch-icon) is ongewijzigd, die stond al goed.',
     ]},
