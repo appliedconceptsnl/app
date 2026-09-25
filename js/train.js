@@ -535,6 +535,71 @@ function buildConsistencyCheckSheet(paper){
   return svg;
 }
 
+/* ---- Sheet: The Box Test ----
+   Turret-tracking test: één aanvinkpunt linksonder — je richt bij élk
+   schot op datzelfde punt, ongeacht wat de turret doet. Omdat je tussen
+   schoten de turret dialt (rechts/omhoog/links/omlaag), vormen de
+   kogelgaten zelf de box, niet je richtpunt. Bevestigt zowel dat de
+   turret recht/proportioneel meedraait als dat hij na een volledige
+   omloop weer exact op zero terugkeert (22-09-2026: op verzoek 3x
+   herhaald i.p.v. één enkele box, voor meer zekerheid — 12 schoten
+   totaal). Klikwaarde is altijd MIL (zo wordt een turret vrijwel
+   universeel gedialed) en wordt dynamisch berekend uit het papierformaat
+   — op 100 m past er sowieso maar een paar mil op één vel (0,1 mil = 1 cm
+   op 100 m), dat is een fysieke beperking, geen ontwerpkeuze. */
+function buildBoxTestSheet(paper){
+  const W = paper.w, H = paper.h;
+  let svg = trPageOpen(paper);
+  svg += trHeader(W, 'THE BOX TEST', '100M · FUNDAMENTALS');
+
+  // Grootste schone 0,1-mil-stap die de verste (rechts/boven) hoek
+  // veilig binnen het bedrukbare vlak houdt, inclusief ruimte voor het
+  // label ernaast.
+  const BOX_MARGIN = TR_MARGIN + 0.4;
+  const usableWidthIn = W - 2*BOX_MARGIN;
+  const milPerSide = Math.floor((usableWidthIn / (10*CM_IN)) * 10) / 10;
+  const boxIn = milPerSide * 10 * CM_IN;
+
+  const startX = BOX_MARGIN, startY = H - 1.35;
+  const endX = startX + boxIn, endY = startY - boxIn;
+
+  const leadSentence = 'Eén aanvinkpunt, linksonder — je richt bij élk schot op datzelfde punt; de kogelgaten vormen de box, niet je richtpunt.';
+  const stepsHtml = [
+    '1. Turret op zero — vuur 1 schot op het aanvinkpunt.',
+    `2. Klik ${milPerSide} mil naar rechts — vuur 1 schot (zelfde aanvinkpunt).`,
+    `3. Klik ${milPerSide} mil omhoog — vuur 1 schot.`,
+    `4. Klik ${milPerSide} mil naar links — vuur 1 schot.`,
+    `5. Klik ${milPerSide} mil omlaag — terug op zero (= start van de volgende ronde).`,
+  ].map(l=>`<div style="padding:2px 0;">${l}</div>`).join('');
+  const closing = 'Herhaal de volledige reeks 3x (12 schoten totaal). Een rechte, vierkante box bevestigt dat je turret proportioneel meedraait; vallen de drie "zero"-schoten (start van elke ronde) samen, dan is je nulpunt stabiel.';
+  svg += trText(TR_MARGIN, 0.85, W-0.9, 2.3, `<div style="margin-bottom:8px;">${leadSentence}</div><div style="font-family:'Oswald',sans-serif;font-weight:600;font-size:1.05em;letter-spacing:.02em;margin-bottom:4px;">VUURSCHEMA</div>${stepsHtml}<div style="margin-top:8px;">${closing}</div>`, {fontSize:0.115, lineHeight:1.32});
+
+  // Referentiebox (dun, gestippeld) — laat zien waar de andere 3 schoten
+  // moeten landen als de turret perfect meedraait. Alleen de startpositie
+  // heeft een echt (rood) aanvinkpunt, want daar richt je elke keer op.
+  svg += `<rect x="${startX.toFixed(4)}" y="${endY.toFixed(4)}" width="${boxIn.toFixed(4)}" height="${boxIn.toFixed(4)}" fill="none" stroke="${TR_DIM}" stroke-width="0.018" stroke-dasharray="0.07,0.06"/>`;
+
+  const crossMark = (x,y)=>{
+    const s = 0.09;
+    return `<line x1="${(x-s).toFixed(4)}" y1="${y.toFixed(4)}" x2="${(x+s).toFixed(4)}" y2="${y.toFixed(4)}" stroke="${TR_DIM}" stroke-width="0.016"/>` +
+      `<line x1="${x.toFixed(4)}" y1="${(y-s).toFixed(4)}" x2="${x.toFixed(4)}" y2="${(y+s).toFixed(4)}" stroke="${TR_DIM}" stroke-width="0.016"/>`;
+  };
+  svg += crossMark(endX, startY); // rechts
+  svg += crossMark(endX, endY);   // rechtsboven
+  svg += crossMark(startX, endY); // linksboven
+
+  svg += trAimChevron(startX, startY, {size:0.16});
+
+  svg += `<text x="${startX.toFixed(4)}" y="${(startY+0.34).toFixed(4)}" text-anchor="middle" font-size="0.115" font-family="Oswald, sans-serif" font-weight="700" fill="${TR_INK}">ZERO — START</text>`;
+  svg += `<text x="${endX.toFixed(4)}" y="${(startY+0.34).toFixed(4)}" text-anchor="middle" font-size="0.105" font-family="IBM Plex Mono, monospace" fill="${TR_DIM}">RECHTS +${milPerSide} MIL</text>`;
+  svg += `<text x="${endX.toFixed(4)}" y="${(endY-0.18).toFixed(4)}" text-anchor="middle" font-size="0.105" font-family="IBM Plex Mono, monospace" fill="${TR_DIM}">OMHOOG +${milPerSide} MIL</text>`;
+  svg += `<text x="${startX.toFixed(4)}" y="${(endY-0.18).toFixed(4)}" text-anchor="middle" font-size="0.105" font-family="IBM Plex Mono, monospace" fill="${TR_DIM}">LINKS -${milPerSide} MIL</text>`;
+
+  svg += trFooter(W, H, 'The Box Test');
+  svg += `</svg>`;
+  return svg;
+}
+
 function buildDotDrill21Sheet(paper){
   const W = paper.w, H = paper.h;
   let svg = trPageOpen(paper);
@@ -584,6 +649,7 @@ const TRAIN_EXERCISES = [
   { id:'zerotarget', group:'sniper', cat:'basis', name:'Zero Target', desc:'9 aanvinkpunten, één schot per punt binnen 1 MOA — bevestig je nulpunt zonder oude gaten te hergebruiken.', build:(p)=>[buildZeroTargetSheet(p)] },
   { id:'npanobag', group:'sniper', cat:'basis', name:'NPA & No-Bag Target', desc:'4 cirkels (2 → 0,4 MOA), zonder achterzak — bouw je Natural Point of Aim en bevestig hem.', build:(p)=>[buildNpaNoBagSheet(p)] },
   { id:'consistency', group:'sniper', cat:'basis', name:'Consistency Check Target', desc:'15x 1 MOA — één schot per cirkel, verspreid over meerdere sessies.', build:(p)=>[buildConsistencyCheckSheet(p)] },
+  { id:'boxtest', group:'sniper', cat:'basis', name:'The Box Test', desc:'Eén aanvinkpunt — turret-tracking test, 3x een vierkante box (12 schoten). Bevestigt of je turret recht meedraait en je nulpunt stabiel blijft.', build:(p)=>[buildBoxTestSheet(p)] },
   { id:'bipodpressure', group:'sniper', cat:'drills', name:'Bipod Pressure Load Test', desc:'Normaal vs. voorwaarts/neutraal/achterwaarts — vergelijk de POI-verschuiving.', build:(p)=>[buildBipodPressureSheet(p)] },
   { id:'positionalcircles', group:'sniper', cat:'drills', name:'Positional Circles', desc:'Staand, hoog/laag knielend, zittend — onopgesteund, 3 ringmaten per positie.', build:(p)=>[buildPositionalCirclesSheet(p)] },
   { id:'tripodeval', group:'sniper', cat:'drills', name:'Tripod Eval', desc:'Staand/knielend/zittend x slow fire/build-break/deploy — met scoretabel.', build:(p)=>[buildTripodEvalSheet(p)] },

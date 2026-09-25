@@ -770,6 +770,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.69', date:'25-09-2026', items:[
+      'Train — Sniper: nieuwe oefening "The Box Test" (100 m) — één aanvinkpunt linksonder waar je bij elk schot op blijft richten, terwijl je de turret dialt (rechts/omhoog/links/omlaag). De kogelgaten vormen zo een vierkante box, 3x herhaald (12 schoten totaal), en bevestigen of je turret recht meedraait en je nulpunt stabiel blijft. De klikwaarde per zijde wordt automatisch berekend zodat de box precies op het vel past.',
+    ]},
     { version:'v1.68', date:'24-09-2026', items:[
       'Train — Throttle Control-schijf (Carbine): de aantallen op de kleine cirkels zijn nu 1, 2, 3, 2. De oefening is aangepast naar 2 schoten op de centrale cirkel, dan een willekeurige kleine cirkel (aantal schoten = het cijfer), en weer terug naar de centrale cirkel met 2 schoten.',
     ]},
