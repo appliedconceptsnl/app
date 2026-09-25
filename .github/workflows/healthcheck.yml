@@ -133,7 +133,6 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # Alternatief (losse API-key i.p.v. Pro/Max-abonnement):
           # anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          show_full_output: true # TIJDELIJK: debuggen van een mislukte run, weer weghalen zodra opgelost
           prompt: |
             REPO: ${{ github.repository }}
             RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
