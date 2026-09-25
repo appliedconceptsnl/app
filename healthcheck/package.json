@@ -1,0 +1,13 @@
+{
+  "name": "ac-healthcheck",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Automated health check for the Applied Concepts app (live site + full local app).",
+  "type": "commonjs",
+  "scripts": {
+    "test": "node run.js"
+  },
+  "dependencies": {
+    "playwright": "^1.47.0"
+  }
+}
