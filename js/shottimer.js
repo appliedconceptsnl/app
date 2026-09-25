@@ -59,6 +59,15 @@ function acStPlatformGuess() {
 
 function acStFmt2(sec) { return (Math.round(sec * 100) / 100).toFixed(2); }
 
+// Drijft de gouden vulling van een <input type=range> via een CSS custom
+// property — de browser tekent de track zelf niet fill-aware, dus dat
+// rekenwerk (welk deel van min..max is "gevuld") gebeurt hier.
+function acStUpdateRangeFill(input) {
+  const min = parseFloat(input.min) || 0, max = parseFloat(input.max) || 100;
+  const pct = ((parseFloat(input.value) - min) / (max - min)) * 100;
+  input.style.setProperty('--range-pct', pct + '%');
+}
+
 async function acStEnsureAudioCtx() {
   if (acStAudioCtx && acStAudioCtx.state !== 'closed') {
     if (acStAudioCtx.state === 'suspended') await acStAudioCtx.resume();
@@ -662,14 +671,20 @@ function acStRenderHome(root) {
   root.querySelectorAll('input[name="stStartMode"]').forEach(r => r.addEventListener('change', () => {
     s.startMode = r.value; acStSave(ST_SETTINGS_KEY, s); acStRenderHome(root);
   }));
-  document.getElementById('stSensRange').addEventListener('input', (e) => {
+  const sensRange = document.getElementById('stSensRange');
+  const deadRange = document.getElementById('stDeadRange');
+  acStUpdateRangeFill(sensRange);
+  acStUpdateRangeFill(deadRange);
+  sensRange.addEventListener('input', (e) => {
     s.sensitivity = parseFloat(e.target.value);
     document.getElementById('stSensVal').textContent = s.sensitivity.toFixed(2);
+    acStUpdateRangeFill(e.target);
     acStSave(ST_SETTINGS_KEY, s);
   });
-  document.getElementById('stDeadRange').addEventListener('input', (e) => {
+  deadRange.addEventListener('input', (e) => {
     s.deadTimeMs = parseInt(e.target.value, 10);
     document.getElementById('stDeadVal').textContent = s.deadTimeMs;
+    acStUpdateRangeFill(e.target);
     acStSave(ST_SETTINGS_KEY, s);
   });
   ['stDelayMin','stDelayMax','stFixedDelay'].forEach(id=>{

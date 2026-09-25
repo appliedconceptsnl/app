@@ -790,6 +790,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.71', date:'25-09-2026', items:[
+      'App-brede opfrisbeurt van formulierelementen: checkboxes, keuzerondjes, schuifregelaars en dropdowns hebben nu een eigen, moderne opmaak in de huisstijl in plaats van de kale standaard-besturingselementen van de browser. Radiogroepen zoals Timer/Par, Handmatig/Willekeurig en de interval-keuze in Dry Fire zijn nu duidelijke pil-knoppen; schuifregelaars (o.a. Shottimer-gevoeligheid) tonen een gouden voortgangsvulling; dropdowns hebben een eigen pijltje. Puur visueel — geen functionaliteit gewijzigd.',
+    ]},
     { version:'v1.70', date:'25-09-2026', items:[
       'Nieuwe tab "Shottimer" (na Train): startpiep + schotdetectie via de microfoon, volledig via de Web Audio API (AudioWorklet, geen externe libraries). Eenmalige set-up per toestel (platform, microfoontoegang, statuscontrole, beeptest, loopback-kalibratie, optionele schotkalibratie op de baan), daarna Timer- en Par-modus met instelbare gevoeligheid, dode tijd, startvertraging en par-tijden. Na een run: eerste schot, splits en totaaltijd, met valse schoten met één tik verwijderen/terugzetten. Lokale historie en een debug-paneel (niveaumeter, event-log, offline testen met een geüpload audiobestand) zitten er ook in. Alles lokaal in localStorage — de pass-phrase gate blijft ongewijzigd.',
     ]},
