@@ -130,9 +130,9 @@ jobs:
 
       - uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          # Alternatief (Pro/Max via `claude setup-token`):
-          # claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Alternatief (losse API-key i.p.v. Pro/Max-abonnement):
+          # anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
             REPO: ${{ github.repository }}
             RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
