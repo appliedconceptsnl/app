@@ -19,6 +19,23 @@ const el = id => document.getElementById(id);
   const form = document.getElementById('gateForm');
   const passInput = document.getElementById('gatePass');
   const err = document.getElementById('gateError');
+
+  // Health-check test mode (25-09-2026) — skips the gate ONLY when the page
+  // is actually being served from localhost/127.0.0.1. This reads the real,
+  // browser-supplied location.hostname; there is no query param, cookie, or
+  // localStorage flag involved anywhere, so nothing set from outside this
+  // page (a URL someone shares, a bookmarklet, devtools on the live site)
+  // can ever trigger it. On the deployed origin (appliedconceptsnl.github.io),
+  // location.hostname can never equal "localhost" or "127.0.0.1" — this
+  // branch is structurally unreachable there, not just "off by default".
+  // Used by the Playwright health check (see /healthcheck) to drive the
+  // full app without the pass phrase; the live site's gate is unaffected
+  // and still tested separately, from the outside, in that same check.
+  if(location.hostname === 'localhost' || location.hostname === '127.0.0.1'){
+    document.body.classList.add('unlocked');
+    setTimeout(refitAllPreviews, 0);
+  }
+
   form.addEventListener('submit', function(e){
     e.preventDefault();
     const val = (passInput.value || '').trim().toLowerCase();

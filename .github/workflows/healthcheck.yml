@@ -1,0 +1,197 @@
+name: Health Check
+
+on:
+  schedule:
+    # Doel: 06:00 Nederlandse tijd, elke dag. GitHub Actions cron is altijd
+    # UTC en kent geen zomer-/wintertijd — met één vast cron-tijdstip loopt
+    # de check dus een uur "verkeerd" gedurende de helft van het jaar:
+    #   05:00 UTC = 06:00 CET  (winter, UTC+1)  ✅ precies op tijd
+    #   05:00 UTC = 07:00 CEST (zomer, UTC+2)   → een uur later dan bedoeld
+    # Gekozen voor 05:00 UTC: een health check die in de zomer een uur later
+    # draait is onschuldig (deploys/gebruik 's nachts zijn zeldzaam op een
+    # schietbaan-app); vroeger dan bedoeld draaien was de minder wenselijke
+    # kant om op uit te komen.
+    - cron: '0 5 * * *'
+  # De klassieke GitHub Pages-deploy ("Deploy from a branch") genereert zelf
+  # geen custom workflow-bestand, maar GitHub logt 'm wel als een Actions-run
+  # met de naam "pages build and deployment" (zichtbaar in het Actions-
+  # tabblad). Daar kan workflow_run gewoon op reageren.
+  workflow_run:
+    workflows: ['pages build and deployment']
+    types: [completed]
+  workflow_dispatch: {}
+
+concurrency:
+  group: healthcheck
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ------------------------------------------------------------------------
+  # Job 1 — deterministisch: Playwright-script, geen Claude-gebruik.
+  # ------------------------------------------------------------------------
+  check:
+    # Bij workflow_run alleen doorgaan als de Pages-deploy zelf slaagde —
+    # een mislukte deploy hoeft niet ook nog eens een (zinloze) health check
+    # te triggeren tegen een oude/geen live versie.
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    outputs:
+      needs_attention: ${{ steps.verdict.outputs.needs_attention }}
+      ok: ${{ steps.verdict.outputs.ok }}
+      warn: ${{ steps.verdict.outputs.warn }}
+      fail: ${{ steps.verdict.outputs.fail }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: healthcheck/package-lock.json
+
+      - name: Install dependencies
+        working-directory: healthcheck
+        run: npm ci
+
+      - name: Install Playwright (Chromium only)
+        working-directory: healthcheck
+        run: npx playwright install --with-deps chromium
+
+      - name: Run health check
+        id: run
+        working-directory: healthcheck
+        run: node run.js
+        continue-on-error: true # verdict komt uit report.json, niet uit de exit code
+
+      - name: Lees verdict uit report.json
+        id: verdict
+        working-directory: healthcheck
+        run: |
+          OK=$(jq '.summary.ok' report.json)
+          WARN=$(jq '.summary.warn' report.json)
+          FAIL=$(jq '.summary.fail' report.json)
+          echo "ok=$OK" >> "$GITHUB_OUTPUT"
+          echo "warn=$WARN" >> "$GITHUB_OUTPUT"
+          echo "fail=$FAIL" >> "$GITHUB_OUTPUT"
+          if [ "$WARN" -gt 0 ] || [ "$FAIL" -gt 0 ]; then
+            echo "needs_attention=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "needs_attention=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Resultaat: $OK ok, $WARN warn, $FAIL fail"
+
+      - name: Upload rapport + screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: healthcheck-report
+          path: |
+            healthcheck/report.json
+            healthcheck/artifacts/
+          retention-days: 30
+
+  # ------------------------------------------------------------------------
+  # Job 2 — alleen bij warn/fail: Claude leest het rapport + de code en zet
+  # één issue neer (of werkt een bestaand open healthcheck-issue bij).
+  # Mag UITSLUITEND issues aanmaken/bijwerken/sluiten — geen commits, geen
+  # PR's. Dat wordt hier op twee niveaus afgedwongen: de job-permissions
+  # hieronder (contents: read, issues: write — geen pull-requests/contents:
+  # write) EN --allowedTools in claude_args (alleen leesbare code-tools plus
+  # `gh issue ...`, dus zelfs een verdwaalde instructie in het rapport zou
+  # geen andere Bash-commando's kunnen draaien).
+  # ------------------------------------------------------------------------
+  analyze:
+    needs: check
+    if: needs.check.outputs.needs_attention == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      id-token: write # vereist door claude-code-action's eigen (GitHub App) auth, geeft geen extra repo-rechten
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download rapport + screenshots
+        uses: actions/download-artifact@v8
+        with:
+          name: healthcheck-report
+          path: healthcheck
+
+      - name: Zorg dat het label "healthcheck" bestaat
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh label create healthcheck --color "B60205" \
+            --description "Automatische bevindingen van de health-check workflow" \
+            --repo "${{ github.repository }}" 2>/dev/null || true
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Alternatief (losse API-key i.p.v. Pro/Max-abonnement):
+          # anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            Je krijgt het resultaat van de automatische health check van de
+            Applied Concepts-app: healthcheck/report.json (per bevinding:
+            id, status ok/warn/fail, ernst hoog/midden/laag, details,
+            betrokken bestand) en eventuele screenshots in
+            healthcheck/artifacts/.
+
+            Doe het volgende:
+            1. Lees healthcheck/report.json.
+            2. Bekijk voor elke bevinding met status "warn" of "fail" de
+               genoemde code (het "file"-veld, plus wat er direct omheen
+               staat) om de waarschijnlijke oorzaak te bepalen — noem
+               concreet bestand en regel(s) waar mogelijk.
+            3. Check eerst of er al een OPEN issue met het label
+               "healthcheck" bestaat (`gh issue list --label healthcheck
+               --state open --repo ${{ github.repository }}`).
+               - Bestaat die al: voeg een NIEUWE comment toe met je huidige
+                 analyse (`gh issue comment`). Maak geen tweede issue aan.
+               - Bestaat die niet: maak een nieuw issue aan met het label
+                 "healthcheck" (`gh issue create --label healthcheck`).
+            4. Schrijf in het Nederlands. De eerste regel van het issue/de
+               comment is precies één van: "✅ OK", "⚠️ aandachtspunten" of
+               "❌ kapot" — kies op basis van of er "fail"-bevindingen zijn
+               (❌), anders alleen "warn" (⚠️).
+            5. Daarna per bevinding: wat er aan de hand is, waar (bestand),
+               de ernst, en een concreet voorstel om het op te lossen.
+            6. Sluit af met een link naar deze workflow-run (zie RUN
+               hierboven) voor het volledige rapport en de screenshots.
+
+            Belangrijk: je mag UITSLUITEND issues lezen/aanmaken/bijwerken.
+            Geen commits, geen bestanden wijzigen, geen pull requests.
+          claude_args: |
+            --allowedTools "Read,Grep,Glob,Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue create:*),Bash(gh issue comment:*),Bash(gh issue edit:*)"
+
+  # ------------------------------------------------------------------------
+  # Job 3 — alleen als alles ok is: een eventueel open healthcheck-issue
+  # sluiten. Puur deterministisch (gh CLI), geen Claude-gebruik nodig voor
+  # zo'n simpele/vaste actie.
+  # ------------------------------------------------------------------------
+  resolve:
+    needs: check
+    if: needs.check.outputs.needs_attention == 'false'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Sluit open healthcheck-issue, indien aanwezig
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          ISSUE=$(gh issue list --label healthcheck --state open --repo "${{ github.repository }}" --json number -q '.[0].number')
+          if [ -n "$ISSUE" ]; then
+            gh issue comment "$ISSUE" --repo "${{ github.repository }}" --body "✅ OK — Opgelost in run $RUN_URL"
+            gh issue close "$ISSUE" --repo "${{ github.repository }}"
+            echo "Issue #$ISSUE gesloten."
+          else
+            echo "Geen open healthcheck-issue — niets te doen."
+          fi
