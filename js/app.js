@@ -442,11 +442,12 @@ function requestPrint(source){
 }
 window.AppliedConceptsPrint = requestPrint;
 
-const MB_TRAIN_GROUP_TABS = ['dryfire','train'];
+const MB_TRAIN_GROUP_TABS = ['dryfire','train','shottimer'];
 const MB_OPTIC_GROUP_TABS = ['optic','turret'];
 
 function switchTab(tab){
   if(tab !== 'dryfire' && window.AppliedConceptsDryfire) window.AppliedConceptsDryfire.stopTimer();
+  if(tab !== 'shottimer' && window.AppliedConceptsShottimer) window.AppliedConceptsShottimer.stopTimer();
   document.querySelectorAll('.tabbtn[data-tab]').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
   document.querySelectorAll('.mb-item[data-tab]').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
   el('mbTrainBtn').classList.toggle('active', MB_TRAIN_GROUP_TABS.includes(tab));
@@ -456,6 +457,7 @@ function switchTab(tab){
   el('panel-turret').classList.toggle('active', tab==='turret');
   el('panel-dryfire').classList.toggle('active', tab==='dryfire');
   el('panel-train').classList.toggle('active', tab==='train');
+  el('panel-shottimer').classList.toggle('active', tab==='shottimer');
   el('panel-shop').classList.toggle('active', tab==='shop');
   el('panel-contact').classList.toggle('active', tab==='contact');
   if(tab==='optic') renderOptic();
@@ -463,6 +465,7 @@ function switchTab(tab){
   else if(tab==='turret') window.AppliedConceptsTurret.init();
   else if(tab==='dryfire') window.AppliedConceptsDryfire.render();
   else if(tab==='train') window.AppliedConceptsTrain.init();
+  else if(tab==='shottimer') window.AppliedConceptsShottimer.init();
   else if(tab==='shop'){ window.AppliedConceptsShop.init(); window.AppliedConceptsShop.resetView(); }
   else if(tab==='contact') window.AppliedConceptsContact.init();
 }
@@ -787,6 +790,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.70', date:'25-09-2026', items:[
+      'Nieuwe tab "Shottimer" (na Train): startpiep + schotdetectie via de microfoon, volledig via de Web Audio API (AudioWorklet, geen externe libraries). Eenmalige set-up per toestel (platform, microfoontoegang, statuscontrole, beeptest, loopback-kalibratie, optionele schotkalibratie op de baan), daarna Timer- en Par-modus met instelbare gevoeligheid, dode tijd, startvertraging en par-tijden. Na een run: eerste schot, splits en totaaltijd, met valse schoten met één tik verwijderen/terugzetten. Lokale historie en een debug-paneel (niveaumeter, event-log, offline testen met een geüpload audiobestand) zitten er ook in. Alles lokaal in localStorage — de pass-phrase gate blijft ongewijzigd.',
+    ]},
     { version:'v1.69', date:'25-09-2026', items:[
       'Train — Sniper: nieuwe oefening "The Box Test" (100 m) — één aanvinkpunt linksonder waar je bij elk schot op blijft richten, terwijl je de turret dialt (rechts/omhoog/links/omlaag). De kogelgaten vormen zo een vierkante box, 3x herhaald (12 schoten totaal), en bevestigen of je turret recht meedraait en je nulpunt stabiel blijft. De klikwaarde per zijde wordt automatisch berekend zodat de box precies op het vel past.',
     ]},
@@ -1092,7 +1098,7 @@ try {
   // Runs after initOptic() so it overrides that default tab when a valid one
   // is requested; the pass phrase gate still shows on top regardless.
   const requestedTab = new URLSearchParams(location.search).get('tab');
-  if(['optic','profiles','turret','dryfire','train','shop','contact'].includes(requestedTab)){
+  if(['optic','profiles','turret','dryfire','train','shottimer','shop','contact'].includes(requestedTab)){
     switchTab(requestedTab);
   }
 } catch(err){

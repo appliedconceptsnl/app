@@ -606,6 +606,53 @@
     .contact-email{font-size:14px;}
   }
 
+  /* ---- Shottimer ---- */
+  .st-btn-secondary{background:transparent;border:1px solid var(--line);color:var(--cream);}
+  .st-btn-secondary:hover{background:var(--panel-2);}
+  .st-onboard-steps{display:flex;gap:6px;margin-bottom:16px;}
+  .st-onboard-dot{width:10px;height:10px;border-radius:50%;background:var(--line);}
+  .st-onboard-dot.active{background:var(--gold);}
+  .st-onboard-dot.done{background:var(--cream-dim);}
+  .st-onboard-nav{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;}
+  .st-onboard-nav .printbtn{width:auto;padding:11px 20px;margin-top:0;}
+  .st-status-list{list-style:none;padding:0;margin:12px 0;display:flex;flex-direction:column;gap:6px;}
+  .st-status-list li{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--cream);}
+  .st-status-ok{color:#6fcf7a;}
+  .st-status-warn{color:var(--gold);}
+  .st-status-bad{color:var(--danger);}
+  .st-field{display:block;font-size:12.5px;color:var(--cream-dim);margin:14px 0 4px;}
+  .st-field input[type=range]{width:100%;margin-top:6px;}
+  .st-field input[type=number]{background:#0c0c0a;border:1px solid var(--line);color:var(--cream);border-radius:var(--radius-sm);padding:6px 8px;font-family:'IBM Plex Mono',monospace;}
+  .st-field input[type=checkbox]{margin-right:6px;}
+  .st-partime-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+  .st-partime-row input.st-partime-input{width:6em;flex:0 0 6em;}
+  .st-partime-del{background:transparent;border:1px solid var(--line);color:var(--cream-dim);border-radius:var(--radius-sm);width:28px;height:28px;cursor:pointer;font-size:16px;line-height:1;}
+  .st-partime-del:hover{color:var(--danger);border-color:var(--danger);}
+
+  .st-running{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:18px;text-align:center;}
+  .st-running-mode{font-family:'Oswald',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--cream-dim);font-size:14px;}
+  .st-running-time{font-family:'IBM Plex Mono',monospace;font-size:clamp(64px,16vw,140px);color:var(--cream);line-height:1;}
+  .st-running-shots{font-family:'IBM Plex Mono',monospace;font-size:16px;color:var(--gold);}
+  .st-stop-btn{width:auto;padding:18px 44px;font-size:16px;background:var(--danger);color:var(--cream);margin-top:10px;}
+  .st-stop-btn:hover{background:#a8482f;}
+
+  .st-review-summary{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px;}
+  .st-review-summary div{background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius-sm);padding:12px 16px;flex:1 1 140px;}
+  .st-review-summary span{display:block;font-size:11px;color:var(--cream-dim);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;}
+  .st-review-summary strong{font-family:'IBM Plex Mono',monospace;font-size:20px;color:var(--cream);}
+  .st-review-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--cream);}
+  .st-review-row:last-child{border-bottom:none;}
+  .st-review-row.voided{color:var(--cream-dim);text-decoration:line-through;}
+  .st-btn-void{background:transparent;border:1px solid var(--line);color:var(--cream-dim);border-radius:var(--radius-sm);padding:5px 10px;font-size:11px;cursor:pointer;white-space:nowrap;}
+  .st-btn-void:hover{color:var(--cream);border-color:var(--cream-dim);}
+
+  .st-debug-meter{position:relative;height:18px;background:#0c0c0a;border:1px solid var(--line);border-radius:var(--radius-sm);overflow:hidden;}
+  .st-debug-meter-fill{height:100%;width:0;background:var(--gold);transition:width .05s linear;}
+  .st-debug-meter-threshold{position:absolute;top:0;bottom:0;width:2px;background:var(--danger);}
+  .st-debug-log{max-height:200px;overflow-y:auto;background:#0c0c0a;border:1px solid var(--line);border-radius:var(--radius-sm);padding:8px 10px;margin-bottom:8px;}
+  .st-debug-log-row{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--cream-dim);padding:2px 0;}
+  #stDebugFileInput{color:var(--cream);font-size:12.5px;}
+
   @media print{
     body{background:#fff;}
     .masthead,.tabbar,.controls,.preview-toolbar,.gate,.changelog,.install-modal,.update-toast,.mobile-bottombar,.more-sheet{display:none !important;}

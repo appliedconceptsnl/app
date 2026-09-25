@@ -42,7 +42,7 @@
 <div class="mobile-watermark" aria-hidden="true"></div>
 <div class="appshell" id="appshell">
   <header class="masthead">
-    <button class="versionlink" id="versionLink">v1.69</button>
+    <button class="versionlink" id="versionLink">v1.70</button>
     <div class="mh-brand">
       <img src="icons/logo.svg" alt="Applied Concepts logo">
       <div class="wordmark">
@@ -57,6 +57,7 @@
     <button class="tabbtn" data-tab="turret">Turret Tape</button>
     <button class="tabbtn" data-tab="dryfire">Dry Fire</button>
     <button class="tabbtn" data-tab="train">Train</button>
+    <button class="tabbtn" data-tab="shottimer">Shottimer</button>
     <span class="tabbar-divider"></span>
     <button class="tabbtn tabbtn-shop" data-tab="shop">Shop</button>
     <button class="tabbtn" data-tab="contact">Contact</button>
@@ -111,6 +112,10 @@
       <button type="button" class="more-sheet-item" data-tab="train">
         <svg viewBox="0 0 24 24"><path d="M4 20 4 12 12 4l8 8v8z"/><line x1="9" y1="20" x2="9" y2="14"/><line x1="15" y1="20" x2="15" y2="14"/></svg>
         Train
+      </button>
+      <button type="button" class="more-sheet-item" data-tab="shottimer">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>
+        Shottimer
       </button>
     </div>
   </div>
@@ -412,6 +417,11 @@
     <div class="train-print-batch" id="trainPrintBatch"></div>
   </div>
 
+  <!-- ===================== SHOTTIMER TAB ===================== -->
+  <div class="simplepanel tabpanel" id="panel-shottimer">
+    <div class="simplepanel-inner" id="shottimerRoot"></div>
+  </div>
+
   <!-- ===================== SHOP TAB ===================== -->
   <div class="shop-panel tabpanel" id="panel-shop">
 
@@ -556,6 +566,7 @@
 <script src="js/shop.js"></script>
 <script src="js/contact.js"></script>
 <script src="js/train.js"></script>
+<script src="js/shottimer.js"></script>
 <script src="js/turret.js"></script>
 <script src="js/app.js"></script>
 <script>
