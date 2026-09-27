@@ -52,6 +52,19 @@ live site (een ander hostname) structureel onbereikbaar is. Er is geen
 query-parameter, cookie of localStorage-vlag die dit ergens anders
 activeert.
 
+## Wapenprofiel-fixture
+
+`fixtures/weaponProfile.json` bevat een echt wapenprofiel (AX338105JOP),
+gezaaid in `localStorage` vóór elke B-check (via `page.addInitScript` in
+`lib/appChecks.js`) zodat Turret Tape/Dry Fire/Dope Card met echte dope
+gecontroleerd worden in plaats van een lege-profiel-waarschuwing te geven.
+
+Dit is puur een testfixture — de app zelf heeft geen backend en bewaart
+wapenprofielen uitsluitend lokaal in de browser van elke bezoeker (geen
+server, geen gedeelde state, elke bezoeker heeft zijn eigen geïsoleerde
+data). Dit bestand raakt dus nooit een echte bezoeker; het leeft alleen in
+de wegwerpbare Playwright-browsercontext die de healthcheck zelf opzet.
+
 ## Waarom geen build-hash voor "live = laatste commit"
 
 Er is geen build-stap (GitHub Pages deployt hier direct vanuit de branch),

@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { TABS, VIEWPORTS, PAGE_DIMS_IN, HOB_REALISTIC_RANGE_IN, ARTIFACTS_DIR } = require('./constants');
 const { watchPage, isFiniteNumber } = require('./utils');
+const { profile: FIXTURE_WEAPON_PROFILE } = require('../fixtures/weaponProfile.json');
 
 const PAGE_FIT_EPSILON_IN = 0.05; // ~1.3mm slack for sub-pixel text-metric overshoot
 
@@ -353,6 +354,16 @@ async function checkNoLaserRemnants(page, report) {
 
 async function runAppChecks(browser, baseUrl, report) {
   const page = await browser.newPage();
+  // Seeds a real weapon profile (healthcheck/fixtures/weaponProfile.json) into
+  // localStorage before the app's own scripts run, so Turret Tape/Dry
+  // Fire/Dope Card checks exercise actual dope instead of an empty-profile
+  // warning. Fixture-only — never part of the shipped app, so real visitors
+  // (whose data lives purely in their own browser, per the app's no-backend
+  // design) never see it.
+  await page.addInitScript((profile) => {
+    try { localStorage.setItem('ac_weapon_profiles_v1', JSON.stringify([profile])); } catch (e) {}
+    try { localStorage.setItem('ac_dopecard_settings_v1', JSON.stringify({ activeProfileId: profile.id })); } catch (e) {}
+  }, FIXTURE_WEAPON_PROFILE);
   await page.goto(`${baseUrl}/index.html`, { waitUntil: 'load' });
   await page.waitForTimeout(300);
 

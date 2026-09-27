@@ -1,0 +1,22 @@
+{
+  "_comment": "Healthcheck-only fixture — a real weapon profile so B-checks (Turret Tape, Dry Fire, Dope Card) exercise actual dope instead of an empty-profile warning. Seeded into localStorage before each app-check run via page.addInitScript(); never part of the shipped app, so real visitors never see this. Control point: solver gives 9.232 mil @ 1000m against the owner's own reference of 9.24 mil.",
+  "profile": {
+    "id": "p_healthcheck_ax338",
+    "label": "AX338105JOP",
+    "caliber": ".338 Lapua Mag",
+    "bulletWeightGr": 250,
+    "bulletDiameterIn": 0.338,
+    "bulletLengthIn": 1.147,
+    "dragModel": "G7",
+    "bc": 0.313,
+    "customDragFactor": "",
+    "muzzleVelocity": 862,
+    "muzzleVelocityUnit": "ms",
+    "zeroDistanceM": 100,
+    "sightHeight": 2.87,
+    "sightHeightUnit": "in",
+    "twistRateIn": "1:9.35",
+    "dope": {},
+    "roundLog": []
+  }
+}
