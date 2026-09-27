@@ -1,0 +1,75 @@
+name: Analytics Digest
+
+on:
+  schedule:
+    # 06:30 UTC — na de healthcheck (05:00 UTC), zodat ze nooit tegelijk
+    # tegen dezelfde repo/issues aan werken.
+    - cron: '30 6 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Haal cijfers van gisteren op bij de analytics-Worker
+        id: fetch
+        env:
+          ANALYTICS_REPORT_URL: ${{ secrets.ANALYTICS_REPORT_URL }}
+          ANALYTICS_REPORT_SECRET: ${{ secrets.ANALYTICS_REPORT_SECRET }}
+        run: |
+          YESTERDAY=$(date -u -d 'yesterday' +%Y-%m-%d)
+          echo "date=$YESTERDAY" >> "$GITHUB_OUTPUT"
+          curl -sf -H "Authorization: Bearer $ANALYTICS_REPORT_SECRET" \
+            "$ANALYTICS_REPORT_URL?date=$YESTERDAY" -o report.json
+          cat report.json
+
+      - name: Zorg dat het label "analytics" bestaat
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh label create analytics --color "0E8A16" \
+            --description "Dagelijks bezoekersoverzicht" \
+            --repo "${{ github.repository }}" 2>/dev/null || true
+
+      - name: Bouw het issue-bericht
+        run: |
+          python3 - <<'PYEOF'
+          import json
+
+          with open('report.json') as f:
+              d = json.load(f)
+
+          date = d.get('date', '?')
+          unique = d.get('uniqueVisitors', 0)
+          views = d.get('pageviews', 0)
+          tabs = d.get('tabCounts', {}) or {}
+
+          lines = [
+              f"## \U0001F4CA Bezoekersoverzicht — {date}",
+              "",
+              f"- **Unieke bezoekers:** {unique}",
+              f"- **Paginabezoeken (na de pass phrase):** {views}",
+              "",
+          ]
+          if tabs:
+              lines.append("**Tabblad-gebruik:**")
+              for tab, count in sorted(tabs.items(), key=lambda kv: -kv[1]):
+                  lines.append(f"- {tab}: {count}")
+          else:
+              lines.append("_Geen tabblad-wisselingen geregistreerd deze dag._")
+
+          with open('issue_body.md', 'w') as f:
+              f.write("\n".join(lines))
+          PYEOF
+
+      - name: Zet het overzicht in een nieuw issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create --repo "${{ github.repository }}" --label analytics \
+            --title "📊 Bezoekersoverzicht — ${{ steps.fetch.outputs.date }}" \
+            --body-file issue_body.md

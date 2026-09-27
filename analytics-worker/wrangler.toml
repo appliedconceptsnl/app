@@ -1,0 +1,8 @@
+name = "ac-analytics"
+main = "src/index.js"
+compatibility_date = "2026-09-27"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "ac_analytics"
+database_id = "REPLACE_AFTER_WRANGLER_D1_CREATE"

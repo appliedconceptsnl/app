@@ -11,6 +11,35 @@ const SHEET_LOGO_SCALE = 0.85;
 const el = id => document.getElementById(id);
 
 /* ---------------------------------------------------------------------
+   Analytics — a fire-and-forget beacon to a small self-hosted Cloudflare
+   Worker (see /analytics-worker), counting unique visitors/day and
+   tab-view counts. No cookies, no third-party script, no PII: the Worker
+   only ever sees which tab was viewed and hashes the IP (with the date
+   baked into the hash) to de-duplicate a day's visitors, never storing it
+   raw. Never runs outside the real deployed origin, so dev/test/healthcheck
+   traffic is never counted, and any failure here (offline, ad-blocker,
+   Worker down) is silently swallowed — this is purely an add-on, the app
+   itself never depends on it.
+--------------------------------------------------------------------- */
+const AC_ANALYTICS_URL = 'https://ac-analytics.appliedconcepts.workers.dev/track';
+const AC_ANALYTICS_ORIGIN = 'appliedconceptsnl.github.io';
+function acTrackEvent(payload){
+  if(location.hostname !== AC_ANALYTICS_ORIGIN) return;
+  // switchTab() can fire before the gate is unlocked (e.g. a "?tab=" deep
+  // link renders its target tab underneath the still-locked gate) — a tab
+  // view only counts once someone has actually gotten in.
+  if(payload.event === 'tab' && !document.body.classList.contains('unlocked')) return;
+  try {
+    const body = JSON.stringify(payload);
+    if(navigator.sendBeacon){
+      navigator.sendBeacon(AC_ANALYTICS_URL, new Blob([body], { type: 'application/json' }));
+    } else {
+      fetch(AC_ANALYTICS_URL, { method: 'POST', body, keepalive: true }).catch(()=>{});
+    }
+  } catch(e){ /* analytics is best-effort only — never allowed to affect the app */ }
+}
+
+/* ---------------------------------------------------------------------
    Pass phrase gate — wired up first, before anything else, so it works
    even if a later part of the app throws an error.
 --------------------------------------------------------------------- */
@@ -41,6 +70,7 @@ const el = id => document.getElementById(id);
     const val = (passInput.value || '').trim().toLowerCase();
     if(val === PASS_PHRASE){
       document.body.classList.add('unlocked');
+      acTrackEvent({ event: 'pageview' });
       err.textContent = '';
       // Layout was hidden (display:none) until now, so previews computed
       // during initial load may have a bogus scale — recompute for real.
@@ -446,6 +476,7 @@ const MB_TRAIN_GROUP_TABS = ['dryfire','train','shottimer','dopecard'];
 const MB_OPTIC_GROUP_TABS = ['optic','turret'];
 
 function switchTab(tab){
+  acTrackEvent({ event: 'tab', tab });
   if(tab !== 'dryfire' && window.AppliedConceptsDryfire) window.AppliedConceptsDryfire.stopTimer();
   if(tab !== 'shottimer' && window.AppliedConceptsShottimer) window.AppliedConceptsShottimer.stopTimer();
   if(tab !== 'dopecard' && window.AppliedConceptsDopeCard) window.AppliedConceptsDopeCard.stopTimer();
@@ -793,6 +824,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.77', date:'27-09-2026', items:[
+      'Privacyvriendelijke, zelf-gehoste bezoekersanalyse toegevoegd: een klein gratis Cloudflare Worker-endpoint telt unieke bezoekers per dag en tabblad-gebruik (geen cookies, geen IP-opslag, geen externe trackingdienst — zie analytics-worker/). Een dagelijkse GitHub Action zet het overzicht van de vorige dag in een issue. Draait alleen op de echte live site, nooit lokaal/tijdens de healthcheck, en een storing hierin kan de app zelf nooit beïnvloeden.',
+    ]},
     { version:'v1.76', date:'26-09-2026', items:[
       'Dope Card: maximaal aantal doelen op de target card van 3 naar 6 gebracht. De tab staat in de desktop-tabbalk nu tussen Turret Tape en Dry Fire, in plaats van helemaal achteraan.',
     ]},

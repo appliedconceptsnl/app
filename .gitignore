@@ -7,3 +7,7 @@ _mockups/
 healthcheck/node_modules/
 healthcheck/report.json
 healthcheck/artifacts/
+
+# analytics-worker — wrangler's local state/cache, never checked in
+analytics-worker/node_modules/
+analytics-worker/.wrangler/
