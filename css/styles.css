@@ -272,6 +272,8 @@
   .train-pagetab:hover{color:var(--cream);}
   .train-pagetab.active{border-color:var(--gold);color:var(--gold);}
   .train-print-batch{display:none;}
+  .dc-print-batch{display:none;}
+  .dc-print-batch .page{background:#fff;}
 
   /* ---- Turret Tape ---- */
   .tt-manual-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
@@ -738,6 +740,13 @@
     .train-print-batch{display:block !important;}
     .train-print-batch .page{box-shadow:none;margin:0 auto;page-break-after:always;}
     .train-print-batch .page:last-child{page-break-after:auto;}
+
+    /* Dope Card: print a batch of small (armmapje-formaat) cards instead of
+       the normal-layout setup screen. */
+    #panel-dopecard .simplepanel-inner{display:none !important;}
+    .dc-print-batch{display:block !important;}
+    .dc-print-batch .page{box-shadow:none;margin:0 auto;page-break-after:always;}
+    .dc-print-batch .page:last-child{page-break-after:auto;}
   }
 
   /* ---- Gate / pass phrase screen ---- */
@@ -925,10 +934,10 @@
   .dc-wind-value{font-size:clamp(18px,3.4vw,30px);font-weight:700;line-height:1;}
   .dc-wind-label{font-size:9px;color:var(--dcdim);text-transform:uppercase;letter-spacing:.04em;line-height:1.3;}
   .dc-wind-sub{font-size:9px;color:var(--dcdim);line-height:1.3;}
-  .dc-wind-mode-toggle{flex:0 0 auto;display:flex;flex-direction:column;gap:6px;}
+  .dc-wind-mode-toggle{flex:0 0 auto;display:flex;flex-direction:column;gap:5px;}
   .dc-wind-mode-btn{
     background:none;border:1px solid var(--dcline-strong);color:var(--dcdim);font-family:inherit;
-    font-size:11px;font-weight:700;letter-spacing:.03em;padding:10px 14px;min-height:36px;min-width:56px;cursor:pointer;
+    font-size:10px;font-weight:700;letter-spacing:.03em;padding:8px 14px;min-height:32px;min-width:56px;cursor:pointer;
   }
   .dc-wind-mode-btn.active{background:var(--dcfg);color:var(--dcbg);border-color:var(--dcfg);}
   .dc-block{display:flex;flex-direction:column;border-bottom:2px solid var(--dcline-strong);min-height:0;}

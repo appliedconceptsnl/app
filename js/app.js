@@ -824,6 +824,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.78', date:'28-09-2026', items:[
+      'Dope Card — bugfix: de spindrift-kolom liet altijd "R" zien, maar bij een rechtsdraaiende loop (vrijwel elk modern geweer) drift de kogel naar rechts, dus was de juiste correctie "L". Rechtgezet. Het windvak heeft nu een derde stand, TOTAAL, die wind en spindrift natuurkundig correct samenvoegt tot één waarde (het teken volgt automatisch uit de actuele windrichting, geen aparte instelling nodig). Nieuw: de Dope Card is nu te printen op een kaartje voor je armmapje (7,6 × 12,7 cm) — instelbaar of dat alleen wind, alleen spindrift, wind en spindrift apart, of gecombineerd toont; past het volledige afstandsbereik niet op één kaartje, dan worden er automatisch meerdere geprint.',
+    ]},
     { version:'v1.77', date:'27-09-2026', items:[
       'Privacyvriendelijke, zelf-gehoste bezoekersanalyse toegevoegd: een klein gratis Cloudflare Worker-endpoint telt unieke bezoekers per dag en tabblad-gebruik (geen cookies, geen IP-opslag, geen externe trackingdienst — zie analytics-worker/). Een dagelijkse GitHub Action zet het overzicht van de vorige dag in een issue. Draait alleen op de echte live site, nooit lokaal/tijdens de healthcheck, en een storing hierin kan de app zelf nooit beïnvloeden.',
     ]},

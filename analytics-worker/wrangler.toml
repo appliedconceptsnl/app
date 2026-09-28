@@ -5,4 +5,4 @@ compatibility_date = "2026-09-27"
 [[d1_databases]]
 binding = "DB"
 database_name = "ac_analytics"
-database_id = "REPLACE_AFTER_WRANGLER_D1_CREATE"
+database_id = "7f389114-1c49-48d4-96c7-a0091546ddc1"

@@ -18,7 +18,7 @@ const DC_MAX_TARGETS = 6;
 // het windvak toont 4 regels tekst en heeft dus meer ruimte nodig dan één
 // normale afstandsregel (gewicht 1); anders lopen label/sub-tekst over in
 // het blok eronder (precies het "streep door EFF WIND"-probleem).
-const DC_WIND_CELL_WEIGHT = 3.5;
+const DC_WIND_CELL_WEIGHT = 4.5;
 
 const DC_DEFAULT_SETTINGS = {
   activeProfileId: null,
@@ -26,7 +26,8 @@ const DC_DEFAULT_SETTINGS = {
   rangeStart: 200, rangeEnd: 980, rangeInterval: 20,
   wristMode: 'device', theme: 'day',
   windStep: 0.5,
-  windCellMode: 'wind', // 'wind' | 'spindrift' — welke waarde de kolommen tonen
+  windCellMode: 'wind', // 'wind' | 'spindrift' | 'combined' — welke waarde de kolommen tonen
+  printMode: 'wind', // 'wind' | 'spindrift' | 'both' | 'combined' — welke kolom(men) op de geprinte kaart
 };
 // 5.0 m/s @ 3:00 doubles as the spec's own worked example (R5.0) — a sane,
 // checkable default rather than an arbitrary one.
@@ -173,15 +174,34 @@ function dcFmtWindHold(driftMilPerMps){
   const s = val.toFixed(1);
   return (dir == null || s === '0.0') ? '0.0' : dir + s;
 }
-// Rechterwaarde per rij — wind- of spindrift-hold, afhankelijk van de
-// schakelaar in het windvak. Spindrift heeft geen "effectieve" component
-// (het hangt niet van de wind af) en wordt aangenomen rechtsdraaiend, zoals
-// vrijwel elk modern geweer — vandaar altijd de R-richting.
+// Rechterwaarde per rij — wind-, spindrift- of gecombineerde hold,
+// afhankelijk van de schakelaar in het windvak.
+//
+// Spindrift heeft geen "effectieve" component (hangt niet van de wind af).
+// Bij een rechtsdraaiende loop (vrijwel elk modern geweer) drift de kogel
+// naar RECHTS — de correctie om dat te compenseren is dus altijd naar
+// LINKS (25-09-2026: dit stond eerder verkeerd om als R, gefixt).
 function dcFmtRowRight(row){
   if(dcSettings.windCellMode === 'spindrift'){
-    return (row && row.spinDriftMil != null) ? 'R' + row.spinDriftMil.toFixed(1) : '—';
+    return (row && row.spinDriftMil != null) ? 'L' + row.spinDriftMil.toFixed(1) : '—';
+  }
+  if(dcSettings.windCellMode === 'combined'){
+    return dcFmtCombinedHold(row);
   }
   return (row && row.driftMilPerMps != null) ? dcFmtWindHold(row.driftMilPerMps) : '—';
+}
+// Wind en spindrift natuurkundig correct samengevoegd tot één ondertekende
+// waarde — het teken (dus of ze optellen of van elkaar afgaan) volgt puur
+// uit de actuele windrichting: R + L (tegengesteld) trekken af, L + L
+// (dezelfde kant als de spindrift) tellen op. Geen aparte instelling nodig.
+function dcFmtCombinedHold(row){
+  if(!row || row.driftMilPerMps == null) return '—';
+  const { eff, dir } = dcEffWind();
+  const windSigned = dir === 'R' ? row.driftMilPerMps * eff : dir === 'L' ? -(row.driftMilPerMps * eff) : 0;
+  const spinSigned = row.spinDriftMil != null ? -row.spinDriftMil : 0; // rechtsdraaiend -> altijd L-correctie
+  const total = windSigned + spinSigned;
+  const s = Math.abs(total).toFixed(1);
+  return s === '0.0' ? '0.0' : (total > 0 ? 'R' : 'L') + s;
 }
 
 /* ---- Rotatie: fysieke aanraakcoördinaten -> logische (voor-rotatie) delta.
@@ -406,8 +426,9 @@ function dcDopeScreenHtml(){
           <span class="dc-wind-sub">${dcWind.speedMps.toFixed(1)} @ ${dcClockLabel()}</span>
         </div>
         <div class="dc-wind-mode-toggle" data-role="windmodetoggle">
-          <button type="button" class="dc-wind-mode-btn${dcSettings.windCellMode!=='spindrift'?' active':''}" data-mode="wind">WIND</button>
+          <button type="button" class="dc-wind-mode-btn${(!dcSettings.windCellMode||dcSettings.windCellMode==='wind')?' active':''}" data-mode="wind">WIND</button>
           <button type="button" class="dc-wind-mode-btn${dcSettings.windCellMode==='spindrift'?' active':''}" data-mode="spindrift">SPIN</button>
+          <button type="button" class="dc-wind-mode-btn${dcSettings.windCellMode==='combined'?' active':''}" data-mode="combined">TOTAAL</button>
         </div>
       </div>` : '';
     const blocksHtml = colBlocks.map(block => {
@@ -581,6 +602,100 @@ function dcRenderFullscreen(){
   else dcWireTargetScreen();
 }
 
+/* ======================= PRINTEN (armmapje-kaartje) ======================= */
+// 7,6 x 12,7 cm, liggend — zelfde leesrichting als de digitale (liggende)
+// weergave. Eén index-card-formaat is te klein voor het hele dope-bereik in
+// één 3-koloms raster zoals op het scherm; dit print daarom een platte
+// lijst in 2 kolommen per kaartje, en verdeelt het volledige afstandsbereik
+// over zoveel kaartjes als nodig (paginanummer rechtsboven op elk kaartje).
+const DC_PRINT_W_IN = 12.7 / 2.54;
+const DC_PRINT_H_IN = 7.6 / 2.54;
+const DC_PRINT_MARGIN = 0.12;
+const DC_PRINT_HEADER_H = 0.26;
+const DC_PRINT_ROW_H = 0.135;
+const DC_PRINT_FONT = 0.095;
+const DC_PRINT_INK = '#171510';
+const DC_PRINT_DIM = '#6e6e6a';
+
+function dcEscapeHtml(str){
+  return window.AppliedConceptsProfiles ? window.AppliedConceptsProfiles.escapeHtml(str) : String(str==null?'':str);
+}
+
+function dcBuildPrintPages(){
+  const profile = dcGetActiveProfile();
+  const label = profile ? profile.label : '';
+  const distances = dcDistances();
+  const mode = dcSettings.printMode || 'wind';
+
+  const usableH = DC_PRINT_H_IN - 2*DC_PRINT_MARGIN - DC_PRINT_HEADER_H;
+  const rowsPerCol = Math.max(1, Math.floor(usableH / DC_PRINT_ROW_H));
+  const colGap = 0.12;
+  const colW = (DC_PRINT_W_IN - 2*DC_PRINT_MARGIN - colGap) / 2;
+  const rowsPerCard = rowsPerCol * 2;
+
+  const totalCards = Math.max(1, Math.ceil(distances.length / rowsPerCard));
+  const pages = [];
+  for(let c = 0; c < totalCards; c++){
+    const cardDistances = distances.slice(c*rowsPerCard, (c+1)*rowsPerCard);
+    pages.push(dcPrintCardSvg(cardDistances, mode, label, c+1, totalCards, rowsPerCol, colW, colGap));
+  }
+  return pages;
+}
+
+function dcPrintCardSvg(cardDistances, mode, label, pageNum, totalPages, rowsPerCol, colW, colGap){
+  const W = DC_PRINT_W_IN, H = DC_PRINT_H_IN, M = DC_PRINT_MARGIN;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}in" height="${H}in" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="${W}" height="${H}" fill="#fff"/>`;
+  svg += `<text x="${M}" y="${(M+0.09).toFixed(3)}" font-size="0.1" font-family="'Oswald',sans-serif" font-weight="700" fill="${DC_PRINT_INK}">${dcEscapeHtml(label || 'DOPE CARD')}</text>`;
+  svg += `<text x="${(W-M).toFixed(3)}" y="${(M+0.09).toFixed(3)}" text-anchor="end" font-size="0.08" font-family="'IBM Plex Mono',monospace" fill="${DC_PRINT_DIM}">${pageNum}/${totalPages}</text>`;
+  const ruleY = M + DC_PRINT_HEADER_H - 0.06;
+  svg += `<line x1="${M}" y1="${ruleY.toFixed(3)}" x2="${(W-M).toFixed(3)}" y2="${ruleY.toFixed(3)}" stroke="${DC_PRINT_INK}" stroke-width="0.01"/>`;
+
+  const colXs = [M, M + colW + colGap];
+  const topY = M + DC_PRINT_HEADER_H;
+  colXs.forEach((colX, ci) => {
+    const colDistances = cardDistances.slice(ci*rowsPerCol, (ci+1)*rowsPerCol);
+    colDistances.forEach((d, ri) => {
+      const y = topY + ri*DC_PRINT_ROW_H + DC_PRINT_ROW_H*0.75;
+      const row = dcTable ? dcTable.get(d) : null;
+      svg += dcPrintRowSvg(colX, y, colW, d, row, mode);
+    });
+  });
+  svg += '</svg>';
+  return svg;
+}
+
+function dcPrintRowSvg(x, y, w, dist, row, mode){
+  const distW = w*0.22, elevW = w*0.3;
+  const elevStr = row && row.elevMil != null ? dcFmtElev(row.elevMil) : '—';
+  let s = `<text x="${x.toFixed(3)}" y="${y.toFixed(3)}" font-size="${DC_PRINT_FONT}" font-family="'IBM Plex Mono',monospace" fill="${DC_PRINT_DIM}">${dist}</text>`;
+  s += `<text x="${(x+distW+elevW).toFixed(3)}" y="${y.toFixed(3)}" text-anchor="end" font-size="${DC_PRINT_FONT}" font-family="'IBM Plex Mono',monospace" font-weight="700" fill="${DC_PRINT_INK}">${elevStr}</text>`;
+  if(mode === 'both'){
+    const windStr = row && row.driftMilPerMps != null ? dcFmtWindHold(row.driftMilPerMps) : '—';
+    const spinStr = row && row.spinDriftMil != null ? 'L' + row.spinDriftMil.toFixed(1) : '—';
+    const halfW = (w - distW - elevW) / 2;
+    s += `<text x="${(x+distW+elevW+halfW-0.03).toFixed(3)}" y="${y.toFixed(3)}" text-anchor="end" font-size="${DC_PRINT_FONT}" font-family="'IBM Plex Mono',monospace" fill="${DC_PRINT_INK}">${windStr}</text>`;
+    s += `<text x="${(x+w).toFixed(3)}" y="${y.toFixed(3)}" text-anchor="end" font-size="${DC_PRINT_FONT}" font-family="'IBM Plex Mono',monospace" fill="${DC_PRINT_INK}">${spinStr}</text>`;
+  } else {
+    let valStr;
+    if(mode === 'spindrift') valStr = row && row.spinDriftMil != null ? 'L' + row.spinDriftMil.toFixed(1) : '—';
+    else if(mode === 'combined') valStr = dcFmtCombinedHold(row);
+    else valStr = row && row.driftMilPerMps != null ? dcFmtWindHold(row.driftMilPerMps) : '—';
+    s += `<text x="${(x+w).toFixed(3)}" y="${y.toFixed(3)}" text-anchor="end" font-size="${DC_PRINT_FONT}" font-family="'IBM Plex Mono',monospace" fill="${DC_PRINT_INK}">${valStr}</text>`;
+  }
+  return s;
+}
+
+function dcPrintDopeCard(){
+  if(!dcTable) dcRecomputeTable();
+  const batch = document.getElementById('dcPrintBatch');
+  if(!batch) return;
+  const pages = dcBuildPrintPages();
+  batch.innerHTML = pages.map(svg => `
+    <div class="page" style="width:${DC_PRINT_W_IN}in;height:${DC_PRINT_H_IN}in;">${svg}</div>
+  `).join('');
+  if(window.AppliedConceptsPrint) window.AppliedConceptsPrint('dopecard');
+}
+
 /* ======================= SETUP-SCHERM (normale app-layout) ======================= */
 function dcRenderSetupScreenIfActive(){
   const root = document.getElementById('dopecardRoot');
@@ -669,6 +784,19 @@ function dcRenderSetup(root){
       </div>
     </fieldset>
 
+    <fieldset class="dryfire-mode-fieldset">
+      <legend>Printen (voor je armmapje, 7,6 × 12,7 cm)</legend>
+      <div class="st-field">Kolom(men) op de geprinte kaart</div>
+      <div class="dryfire-mode-toggle dc-print-mode-toggle">
+        <label><input type="radio" name="dcPrintMode" value="wind" ${dcSettings.printMode==='wind'?'checked':''}> Alleen wind</label>
+        <label><input type="radio" name="dcPrintMode" value="spindrift" ${dcSettings.printMode==='spindrift'?'checked':''}> Alleen spindrift</label>
+        <label><input type="radio" name="dcPrintMode" value="both" ${dcSettings.printMode==='both'?'checked':''}> Wind + spindrift apart</label>
+        <label><input type="radio" name="dcPrintMode" value="combined" ${dcSettings.printMode==='combined'?'checked':''}> Gecombineerd</label>
+      </div>
+      <p class="hint">Bij "Gecombineerd" wordt de spindrift automatisch bij de wind opgeteld of ervan afgehaald, afhankelijk van de windrichting op het moment van printen — geen aparte keuze nodig. Past het volledige afstandsbereik niet op één kaartje, dan worden er automatisch meerdere geprint.</p>
+      <button type="button" class="printbtn st-btn-secondary" id="dcPrintBtn" style="width:100%;padding:14px;">Print Dope Card</button>
+    </fieldset>
+
     <div class="dc-preview-box" id="dcPreviewBox"></div>
 
     <button type="button" class="printbtn" id="dcSaveBtn" style="width:100%;padding:18px;">Opslaan &amp; open Dope Card</button>
@@ -684,6 +812,7 @@ function dcRenderSetup(root){
     dcSettings.rangeEnd = parseFloat(root.querySelector('#dcRangeEnd').value) || 0;
     dcSettings.rangeInterval = Math.max(1, parseFloat(root.querySelector('#dcRangeInterval').value) || 1);
     dcSettings.windStep = parseFloat(root.querySelector('input[name="dcWindStep"]:checked').value);
+    dcSettings.printMode = root.querySelector('input[name="dcPrintMode"]:checked').value;
     dcSettings.wristMode = root.querySelector('input[name="dcWrist"]:checked').value;
     dcSettings.theme = root.querySelector('input[name="dcTheme"]:checked').value;
   }
@@ -742,6 +871,20 @@ function dcRenderSetup(root){
     dcAutoEnterSuppressed = false;
     dcRecomputeTable();
     dcEnterFullscreen();
+  });
+
+  root.querySelector('#dcPrintBtn').addEventListener('click', () => {
+    syncFromForm();
+    const profile = dcGetActiveProfile();
+    const input = profile ? window.AppliedConceptsProfiles.toBallisticsInput(profile) : null;
+    const errEl = root.querySelector('#dcProfileError');
+    if(!input){
+      errEl.textContent = 'Dit profiel heeft nog geen geldige ballistische gegevens (kaliber, BC, V0, zero-afstand) — vul deze eerst aan bij Wapenprofielen.';
+      return;
+    }
+    errEl.textContent = '';
+    dcSave(DC_SETTINGS_KEY, dcSettings);
+    dcPrintDopeCard();
   });
 
   renderPreview();
