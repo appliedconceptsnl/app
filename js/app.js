@@ -824,6 +824,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.80', date:'28-09-2026', items:[
+      'Dope Card: met de Pols-modus "Draai 90°" en de iOS-portretvergrendeling aan, viel de knoppenstrip (TGT/thema/instellingen/sluiten) onder de statusbalk van je telefoon. De geroteerde weergave houdt nu rekening met de veilige zone (statusbalk/Dynamic Island en home-indicator), zodat de strip vrij blijft.',
+    ]},
     { version:'v1.79', date:'28-09-2026', items:[
       'Dope Card: meer ruimte (en een dun scheidingslijntje) tussen de hold-kolom en de wind/spin-kolom, zodat ze niet meer in elkaar overlopen. Bij de Pols-modus staat nu uitleg dat de iOS-statusbalk meedraait met het scherm en hoe je dat met de Portretvergrendeling van iOS voorkomt (een webapp kan de schermrotatie zelf niet vergrendelen).',
     ]},
