@@ -12,6 +12,7 @@
 const DC_SETTINGS_KEY = 'ac_dopecard_settings_v1';
 const DC_WIND_KEY = 'ac_dopecard_wind_v1';
 const DC_TARGETS_KEY = 'ac_dopecard_targets_v1';
+const DC_NOTES_KEY = 'ac_dopecard_notes_v1';
 const DC_MAX_TARGETS = 6;
 
 // Moet in de pas blijven met .dc-wind-cell's flex-gewicht in css/styles.css —
@@ -44,6 +45,8 @@ function dcSave(key, val){
 let dcSettings = Object.assign({}, DC_DEFAULT_SETTINGS, dcLoad(DC_SETTINGS_KEY, {}));
 let dcWind = Object.assign({}, DC_DEFAULT_WIND, dcLoad(DC_WIND_KEY, {}));
 let dcTargets = dcLoad(DC_TARGETS_KEY, []);
+let dcNotes = dcLoad(DC_NOTES_KEY, {}); // { [afstand]: {sector, desc, note} }
+let dcNotesEditing = null; // afstand waarvan de editor open staat
 let dcActiveTargetIdx = null;
 let dcTable = null; // Map<distanceM, {elevMil, driftMilPerMps}>
 
@@ -269,9 +272,15 @@ function dcDialLiveUpdate(){
 }
 
 /* ---- Doelen ---- */
+// Notities per doel (sector/omschrijving/notitie), gekoppeld aan de afstand.
+// Verdwijnen samen met het doel (deselecteren of CLR) — geen losse restjes.
+function dcNoteFor(d){ return dcNotes[d] || null; }
+function dcNoteHasContent(n){ return !!(n && (n.sector || n.desc || n.note)); }
+function dcSaveNotes(){ dcSave(DC_NOTES_KEY, dcNotes); }
+
 function dcToggleTarget(d){
   const idx = dcTargets.indexOf(d);
-  if(idx >= 0){ dcTargets.splice(idx,1); }
+  if(idx >= 0){ dcTargets.splice(idx,1); delete dcNotes[d]; dcSaveNotes(); }
   else {
     if(dcTargets.length >= DC_MAX_TARGETS){ dcShowToast(`Max ${DC_MAX_TARGETS} doelen`); return; }
     dcTargets.push(d);
@@ -385,7 +394,7 @@ function dcExitFullscreen(returnTo){
     dcRenderSetupScreenIfActive();
   }
 }
-function dcGoScreen(s){ dcScreen = s; dcRenderFullscreen(); }
+function dcGoScreen(s){ dcScreen = s; dcNotesEditing = null; dcRenderFullscreen(); }
 
 /* ---- Strip (rechterstrook: TGT / thema / instellingen / sluiten) ---- */
 function dcStripHtml(){
@@ -550,14 +559,40 @@ function dcTargetScreenHtml(){
     const elevStr = row && row.elevMil != null ? dcFmtElev(row.elevMil) : '—';
     const windStr = dcFmtRowRight(row);
     const active = dcActiveTargetIdx === i;
+    const n = dcNoteFor(d);
+    const has = dcNoteHasContent(n);
+    const headLine = has ? [n.sector, n.desc].filter(Boolean).map(dcEscapeHtml).join(' · ') : '';
+    const noteBox = has ? `<div class="dc-note-box">
+        ${headLine ? `<div class="dc-note-head">${headLine}</div>` : ''}
+        ${n.note ? `<div class="dc-note-text">${dcEscapeHtml(n.note)}</div>` : ''}
+      </div>` : '<div class="dc-note-box dc-note-empty"></div>';
     return `<div class="dc-target-row${active?' dc-active':''}" data-idx="${i}">
       <span class="dc-target-num">T${i+1}</span>
       <span class="dc-target-rng">${d}</span>
+      <button type="button" class="dc-notes-btn${has?' dc-has-note':''}" data-notes="${d}">NOTES</button>
+      ${noteBox}
       <span class="dc-target-vals">${elevStr} ${windStr}</span>
     </div>`;
   }).join('') : `<div class="dc-target-empty">Nog geen doelen geselecteerd — tik op een afstandsregel in de Dope Card.</div>`;
+  const editing = dcNotesEditing != null && dcTargets.includes(dcNotesEditing) ? dcNotesEditing : null;
+  const editor = editing == null ? '' : (() => {
+    const n = dcNoteFor(editing) || {};
+    const ti = dcTargets.indexOf(editing) + 1;
+    return `<div class="dc-notes-editor" data-role="noteseditor">
+      <div class="dc-notes-editor-title">T${ti} · ${editing} m</div>
+      <label>Sector<input type="text" id="dcNoteSector" maxlength="30" value="${dcEscapeHtml(n.sector||'')}" autocomplete="off"></label>
+      <label>Omschrijving<input type="text" id="dcNoteDesc" maxlength="60" value="${dcEscapeHtml(n.desc||'')}" autocomplete="off"></label>
+      <label>Notitie<input type="text" id="dcNoteNote" maxlength="120" value="${dcEscapeHtml(n.note||'')}" autocomplete="off"></label>
+      <div class="dc-notes-editor-actions">
+        <button type="button" data-act="notesave">OPSLAAN</button>
+        <button type="button" data-act="notecancel">ANNULEER</button>
+        ${dcNoteHasContent(n) ? '<button type="button" data-act="notedelete">WISSEN</button>' : ''}
+      </div>
+    </div>`;
+  })();
   return `<div class="dc-main">
     <div class="dc-target-screen">
+      ${editor}
       <div class="dc-target-watermark" style="background-image:url('icons/logo.svg')"></div>
       <div class="dc-target-head">
         <button class="dc-wind-back" data-act="back">&larr; DOPE</button>
@@ -575,7 +610,37 @@ function dcWireTargetScreen(){
   const back = dcOverlayEl.querySelector('[data-act="back"]');
   if(back) back.addEventListener('click', () => dcGoScreen('dope'));
   const clr = dcOverlayEl.querySelector('[data-act="clr"]');
-  if(clr) clr.addEventListener('click', () => { dcTargets = []; dcSave(DC_TARGETS_KEY, dcTargets); dcGoScreen('dope'); });
+  if(clr) clr.addEventListener('click', () => {
+    dcTargets = []; dcSave(DC_TARGETS_KEY, dcTargets);
+    dcNotes = {}; dcNotesEditing = null; dcSaveNotes();
+    dcGoScreen('dope');
+  });
+  dcOverlayEl.querySelectorAll('.dc-notes-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dcNotesEditing = parseInt(btn.dataset.notes, 10);
+      dcRenderFullscreen();
+      const first = dcOverlayEl.querySelector('#dcNoteSector');
+      if(first) first.focus();
+    });
+  });
+  const editor = dcOverlayEl.querySelector('[data-role="noteseditor"]');
+  if(editor){
+    const close = () => { dcNotesEditing = null; dcRenderFullscreen(); };
+    editor.querySelector('[data-act="notecancel"]').addEventListener('click', close);
+    editor.querySelector('[data-act="notesave"]').addEventListener('click', () => {
+      const n = {
+        sector: editor.querySelector('#dcNoteSector').value.trim(),
+        desc: editor.querySelector('#dcNoteDesc').value.trim(),
+        note: editor.querySelector('#dcNoteNote').value.trim(),
+      };
+      if(dcNoteHasContent(n)) dcNotes[dcNotesEditing] = n; else delete dcNotes[dcNotesEditing];
+      dcSaveNotes();
+      close();
+    });
+    const del = editor.querySelector('[data-act="notedelete"]');
+    if(del) del.addEventListener('click', () => { delete dcNotes[dcNotesEditing]; dcSaveNotes(); close(); });
+  }
   dcOverlayEl.querySelectorAll('.dc-target-row').forEach(row => {
     row.addEventListener('click', () => {
       const idx = parseInt(row.dataset.idx,10);

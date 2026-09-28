@@ -824,6 +824,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.81', date:'29-09-2026', items:[
+      'Dope Card — Target card: per doel een kleine NOTES-knop (links, naast de afstand). Daarmee open je een compact vakje met Sector, Omschrijving en Notitie; na opslaan staat de tekst rustig en dim in het midden van de doelregel. Alleen ingevulde notities zijn zichtbaar, zodat het scherm niet rommelig wordt. Notities verdwijnen samen met het doel (deselecteren of CLR).',
+    ]},
     { version:'v1.80', date:'28-09-2026', items:[
       'Dope Card: met de Pols-modus "Draai 90°" en de iOS-portretvergrendeling aan, viel de knoppenstrip (TGT/thema/instellingen/sluiten) onder de statusbalk van je telefoon. De geroteerde weergave houdt nu rekening met de veilige zone (statusbalk/Dynamic Island en home-indicator), zodat de strip vrij blijft.',
     ]},
