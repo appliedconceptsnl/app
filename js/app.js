@@ -824,6 +824,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.79', date:'28-09-2026', items:[
+      'Dope Card: meer ruimte (en een dun scheidingslijntje) tussen de hold-kolom en de wind/spin-kolom, zodat ze niet meer in elkaar overlopen. Bij de Pols-modus staat nu uitleg dat de iOS-statusbalk meedraait met het scherm en hoe je dat met de Portretvergrendeling van iOS voorkomt (een webapp kan de schermrotatie zelf niet vergrendelen).',
+    ]},
     { version:'v1.78', date:'28-09-2026', items:[
       'Dope Card — bugfix: de spindrift-kolom liet altijd "R" zien, maar bij een rechtsdraaiende loop (vrijwel elk modern geweer) drift de kogel naar rechts, dus was de juiste correctie "L". Rechtgezet. Het windvak heeft nu een derde stand, TOTAAL, die wind en spindrift natuurkundig correct samenvoegt tot één waarde (het teken volgt automatisch uit de actuele windrichting, geen aparte instelling nodig). Nieuw: de Dope Card is nu te printen op een kaartje voor je armmapje (7,6 × 12,7 cm) — instelbaar of dat alleen wind, alleen spindrift, wind en spindrift apart, of gecombineerd toont; past het volledige afstandsbereik niet op één kaartje, dan worden er automatisch meerdere geprint.',
     ]},

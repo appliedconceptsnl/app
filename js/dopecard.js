@@ -776,6 +776,7 @@ function dcRenderSetup(root){
         <label><input type="radio" name="dcWrist" value="left" ${dcSettings.wristMode==='left'?'checked':''}> Draai 90° links</label>
         <label><input type="radio" name="dcWrist" value="right" ${dcSettings.wristMode==='right'?'checked':''}> Draai 90° rechts</label>
       </div>
+      <p class="hint">Bij "Draai 90°" draait de Dope Card zelf mee, maar de statusbalk van iOS (tijd/wifi/batterij) draait met het scherm mee zodra je telefoon kantelt — een webapp kan de schermrotatie niet zelf vergrendelen. Zet daarom de <strong>Portretvergrendeling</strong> aan: veeg omlaag vanuit de rechterbovenhoek (Bedieningscentrum) en tik op het slotje met de pijl.</p>
 
       <div class="st-field">Thema</div>
       <div class="dryfire-mode-toggle">
