@@ -461,21 +461,18 @@ function refitAllPreviews(){
 }
 
 // Elk printbaar blad is opgebouwd op exact A4-formaat (in eigen SVG-inches),
-// dus moet de fysieke printpagina exact datzelfde formaat + oriëntatie
-// hebben (en geen marge) — anders schuift de inhoud over een extra vel en
-// klopt de uitlijning niet meer. Turret tape is het enige liggende
-// (landscape) blad; de rest is staand. @page kan op iOS/Safari niet per
-// paneel gescoped worden (geen CSS Named Pages-support daar), dus
-// herschrijven we hier simpelweg de ene <style id="dynPageSize">-tag met de
-// juiste oriëntatie, vlak vóór elke printopdracht — elke printopdracht
-// bevat toch al maar één paneel tegelijk (de rest is display:none).
-const AC_PRINT_LANDSCAPE_SOURCES = new Set(['turret-tape']);
+// dus moet de fysieke printpagina exact datzelfde formaat hebben (en geen
+// marge) — anders schuift de inhoud over een extra vel en klopt de
+// uitlijning niet meer. iOS/Safari's Print-venster (waar deze app in de
+// praktijk vooral geprint wordt) negeert `@page { size: ... landscape }`
+// gewoon — geverifieerd: zelfs met die regel actief bleef Turret Tape daar
+// over 3 bladen versnipperd. @page blijft daarom altijd staand (portret);
+// Turret Tape (het enige liggende ontwerp) wordt in plaats daarvan met een
+// CSS-transform 90° gedraaid zodat het liggende blad binnen dat staande
+// paginakader past — zie css/styles.css (#panel-turret print-regels).
 function requestPrint(source){
   const pageSizeEl = document.getElementById('dynPageSize');
-  if(pageSizeEl){
-    const landscape = AC_PRINT_LANDSCAPE_SOURCES.has(source);
-    pageSizeEl.textContent = `@page { size: A4 ${landscape ? 'landscape' : 'portrait'}; margin: 0; }`;
-  }
+  if(pageSizeEl) pageSizeEl.textContent = '@page { size: A4 portrait; margin: 0; }';
   const evt = new CustomEvent('ac:print-request', { cancelable: true, detail: { source } });
   const handledByNativeShell = !window.dispatchEvent(evt);
   if(handledByNativeShell) return;
@@ -839,6 +836,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.90', date:'29-09-2026', items:[
+      'Bugfix printen (2): de vorige poging voor Turret Tape (v1.88) ging uit van een liggende (landscape) fysieke printpagina via CSS — dat bleek in de praktijk (iOS/Safari\'s printvenster) genegeerd te worden, dus versnipperde de tape nog steeds over 3 bladen. Turret Tape print nu in plaats daarvan altijd op een staande pagina (zoals de rest van de app) met de liggende tape er zelf 90° in gedraaid via een CSS-transform — geen afhankelijkheid meer van of de printer/telefoon liggend printen ondersteunt.',
+    ]},
     { version:'v1.89', date:'29-09-2026', items:[
       'Wapenprofielen: de snelle preset ".338 LM Lapua Scenar-L 250gr" vult nu ook meteen kogelgewicht (250gr), kogellengte (1.471") en sight height (2.75") in — een "snelle preset" moet ook echt snel zijn. Presets kunnen dit voortaan optioneel meegeven; andere presets zonder deze velden laten bestaande waarden gewoon staan.',
     ]},

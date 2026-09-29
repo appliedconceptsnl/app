@@ -747,6 +747,27 @@
     .dc-print-batch{display:block !important;}
     .dc-print-batch .page{box-shadow:none;margin:0 auto;page-break-after:always;}
     .dc-print-batch .page:last-child{page-break-after:auto;}
+
+    /* Turret Tape: the only liggend (landscape, 11.6929 x 8.2677in) blad —
+       @page's own "landscape" keyword is not honored by iOS/Safari's print
+       pipeline (verified: it still split across 3 sheets), so instead of
+       relying on physical page orientation, rotate the landscape content
+       90° to fill the (always-portrait) page box exactly. .page-shell
+       becomes the portrait "window" (8.2677 x 11.6929in, clipped); .page
+       keeps its original landscape footprint and is rotated + repositioned
+       to exactly fill that window, top-left anchored (rotate(90deg) around
+       the top-left corner, then translateY(-100%) of its own un-rotated
+       height — the standard landscape-in-portrait CSS trick). */
+    #panel-turret .page-shell{
+      width:8.2677in !important;height:11.6929in !important;
+      overflow:hidden;position:relative;margin:0 auto;
+    }
+    #panel-turret .page{
+      position:absolute !important;top:0;left:0;
+      width:11.6929in !important;height:8.2677in !important;
+      transform-origin:top left !important;
+      transform:rotate(90deg) translateY(-100%) !important;
+    }
   }
 
   /* ---- Gate / pass phrase screen ---- */
