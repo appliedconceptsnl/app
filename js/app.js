@@ -460,7 +460,22 @@ function refitAllPreviews(){
   } catch(e){ /* elements not ready yet — ignored, resize listener will catch up */ }
 }
 
+// Elk printbaar blad is opgebouwd op exact A4-formaat (in eigen SVG-inches),
+// dus moet de fysieke printpagina exact datzelfde formaat + oriëntatie
+// hebben (en geen marge) — anders schuift de inhoud over een extra vel en
+// klopt de uitlijning niet meer. Turret tape is het enige liggende
+// (landscape) blad; de rest is staand. @page kan op iOS/Safari niet per
+// paneel gescoped worden (geen CSS Named Pages-support daar), dus
+// herschrijven we hier simpelweg de ene <style id="dynPageSize">-tag met de
+// juiste oriëntatie, vlak vóór elke printopdracht — elke printopdracht
+// bevat toch al maar één paneel tegelijk (de rest is display:none).
+const AC_PRINT_LANDSCAPE_SOURCES = new Set(['turret-tape']);
 function requestPrint(source){
+  const pageSizeEl = document.getElementById('dynPageSize');
+  if(pageSizeEl){
+    const landscape = AC_PRINT_LANDSCAPE_SOURCES.has(source);
+    pageSizeEl.textContent = `@page { size: A4 ${landscape ? 'landscape' : 'portrait'}; margin: 0; }`;
+  }
   const evt = new CustomEvent('ac:print-request', { cancelable: true, detail: { source } });
   const handledByNativeShell = !window.dispatchEvent(evt);
   if(handledByNativeShell) return;
@@ -824,6 +839,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.88', date:'29-09-2026', items:[
+      'Bugfix printen: alle printbare bladen (inschietschijf, Train-oefeningen, Turret Tape) misten een expliciete paginagrootte, waardoor de browser zijn eigen standaardmarge toevoegde bovenop een blad dat al exact op A4 was opgemaakt — met als gevolg dat de inschietschijf en Train-bladen soms over 2 pagina\'s versnipperden en alles net niet goed uitgelijnd stond. Turret Tape (liggend/landscape) werd bovendien op een staand standaardformaat geprint, wat de tape over 3 vellen uitsmeerde met de tape zelf maar half zichtbaar op het middelste vel. Elke printopdracht zet nu expliciet de juiste paginagrootte + oriëntatie, zonder marge. Turret Tape\'s aparte "Download als SVG" is vervallen (niet elke printer-app ondersteunt .svg) — gebruik voortaan altijd de printknop en kies in het printvenster "Bewaar als PDF".',
+    ]},
     { version:'v1.87', date:'29-09-2026', items:[
       'Dope Card: het thema heeft er een derde stand bij, Nachtzicht — diep rood op zwart in plaats van het bestaande crème-op-zwart nachtthema, want ook op de laagste schermhelderheid is dat laatste nog te fel voor gebruik met een NVG-bril/monoculair. Cyclus via de thema-knop is nu Dag → Nacht → Nachtzicht → Dag, of direct instelbaar bij Kaart-instellingen.',
     ]},

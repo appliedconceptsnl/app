@@ -466,21 +466,6 @@ function ttPopulateClickOptions(){
   sel.value = String(ttState.clickVal);
 }
 
-function ttDownloadSVG(){
-  const svg = ttState._pages && ttState._pages[ttState._pageIdx];
-  if(!svg) return;
-  const full = svg.replace('<svg ', `<svg xmlns="http://www.w3.org/2000/svg" `);
-  const blob = new Blob([full], { type:'image/svg+xml' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `turret-tape-blad-${(ttState._pageIdx||0)+1}.svg`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url), 2000);
-}
-
 function initTurret(){
   if(ttInited){ ttRenderProfileSelect(); ttUpdateAll(); return; }
   ttInited = true;
@@ -574,7 +559,6 @@ function initTurret(){
   document.getElementById('ttRangeMax').addEventListener('input', e=>{ ttState.rangeMax = parseFloat(e.target.value) || 1000; ttUpdateAll(); });
 
   document.getElementById('printBtnTT').addEventListener('click', ()=>{ if(window.AppliedConceptsPrint) window.AppliedConceptsPrint('turret-tape'); });
-  document.getElementById('downloadBtnTT').addEventListener('click', ttDownloadSVG);
 
   ttUpdateAll();
 

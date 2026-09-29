@@ -19,6 +19,15 @@
 
 <link rel="stylesheet" href="css/fonts.css">
 <link rel="stylesheet" href="css/styles.css">
+<!-- Physical print page size/orientation — every printable schijf is built at
+     an exact A4 size in its own SVG, so the browser's print page must match
+     that exactly (zero margin) or content overflows onto extra sheets and
+     prints off-register. Content differs in orientation per feature (turret
+     tape is landscape, everything else portrait); @page can't be scoped to
+     an element on iOS/Safari (no CSS Named Pages support there), so
+     requestPrint() in js/app.js rewrites this tag's content to the right
+     orientation right before each print job instead. -->
+<style id="dynPageSize">@page { size: A4 portrait; margin: 0; }</style>
 </head>
 <body>
 
@@ -42,7 +51,7 @@
 <div class="mobile-watermark" aria-hidden="true"></div>
 <div class="appshell" id="appshell">
   <header class="masthead">
-    <button class="versionlink" id="versionLink">v1.87</button>
+    <button class="versionlink" id="versionLink">v1.88</button>
     <div class="mh-brand">
       <img src="icons/logo.svg" alt="Applied Concepts logo">
       <div class="wordmark">
@@ -346,9 +355,8 @@
 
       <div id="ttWarning" class="warn" hidden></div>
 
-      <button class="printbtn" id="printBtnTT">Print turret tape</button>
-      <button class="printbtn" id="downloadBtnTT" style="margin-top:8px;background:transparent;color:var(--cream);border:1px solid var(--line);">Download als SVG (hoge resolutie)</button>
-      <p class="printnote">Print op 100% schaal ("actual size", niet "fit to page") en controleer het liniaaltje onderaan het blad.</p>
+      <button class="printbtn" id="printBtnTT">Print turret tape / opslaan als PDF</button>
+      <p class="printnote">Print op 100% schaal ("actual size", niet "fit to page") en controleer het liniaaltje onderaan het blad. Kies in het printvenster "Bewaar als PDF" als je 'm wilt opslaan — een los .svg-bestand wordt door de meeste printer-apps niet ondersteund.</p>
       <p class="disclaimer">Er bestaat geen betrouwbare, universele fabriekswaarde voor turret-diameter of -omtrek — dit verschilt per merk, model en turret-uitvoering, en soms zelfs per exemplaar. Meet je eigen turret (schuifmaat voor diameter, meetlint voor omtrek). De klikwaarde/omwenteling-presets zijn gangbare fabrieks-/community-cijfers — controleer dit voor jouw exacte model.</p>
     </aside>
 
