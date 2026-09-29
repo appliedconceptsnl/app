@@ -323,6 +323,39 @@ function computeAtmosphere({ tempC, altitudeM, pressureHpa }){
   return { densityFactor, machFps, tempC: T_C, pressureHpa: P_hPa };
 }
 
+// Standard ICAO lapse rate (troposphere): 6.5°C per 1000 m.
+const BALLISTICS_ISA_LAPSE_C_PER_M = 0.0065;
+
+/**
+ * Density Altitude, given directly instead of temp+altitude+pressure: the
+ * altitude in the ICAO standard atmosphere whose air density matches the
+ * actual local density. By definition that's exactly the standard pressure
+ * AND standard temperature at that altitude, so this is just
+ * computeAtmosphere() fed with the standard-atmosphere temperature for that
+ * altitude — same formula, no separate approximation to keep in sync.
+ */
+function computeAtmosphereFromDensityAltitude(daM){
+  const tempC = 15 - BALLISTICS_ISA_LAPSE_C_PER_M * daM;
+  return computeAtmosphere({ tempC, altitudeM: daM });
+}
+
+/**
+ * Inverse of the above: given a density factor (e.g. from real temp +
+ * altitude/pressure), find the equivalent Density Altitude in meters — a
+ * check figure to compare against a Kestrel or similar. densityFactor is
+ * monotonically decreasing in altitude, so plain bisection is exact and
+ * avoids a second, possibly-inconsistent closed-form approximation.
+ */
+function densityAltitudeFromFactor(densityFactor){
+  let lo = -2000, hi = 12000; // m — comfortably covers any realistic shooting scenario
+  for(let i = 0; i < 40; i++){
+    const mid = (lo + hi) / 2;
+    const f = computeAtmosphereFromDensityAltitude(mid).densityFactor;
+    if(f > densityFactor) lo = mid; else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
 /**
  * Dope Card table: elevation hold (MIL) and wind hold per 1 m/s of full
  * crosswind ("driftMilPerMps" — multiply by the effective wind on screen
@@ -444,6 +477,7 @@ function runSelfTest(){
 
 window.AppliedConceptsBallistics = {
   computeHoldTableMil, computeTrajectoryProfile, computeAtmosphere, computeDopeCardTable,
+  computeAtmosphereFromDensityAltitude, densityAltitudeFromFactor,
   millerStability, spinDriftIn,
   runSelfTest, G1_DRAG_TABLE, G7_DRAG_TABLE,
 };

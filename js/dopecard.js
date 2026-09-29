@@ -23,7 +23,7 @@ const DC_WIND_CELL_WEIGHT = 4.5;
 
 const DC_DEFAULT_SETTINGS = {
   activeProfileId: null,
-  envMode: 'altitude', envTempC: 15, envAltitudeM: 0, envPressureHpa: 1013.25,
+  envMode: 'altitude', envTempC: 15, envAltitudeM: 0, envPressureHpa: 1013.25, envDaFt: 0,
   rangeStart: 200, rangeEnd: 980, rangeInterval: 20,
   wristMode: 'device', theme: 'day',
   windStep: 0.5,
@@ -32,6 +32,7 @@ const DC_DEFAULT_SETTINGS = {
   printMode: 'wind', // 'wind' | 'spindrift' | 'both' | 'combined' — welke kolom(men) op de geprinte kaart
 };
 const DC_MPH_PER_MS = 2.236936;
+const BALLISTICS_FT_PER_M_DC = 3.280839895;
 function dcSpeedUnitLabel(){ return dcSettings.windUnit === 'mph' ? 'mph' : 'm/s'; }
 function dcFmtSpeedMps(mps){
   return ((dcSettings.windUnit === 'mph' ? mps * DC_MPH_PER_MS : mps)).toFixed(1);
@@ -50,6 +51,21 @@ function dcSave(key, val){
 
 let dcSettings = Object.assign({}, DC_DEFAULT_SETTINGS, dcLoad(DC_SETTINGS_KEY, {}));
 let dcWind = Object.assign({}, DC_DEFAULT_WIND, dcLoad(DC_WIND_KEY, {}));
+// Wind blijft intern altijd m/s; een eenheid-wissel (m/s <-> mph) zonder
+// herberekening liet een net getal in de ene eenheid (bv. 1.9 m/s) er lelijk
+// uitzien in de andere (4.2 mph). Rond de opgeslagen waarde bij het laden
+// eenmalig af naar een net veelvoud van de windstap, in de actief gekozen
+// eenheid, zodat de kaart altijd nette getallen toont.
+(function dcSnapWindToStep(){
+  const mphMode = dcSettings.windUnit === 'mph';
+  const display = mphMode ? dcWind.speedMps * DC_MPH_PER_MS : dcWind.speedMps;
+  const snappedDisplay = Math.round(display / dcSettings.windStep) * dcSettings.windStep;
+  const snappedMps = mphMode ? snappedDisplay / DC_MPH_PER_MS : snappedDisplay;
+  if(Math.abs(snappedMps - dcWind.speedMps) > 1e-4){
+    dcWind.speedMps = Math.max(0, Math.min(20, snappedMps));
+    dcSave(DC_WIND_KEY, dcWind);
+  }
+})();
 let dcTargets = dcLoad(DC_TARGETS_KEY, []);
 let dcNotes = dcLoad(DC_NOTES_KEY, {}); // { [afstand]: {sector, desc, note} }
 let dcNotesEditing = null; // afstand waarvan de editor open staat
@@ -79,10 +95,15 @@ function dcRecomputeTable(){
   // (toBallisticsInput's sightHeightCm) — geen aparte Dope Card-instelling.
   const input = window.AppliedConceptsProfiles.toBallisticsInput(profile);
   if(!input){ dcTable = null; return false; }
-  const atmInput = { tempC: dcSettings.envTempC };
-  if(dcSettings.envMode === 'pressure') atmInput.pressureHpa = dcSettings.envPressureHpa;
-  else atmInput.altitudeM = dcSettings.envAltitudeM;
-  const atmosphere = window.AppliedConceptsBallistics.computeAtmosphere(atmInput);
+  let atmosphere;
+  if(dcSettings.envMode === 'da'){
+    atmosphere = window.AppliedConceptsBallistics.computeAtmosphereFromDensityAltitude(dcSettings.envDaFt / BALLISTICS_FT_PER_M_DC);
+  } else {
+    const atmInput = { tempC: dcSettings.envTempC };
+    if(dcSettings.envMode === 'pressure') atmInput.pressureHpa = dcSettings.envPressureHpa;
+    else atmInput.altitudeM = dcSettings.envAltitudeM;
+    atmosphere = window.AppliedConceptsBallistics.computeAtmosphere(atmInput);
+  }
   const spinParams = window.AppliedConceptsProfiles.spinDriftParams(profile); // null als het profiel geen (volledige) twist/afmetingen heeft — spindrift dan simpelweg niet beschikbaar
   dcTable = window.AppliedConceptsBallistics.computeDopeCardTable(input, atmosphere, dcDistances(), spinParams);
   return true;
@@ -842,16 +863,28 @@ function dcRenderSetup(root){
 
     <fieldset class="dryfire-mode-fieldset">
       <legend>Omgeving</legend>
-      <label for="dcTemp">Temperatuur (°C)</label>
-      <input type="number" id="dcTemp" step="1" value="${dcSettings.envTempC}">
       <div class="dryfire-mode-toggle">
         <label><input type="radio" name="dcEnvMode" value="altitude" ${dcSettings.envMode==='altitude'?'checked':''}> Hoogte (m)</label>
         <label><input type="radio" name="dcEnvMode" value="pressure" ${dcSettings.envMode==='pressure'?'checked':''}> Luchtdruk (hPa)</label>
+        <label><input type="radio" name="dcEnvMode" value="da" ${dcSettings.envMode==='da'?'checked':''}> Density altitude</label>
+      </div>
+
+      <div id="dcTempWrap" ${dcSettings.envMode==='da'?'hidden':''}>
+        <label for="dcTemp">Temperatuur (°C)</label>
+        <input type="number" id="dcTemp" step="1" value="${dcSettings.envTempC}">
       </div>
       <input type="number" id="dcAltitude" step="10" value="${dcSettings.envAltitudeM}" ${dcSettings.envMode!=='altitude'?'hidden':''}>
       <input type="number" id="dcPressure" step="1" value="${dcSettings.envPressureHpa}" ${dcSettings.envMode!=='pressure'?'hidden':''}>
       <button type="button" class="printbtn st-btn-secondary" id="dcUseLocationBtn" style="width:auto;padding:9px 16px;margin-top:8px;" ${dcSettings.envMode!=='altitude'?'hidden':''}>Hoogte via locatie</button>
-      <p class="hint" id="dcLocationHint">Vult de hoogte in via de locatievoorziening van je toestel (GPS) — temperatuur en luchtdruk kan de telefoon niet meten en blijven dus handmatig.</p>
+      <p class="hint" id="dcLocationHint" ${dcSettings.envMode!=='altitude'?'hidden':''}>Vult de hoogte in via de locatievoorziening van je toestel (GPS) — temperatuur en luchtdruk kan de telefoon niet meten en blijven dus handmatig.</p>
+
+      <div id="dcDaWrap" ${dcSettings.envMode!=='da'?'hidden':''}>
+        <label for="dcDaFt">Density altitude (ft)</label>
+        <input type="number" id="dcDaFt" step="100" value="${dcSettings.envDaFt}">
+        <p class="hint">Rechtstreeks overnemen van je Kestrel of vergelijkbare meter — dekt temperatuur, hoogte én luchtdruk in één getal. Je telefoon kan dit niet zelf meten (geen barometer/temperatuursensor beschikbaar voor een webapp) — vandaar handmatig.</p>
+      </div>
+
+      <div class="dc-preview-box" id="dcDaReadout" ${dcSettings.envMode==='da'?'hidden':''}></div>
     </fieldset>
 
     <fieldset class="dryfire-mode-fieldset">
@@ -915,6 +948,7 @@ function dcRenderSetup(root){
     dcSettings.envMode = root.querySelector('input[name="dcEnvMode"]:checked').value;
     dcSettings.envAltitudeM = parseFloat(root.querySelector('#dcAltitude').value) || 0;
     dcSettings.envPressureHpa = parseFloat(root.querySelector('#dcPressure').value) || 1013.25;
+    dcSettings.envDaFt = parseFloat(root.querySelector('#dcDaFt').value) || 0;
     dcSettings.rangeStart = parseFloat(root.querySelector('#dcRangeStart').value) || 0;
     dcSettings.rangeEnd = parseFloat(root.querySelector('#dcRangeEnd').value) || 0;
     dcSettings.rangeInterval = Math.max(1, parseFloat(root.querySelector('#dcRangeInterval').value) || 1);
@@ -933,22 +967,45 @@ function dcRenderSetup(root){
       : `Te veel afstanden voor één scherm, vergroot interval of verklein bereik (geschat ~${f.rowHeightPx.toFixed(0)}px per regel, minimaal ~24px nodig).`;
     root.querySelector('#dcSaveBtn').disabled = !f.fits;
   }
+  // Informatief controlegetal (alleen buiten DA-modus): welke DA hoort bij
+  // de huidige temperatuur + hoogte/luchtdruk, om te vergelijken met een
+  // Kestrel-meter of vergelijkbaar.
+  function renderDaReadout(){
+    const readout = root.querySelector('#dcDaReadout');
+    if(!readout || dcSettings.envMode === 'da') return;
+    const atmInput = { tempC: dcSettings.envTempC };
+    if(dcSettings.envMode === 'pressure') atmInput.pressureHpa = dcSettings.envPressureHpa;
+    else atmInput.altitudeM = dcSettings.envAltitudeM;
+    const B = window.AppliedConceptsBallistics;
+    const densityFactor = B.computeAtmosphere(atmInput).densityFactor;
+    const daFt = B.densityAltitudeFromFactor(densityFactor) * BALLISTICS_FT_PER_M_DC;
+    readout.innerHTML = `<strong>≈ Density altitude: ${daFt.toFixed(0)} ft</strong> — ter controle tegen je eigen meter.`;
+  }
 
   root.addEventListener('change', (e) => {
     if(e.target.name === 'dcEnvMode'){
-      root.querySelector('#dcAltitude').hidden = e.target.value !== 'altitude';
-      root.querySelector('#dcPressure').hidden = e.target.value !== 'pressure';
-      root.querySelector('#dcUseLocationBtn').hidden = e.target.value !== 'altitude';
+      syncFromForm();
+      dcRenderSetup(root);
+      return;
     }
     if(e.target.name === 'dcWindUnit'){
       // De windstap-labels (0.5/1.0/2.0) staan in de gekozen eenheid — een
-      // volledige her-render is simpeler dan losse tekst-patches.
+      // volledige her-render is simpeler dan losse tekst-patches. Ronde
+      // waarde in de oude eenheid meenemen naar de nieuwe geeft vaak een
+      // lelijk getal (1.9 m/s -> 4.3 mph) — rond meteen bij naar de
+      // dichtstbijzijnde windstap in de nieuw gekozen eenheid.
       syncFromForm();
+      const mphMode = dcSettings.windUnit === 'mph';
+      const display = mphMode ? dcWind.speedMps * DC_MPH_PER_MS : dcWind.speedMps;
+      const snappedDisplay = Math.round(display / dcSettings.windStep) * dcSettings.windStep;
+      dcWind.speedMps = Math.max(0, Math.min(20, mphMode ? snappedDisplay / DC_MPH_PER_MS : snappedDisplay));
+      dcSave(DC_WIND_KEY, dcWind);
       dcRenderSetup(root);
       return;
     }
     syncFromForm();
     renderPreview();
+    renderDaReadout();
   });
 
   root.querySelector('#dcUseLocationBtn').addEventListener('click', () => {
@@ -965,6 +1022,7 @@ function dcRenderSetup(root){
         root.querySelector('#dcAltitude').value = altM;
         dcSettings.envAltitudeM = altM;
         hint.textContent = `Hoogte ingevuld via locatie: ${altM} m. Temperatuur en luchtdruk blijven handmatig.`;
+        renderDaReadout();
       },
       (err) => { hint.textContent = 'Locatie niet beschikbaar (toegang geweigerd of mislukt) — vul handmatig in.'; },
       { enableHighAccuracy: true, timeout: 10000 }
@@ -1003,6 +1061,7 @@ function dcRenderSetup(root){
   });
 
   renderPreview();
+  renderDaReadout();
 }
 
 /* ======================= INIT ======================= */

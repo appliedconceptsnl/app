@@ -824,6 +824,12 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.86', date:'29-09-2026', items:[
+      'Dope Card — bugfix: bij het wisselen tussen m/s en mph bleef de opgeslagen windsnelheid intern ongewijzigd, waardoor een net getal in de ene eenheid er lelijk uitzag in de andere (bv. 1,9 m/s → 4,2 mph in plaats van 4,0). De windsnelheid wordt nu afgerond naar de dichtstbijzijnde windstap in de actief gekozen eenheid, zowel bij het wisselen als eenmalig bij het openen.',
+    ]},
+    { version:'v1.85', date:'29-09-2026', items:[
+      'Dope Card — Omgeving heeft er een derde optie bij: Density Altitude rechtstreeks in voet, over te nemen van een Kestrel of vergelijkbare meter (dekt temperatuur, hoogte én luchtdruk in één getal). Bij Hoogte/Luchtdruk staat er nu een informatief "≈ Density altitude"-getal als controle tegen je eigen meter. Een telefoon kan density altitude niet zelf meten (geen barometer/temperatuursensor in een webapp) — vandaar handmatige invoer, zonder externe netwerkafhankelijkheid.',
+    ]},
     { version:'v1.84', date:'29-09-2026', items:[
       'Dope Card: de windstap-keuzes (0.5/1.0/2.0) staan nu altijd in nette getallen in de gekozen eenheid — dus ook 0.5/1.0/2.0 mph in plaats van de omgerekende 1.1/2.2/4.5. Doelnotities hebben er een veld "Inclinatie/declinatie" bij: vul je bijvoorbeeld 45° in, dan wordt de hold van dat doel automatisch aangepast via de Improved Rifleman\'s Rule (hold × cos(hoek)) — windhold blijft ongewijzigd. Leeg laten geeft gewoon de standaard hold voor die afstand.',
     ]},
