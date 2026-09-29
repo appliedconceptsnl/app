@@ -185,7 +185,10 @@ function buildWarmupSheet(paper){
   const W = paper.w, H = paper.h;
   let svg = trPageOpen(paper);
   svg += trHeader(W, 'OPWARM-SCHIJF');
-  const cx0 = W/2, colGap = 2.42, rowsY = [1.85, 4.35, 6.85, 9.15], rBase = 0.92, rBig = 1.18;
+  // rowsY[3] is H-relative (was a hardcoded 9.15, tuned only for the full
+  // nominal page height) so the bottom row stays clear of the footer even
+  // when printed at a slightly smaller printSafePaper() size.
+  const cx0 = W/2, colGap = 2.42, rowsY = [1.85, 4.35, 6.85, H-2.5429], rBase = 0.92, rBig = 1.18;
   const cols = [cx0-colGap, cx0, cx0+colGap];
   const grid = [
     [{type:'flag', label:'STERKE HAND', count:'5'},
@@ -218,7 +221,10 @@ function buildFlinchSheet(paper){
   let svg = trPageOpen(paper);
   svg += trHeader(W, 'FLINCH-SCHIJF');
   const rowLabels = ['COMPRESSED', 'DRAW', 'TRANSITIE', 'OP TIJD'];
-  const groupTop0 = 1.05, groupH = 2.45;
+  // groupH is H-relative (was a hardcoded 2.45 x 4 rows, tuned only for the
+  // full nominal page height) so the last row's dots stay clear of the
+  // footer even when printed at a slightly smaller printSafePaper() size.
+  const groupTop0 = 1.05, groupH = (H-4.3429)/3;
   const dotLeft = 1.15, dotRight = W-1.15, dotCount = 6;
   const dotGap = (dotRight-dotLeft)/(dotCount-1);
   rowLabels.forEach((lbl, i)=>{
@@ -296,7 +302,7 @@ function buildQuadSheet(paper){
   svg += trHeader(W, 'CARBINE/PISTOL QUAD-SCHIJF');
   const cx = W/2;
   svg += trBlankCircle(cx, 3.15, 1.5, '');
-  svg += trBlankCircle(cx, 8.05, 2.0, '');
+  svg += trBlankCircle(cx, H-3.6429, 2.0, '');
   const legX = 5.9, legY0 = 1.9;
   ['5 m', '10 m', '15 m'].forEach((t, i)=>{
     const ly = legY0 + i*0.34;
@@ -334,7 +340,7 @@ function buildOneToFiveSheet(paper, pos){
     return `<div style="padding:2px 0;${style}">${s.n}. ${s.shots} schot${s.shots>1?'en':''} — ${ONE_TO_FIVE_POS_LABEL[s.pos].toLowerCase()}${active ? ' ← dit blad' : ''}</div>`;
   }).join('');
   svg += trText(TR_MARGIN, 0.85, W-0.9, 1.95, `<div style="font-family:'Oswald',sans-serif;font-weight:600;font-size:1.13em;letter-spacing:.02em;margin-bottom:4px;">1 TO 5 — VUURSCHEMA (15 SCHOTEN TOTAAL)</div>${stepsHtml}`, {fontSize:0.115, lineHeight:1.3});
-  svg += trText(TR_MARGIN, 10.15, W-0.9, 0.6, `Afstand: __________ &nbsp;&nbsp;·&nbsp;&nbsp; Hang dit blad op de ${posLabel.toLowerCase()}positie binnen de reeks van 3.`, {fontSize:0.115, color:TR_DIM});
+  svg += trText(TR_MARGIN, H-1.5429, W-0.9, 0.6, `Afstand: __________ &nbsp;&nbsp;·&nbsp;&nbsp; Hang dit blad op de ${posLabel.toLowerCase()}positie binnen de reeks van 3.`, {fontSize:0.115, color:TR_DIM});
   svg += trFooter(W, H, `1 to 5 — ${posLabel}`);
   svg += `</svg>`;
   return svg;
@@ -357,7 +363,7 @@ function buildTwoTwoFourSheet(paper){
     '5. 2 schoten — rechter doel (pistool)',
   ].map(l=>`<div style="padding:2px 0;">${l}</div>`).join('');
   svg += trText(TR_MARGIN, 0.85, W-0.9, 2.3, `<div style="margin-bottom:8px;">Vuurdrill die precisie combineert met een snelle transitie van primair wapen naar pistool, op twee doelen.</div><div style="font-family:'Oswald',sans-serif;font-weight:600;font-size:1.13em;letter-spacing:.02em;margin-bottom:4px;">2-2-4 — VUURSCHEMA (8 SCHOTEN TOTAAL, 4 PER DOEL)</div>${stepsHtml}`, {fontSize:0.115, lineHeight:1.3});
-  svg += trText(TR_MARGIN, 10.15, W-0.9, 0.6, 'Wapen (primair): __________ &nbsp;&nbsp;·&nbsp;&nbsp; Afstand: __________', {fontSize:0.115, color:TR_DIM});
+  svg += trText(TR_MARGIN, H-1.5429, W-0.9, 0.6, 'Wapen (primair): __________ &nbsp;&nbsp;·&nbsp;&nbsp; Afstand: __________', {fontSize:0.115, color:TR_DIM});
   svg += trFooter(W, H, '2-2-4-schijf');
   svg += `</svg>`;
   return svg;
@@ -378,7 +384,7 @@ function buildZeroTargetSheet(paper){
   let svg = trPageOpen(paper);
   svg += trHeader(W, 'ZERO TARGET', '100M · FUNDAMENTALS');
   svg += trText(TR_MARGIN, 0.85, W-0.9, 0.85, 'Vuur één schot per aanvinkpunt — geslaagd is elk schot dat binnen de stippellijn van 1 MOA valt. Gebruik per schot een nieuw punt, zo heb je voor elk schot een fris Zero Target, zonder overlappende gaten. Elk vakje van het raster is exact 0,1 mil, zodat je de turret-correctie direct van de schijf afleest.', {fontSize:0.115, lineHeight:1.4});
-  const cols = [W/2-2.55, W/2, W/2+2.55], rows = [3.3, 6.6, 9.5];
+  const cols = [W/2-2.55, W/2, W/2+2.55], rows = [3.3, 6.6, H-2.1929];
   const zeroTargetR = moaInAt100m(1)/2; // matches the 1 MOA circle below — keeps the number label clear of it regardless of circle size
   let n = 1;
   rows.forEach(cy=>{
@@ -417,7 +423,7 @@ function buildBipodPressureSheet(paper){
     '3. NEUTRAAL — laat het wapen los, alleen het eigen gewicht.',
     '4. ACHTERWAARTS — trek het wapen licht naar achteren.',
   ].map(l=>`<div style="padding:2px 0;">${l}</div>`).join('');
-  svg += trText(TR_MARGIN, 9.75, W-0.9, 1.3, legend, {fontSize:0.115, lineHeight:1.3, color:TR_DIM});
+  svg += trText(TR_MARGIN, H-1.9429, W-0.9, 1.3, legend, {fontSize:0.115, lineHeight:1.3, color:TR_DIM});
 
   svg += trFooter(W, H, 'Bipod Pressure Load Test');
   svg += `</svg>`;
@@ -437,9 +443,9 @@ function buildNpaNoBagSheet(paper){
     sizes.forEach((moa, i)=>{
       svg += trMoaCircle(cx, rowsY[i], moa, {dotMoa:0.15, stroke: i===0?TR_DIM:TR_INK});
     });
-    svg += `<text x="${cx.toFixed(4)}" y="9.4" text-anchor="middle" font-size="0.12" font-family="Oswald, sans-serif" font-weight="600" fill="${TR_DIM}">REEKS ${colI+1}</text>`;
+    svg += `<text x="${cx.toFixed(4)}" y="${(H-2.2929).toFixed(4)}" text-anchor="middle" font-size="0.12" font-family="Oswald, sans-serif" font-weight="600" fill="${TR_DIM}">REEKS ${colI+1}</text>`;
   });
-  svg += trText(TR_MARGIN, 9.75, W-0.9, 1.1, '2 → 0,4 MOA, groot naar klein. Eén schot per cirkel; bij het missen van een cirkel: check je NPA opnieuw voordat je verder gaat.', {fontSize:0.115, color:TR_DIM, lineHeight:1.4});
+  svg += trText(TR_MARGIN, H-1.9429, W-0.9, 1.1, '2 → 0,4 MOA, groot naar klein. Eén schot per cirkel; bij het missen van een cirkel: check je NPA opnieuw voordat je verder gaat.', {fontSize:0.115, color:TR_DIM, lineHeight:1.4});
 
   svg += trFooter(W, H, 'NPA & No-Bag Target');
   svg += `</svg>`;
@@ -462,7 +468,7 @@ function buildTripodEvalSheet(paper){
   });
 
   // Score table
-  const tableTop = 7.7, rowH = 0.4, tableLeft = TR_MARGIN, tableW = W-0.9;
+  const tableTop = H-3.9929, rowH = 0.4, tableLeft = TR_MARGIN, tableW = W-0.9;
   const colW = tableW/4;
   const rows = ['Slow fire', 'Build/break 1', 'Build/break 2', 'Build/break 3', 'Deploy 1', 'Deploy 2'];
   svg += `<rect x="${tableLeft}" y="${tableTop}" width="${tableW}" height="${rowH*(rows.length+1)}" fill="none" stroke="${TR_INK}" stroke-width="0.012"/>`;
@@ -520,7 +526,7 @@ function buildConsistencyCheckSheet(paper){
 
   const cols = 3, gridRows = 5, moa = 1;
   const left = TR_MARGIN+1.0, right = W-TR_MARGIN-1.0;
-  const top = 2.15, bottom = 9.6;
+  const top = 2.15, bottom = H-2.0929;
   const colGap = (right-left)/(cols-1), rowGap = (bottom-top)/(gridRows-1);
   let n = 1;
   for(let r=0; r<gridRows; r++){
@@ -531,7 +537,7 @@ function buildConsistencyCheckSheet(paper){
       n++;
     }
   }
-  svg += trText(TR_MARGIN, 10.4, W-0.9, 0.35, 'Datum: __________  ·  Datum: __________  ·  Datum: __________', {fontSize:0.115, color:TR_DIM});
+  svg += trText(TR_MARGIN, bottom+0.8, W-0.9, 0.35, 'Datum: __________  ·  Datum: __________  ·  Datum: __________', {fontSize:0.115, color:TR_DIM});
 
   svg += trFooter(W, H, 'Consistency Check Target');
   svg += `</svg>`;
@@ -618,7 +624,7 @@ function buildDotDrill21Sheet(paper){
   const dotMoa = 1.0;
   const left = TR_MARGIN+0.75, right = W-TR_MARGIN-0.75;
   const colGap = (right-left)/4;
-  const rowTop0 = 1.85, rowH = 2.4;
+  const rowTop0 = 1.85, rowH = (H-4.492)/3;
   rowsInfo.forEach((row, ri)=>{
     const capY = rowTop0 + ri*rowH;
     svg += trText(TR_MARGIN, capY, W-0.9, 0.5, row.caption, {fontSize:0.095, weight:600, family:"'Oswald',sans-serif", color:TR_INK, lineHeight:1.3});
@@ -641,22 +647,22 @@ function buildDotDrill21Sheet(paper){
    bovenaan het tabblad. Alles wat vóór die knop bestond was carbine-gericht,
    dus valt daar nu onder; sniper-oefeningen volgen later. */
 const TRAIN_EXERCISES = [
-  { id:'warmup', group:'carbine', cat:'basis', name:'Opwarm-schijf', desc:'12 korte reeksen — draw, reload, press out, sterke/ondersteunende hand.', build:(p)=>[buildWarmupSheet(p)] },
-  { id:'flinch', group:'carbine', cat:'basis', name:'Flinch-schijf', desc:'24 stippen in 4 reeksen — compressed, draw, transitie, op tijd.', build:(p)=>[buildFlinchSheet(p)] },
-  { id:'tripleten', group:'carbine', cat:'basis', name:'Triple Ten-schijf', desc:'3 cirkels, 10 patronen elk — draw en vuur snel op tijd.', build:(p)=>[buildTripleTenSheet(p)] },
+  { id:'warmup', group:'carbine', cat:'basis', name:'Opwarm-schijf', desc:'12 korte reeksen — draw, reload, press out, sterke/ondersteunende hand.', build:(p)=>[buildWarmupSheet(p)], printSafe:true },
+  { id:'flinch', group:'carbine', cat:'basis', name:'Flinch-schijf', desc:'24 stippen in 4 reeksen — compressed, draw, transitie, op tijd.', build:(p)=>[buildFlinchSheet(p)], printSafe:true },
+  { id:'tripleten', group:'carbine', cat:'basis', name:'Triple Ten-schijf', desc:'3 cirkels, 10 patronen elk — draw en vuur snel op tijd.', build:(p)=>[buildTripleTenSheet(p)], printSafe:true },
   { id:'throttle', group:'carbine', cat:'basis', name:'Throttle Control-schijf', desc:'2 schoten centraal, willekeurige kleine cirkel (aantal = cijfer), weer 2 schoten centraal.', build:(p)=>[buildThrottleSheet(p)], printSafe:true },
-  { id:'quad', group:'carbine', cat:'basis', name:'Carbine/Pistol Quad-schijf', desc:'2 cirkels — low/high ready + slide lock reload.', build:(p)=>[buildQuadSheet(p)] },
-  { id:'onetofive', group:'carbine', cat:'drills', name:'1 to 5', desc:'1-2-3-4-5 schoten over links/midden/rechts — 3 losse bladen.', pageNames:['Links', 'Midden', 'Rechts'], build:(p)=>[buildOneToFiveSheet(p,'links'), buildOneToFiveSheet(p,'midden'), buildOneToFiveSheet(p,'rechts')] },
-  { id:'twotwofour', group:'carbine', cat:'drills', name:'2-2-4', desc:'2 links, 2 rechts, transitie naar Glock, 2 links, 2 rechts.', build:(p)=>[buildTwoTwoFourSheet(p)] },
+  { id:'quad', group:'carbine', cat:'basis', name:'Carbine/Pistol Quad-schijf', desc:'2 cirkels — low/high ready + slide lock reload.', build:(p)=>[buildQuadSheet(p)], printSafe:true },
+  { id:'onetofive', group:'carbine', cat:'drills', name:'1 to 5', desc:'1-2-3-4-5 schoten over links/midden/rechts — 3 losse bladen.', pageNames:['Links', 'Midden', 'Rechts'], build:(p)=>[buildOneToFiveSheet(p,'links'), buildOneToFiveSheet(p,'midden'), buildOneToFiveSheet(p,'rechts')], printSafe:true },
+  { id:'twotwofour', group:'carbine', cat:'drills', name:'2-2-4', desc:'2 links, 2 rechts, transitie naar Glock, 2 links, 2 rechts.', build:(p)=>[buildTwoTwoFourSheet(p)], printSafe:true },
 
-  { id:'zerotarget', group:'sniper', cat:'basis', name:'Zero Target', desc:'9 aanvinkpunten, één schot per punt binnen 1 MOA — bevestig je nulpunt zonder oude gaten te hergebruiken.', build:(p)=>[buildZeroTargetSheet(p)] },
-  { id:'npanobag', group:'sniper', cat:'basis', name:'NPA & No-Bag Target', desc:'4 cirkels (2 → 0,4 MOA), zonder achterzak — bouw je Natural Point of Aim en bevestig hem.', build:(p)=>[buildNpaNoBagSheet(p)] },
-  { id:'consistency', group:'sniper', cat:'basis', name:'Consistency Check Target', desc:'15x 1 MOA — één schot per cirkel, verspreid over meerdere sessies.', build:(p)=>[buildConsistencyCheckSheet(p)] },
-  { id:'boxtest', group:'sniper', cat:'basis', name:'The Box Test', desc:'Eén aanvinkpunt — turret-tracking test, 3x een vierkante box (12 schoten). Bevestigt of je turret recht meedraait en je nulpunt stabiel blijft.', build:(p)=>[buildBoxTestSheet(p)] },
-  { id:'bipodpressure', group:'sniper', cat:'drills', name:'Bipod Pressure Load Test', desc:'Normaal vs. voorwaarts/neutraal/achterwaarts — vergelijk de POI-verschuiving.', build:(p)=>[buildBipodPressureSheet(p)] },
-  { id:'positionalcircles', group:'sniper', cat:'drills', name:'Positional Circles', desc:'Staand, hoog/laag knielend, zittend — onopgesteund, 3 ringmaten per positie.', build:(p)=>[buildPositionalCirclesSheet(p)] },
-  { id:'tripodeval', group:'sniper', cat:'drills', name:'Tripod Eval', desc:'Staand/knielend/zittend x slow fire/build-break/deploy — met scoretabel.', build:(p)=>[buildTripodEvalSheet(p)] },
-  { id:'dotdrill21', group:'sniper', cat:'drills', name:'21 Dot Drill', desc:'Klassieke Sniper’s Hide-drill — magazijnwissel, ondersteunende zijde, transities onder tijdsdruk.', build:(p)=>[buildDotDrill21Sheet(p)] },
+  { id:'zerotarget', group:'sniper', cat:'basis', name:'Zero Target', desc:'9 aanvinkpunten, één schot per punt binnen 1 MOA — bevestig je nulpunt zonder oude gaten te hergebruiken.', build:(p)=>[buildZeroTargetSheet(p)], printSafe:true },
+  { id:'npanobag', group:'sniper', cat:'basis', name:'NPA & No-Bag Target', desc:'4 cirkels (2 → 0,4 MOA), zonder achterzak — bouw je Natural Point of Aim en bevestig hem.', build:(p)=>[buildNpaNoBagSheet(p)], printSafe:true },
+  { id:'consistency', group:'sniper', cat:'basis', name:'Consistency Check Target', desc:'15x 1 MOA — één schot per cirkel, verspreid over meerdere sessies.', build:(p)=>[buildConsistencyCheckSheet(p)], printSafe:true },
+  { id:'boxtest', group:'sniper', cat:'basis', name:'The Box Test', desc:'Eén aanvinkpunt — turret-tracking test, 3x een vierkante box (12 schoten). Bevestigt of je turret recht meedraait en je nulpunt stabiel blijft.', build:(p)=>[buildBoxTestSheet(p)], printSafe:true },
+  { id:'bipodpressure', group:'sniper', cat:'drills', name:'Bipod Pressure Load Test', desc:'Normaal vs. voorwaarts/neutraal/achterwaarts — vergelijk de POI-verschuiving.', build:(p)=>[buildBipodPressureSheet(p)], printSafe:true },
+  { id:'positionalcircles', group:'sniper', cat:'drills', name:'Positional Circles', desc:'Staand, hoog/laag knielend, zittend — onopgesteund, 3 ringmaten per positie.', build:(p)=>[buildPositionalCirclesSheet(p)], printSafe:true },
+  { id:'tripodeval', group:'sniper', cat:'drills', name:'Tripod Eval', desc:'Staand/knielend/zittend x slow fire/build-break/deploy — met scoretabel.', build:(p)=>[buildTripodEvalSheet(p)], printSafe:true },
+  { id:'dotdrill21', group:'sniper', cat:'drills', name:'21 Dot Drill', desc:'Klassieke Sniper’s Hide-drill — magazijnwissel, ondersteunende zijde, transities onder tijdsdruk.', build:(p)=>[buildDotDrill21Sheet(p)], printSafe:true },
 ];
 
 let acTrainInited = false;

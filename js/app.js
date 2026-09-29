@@ -862,6 +862,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.94', date:'29-09-2026', items:[
+      'Bugfix printen (5): alle overige Train-oefenbladen gecontroleerd en op dezelfde manier gefixt als Throttle Control-schijf (v1.93) — printen nu allemaal op het iets kleinere "veilige" formaat, zonder de fysieke schaal (MOA/mil-afmetingen) aan te tasten. Meerdere bladen zetten hun onderste tekst/cirkelrij vast op een positie die alleen bij het volle A4-formaat klopte (Opwarm-schijf, Flinch-schijf, Zero Target, NPA & No-Bag, Bipod Pressure Load Test, Tripod Eval, 21 Dot Drill e.a.) — die posities zijn nu relatief aan de paginahoogte in plaats van vast, zodat ze automatisch ruimte overhouden boven de voettekst.',
+    ]},
     { version:'v1.93', date:'29-09-2026', items:[
       'Bugfix printen (4): bevestigd dat iOS/Safari\'s printvenster een eigen, niet-uit-te-zetten marge toevoegt — zelfs met @page{margin:0} bleven de inschietschijf en Train-oefenbladen (getest: Throttle Control-schijf) over 2 pagina\'s versnipperen. De Zero Optic Calculator print nu op een iets kleiner "veilig" formaat (0,5" marge rondom) in plaats van het volle A4 — exact dezelfde 1:1 schaal, gewoon iets minder canvas, zodat er ruimte overblijft voor die marge. Bij Train kan dit niet blind overal toegepast worden: meerdere oefenbladen plaatsen inhoud op vaste posities die alleen voor het volle A4-formaat kloppen. Throttle Control-schijf is als eerste gecontroleerd en gefixt; overige oefeningen volgen naarmate ze getest worden.',
     ]},
