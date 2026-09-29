@@ -160,8 +160,15 @@ function dcClockLabel(){
   return `${hh}:${String(mm).padStart(2,'0')}`;
 }
 function dcSnapAngle(deg){ return (Math.round(deg/15)*15 + 360) % 360; }
-function dcAdjustWindSpeed(step){
-  dcWind.speedMps = Math.max(0, Math.min(20, Math.round((dcWind.speedMps + step) * 10) / 10));
+// stepDisplay is in de momenteel gekozen eenheid (m/s of mph) — zo blijven
+// de windstap-keuzes altijd nette getallen (0.5/1.0/2.0) in die eenheid,
+// i.p.v. omgerekende m/s-waarden die er in mph lelijk uitzien (1.1/2.2/4.5).
+function dcAdjustWindSpeed(stepDisplay){
+  const mphMode = dcSettings.windUnit === 'mph';
+  const currentDisplay = mphMode ? dcWind.speedMps * DC_MPH_PER_MS : dcWind.speedMps;
+  const newDisplay = Math.round((currentDisplay + stepDisplay) * 10) / 10;
+  const newMps = mphMode ? newDisplay / DC_MPH_PER_MS : newDisplay;
+  dcWind.speedMps = Math.max(0, Math.min(20, newMps));
   dcSave(DC_WIND_KEY, dcWind);
   if(navigator.vibrate) navigator.vibrate(10);
   dcRenderFullscreen();
@@ -281,7 +288,22 @@ function dcDialLiveUpdate(){
 // Notities per doel (sector/omschrijving/notitie), gekoppeld aan de afstand.
 // Verdwijnen samen met het doel (deselecteren of CLR) — geen losse restjes.
 function dcNoteFor(d){ return dcNotes[d] || null; }
-function dcNoteHasContent(n){ return !!(n && (n.sector || n.desc || n.note)); }
+function dcNoteHasContent(n){ return !!(n && (n.sector || n.desc || n.note || dcNoteAngle(n) != null)); }
+function dcNoteAngle(n){
+  if(!n || n.angle === '' || n.angle == null) return null;
+  const a = parseFloat(n.angle);
+  return isNaN(a) ? null : a;
+}
+// Improved Rifleman's Rule: reken de hold uit op de daadwerkelijke
+// (slant-)afstand — zoals de rest van de Dope Card al doet — en
+// vermenigvuldig die met cos(hoek). Dat is nauwkeuriger dan de klassieke
+// Rifleman's Rule (die de hold op de horizontale afstand D·cosθ opzoekt),
+// vooral bij grotere hoeken/afstanden. Windhold/spindrift blijven
+// ongemoeid: die hangen niet wezenlijk af van de schothoek.
+function dcInclinedElevMil(elevMil, angleDeg){
+  if(elevMil == null || angleDeg == null) return elevMil;
+  return elevMil * Math.cos(angleDeg * Math.PI / 180);
+}
 function dcSaveNotes(){ dcSave(DC_NOTES_KEY, dcNotes); }
 
 function dcToggleTarget(d){
@@ -524,7 +546,7 @@ function dcWindScreenHtml(){
         <button class="dc-wind-back" data-act="back">&larr; DOPE</button>
         <div class="dc-wind-speed-label">WIND SPEED ${dcSpeedUnitLabel()}</div>
         <div class="dc-wind-speed-value" data-role="speedval">${dcFmtSpeedMps(dcWind.speedMps)}</div>
-        <div class="dc-wind-speed-hint">(swipe &uarr;&darr; &plusmn;${dcFmtSpeedMps(dcSettings.windStep)})</div>
+        <div class="dc-wind-speed-hint">(swipe &uarr;&darr; &plusmn;${dcSettings.windStep.toFixed(1)})</div>
         <div class="dc-wind-pm">
           <button type="button" data-act="minus">&minus;</button>
           <button type="button" data-act="plus">+</button>
@@ -562,12 +584,15 @@ function dcWireWindScreen(){
 function dcTargetScreenHtml(){
   const rowsHtml = dcTargets.length ? dcTargets.map((d,i) => {
     const row = dcTable ? dcTable.get(d) : null;
-    const elevStr = row && row.elevMil != null ? dcFmtElev(row.elevMil) : '—';
+    const n = dcNoteFor(d);
+    const angle = dcNoteAngle(n);
+    const adjElev = row && row.elevMil != null ? dcInclinedElevMil(row.elevMil, angle) : null;
+    const elevStr = adjElev != null ? dcFmtElev(adjElev) : '—';
     const windStr = dcFmtRowRight(row);
     const active = dcActiveTargetIdx === i;
-    const n = dcNoteFor(d);
     const has = dcNoteHasContent(n);
-    const headLine = has ? [n.sector, n.desc].filter(Boolean).map(dcEscapeHtml).join(' · ') : '';
+    const angleLabel = angle != null ? `${angle > 0 ? '+' : ''}${angle}°` : ''; // getal + vaste tekens — geen escaping nodig
+    const headLine = has ? [n.sector && dcEscapeHtml(n.sector), n.desc && dcEscapeHtml(n.desc), angleLabel].filter(Boolean).join(' · ') : '';
     const noteBox = has ? `<div class="dc-note-box">
         ${headLine ? `<div class="dc-note-head">${headLine}</div>` : ''}
         ${n.note ? `<div class="dc-note-text">${dcEscapeHtml(n.note)}</div>` : ''}
@@ -589,6 +614,8 @@ function dcTargetScreenHtml(){
       <label>Sector<input type="text" id="dcNoteSector" maxlength="30" value="${dcEscapeHtml(n.sector||'')}" autocomplete="off"></label>
       <label>Omschrijving<input type="text" id="dcNoteDesc" maxlength="60" value="${dcEscapeHtml(n.desc||'')}" autocomplete="off"></label>
       <label>Notitie<input type="text" id="dcNoteNote" maxlength="120" value="${dcEscapeHtml(n.note||'')}" autocomplete="off"></label>
+      <label>Inclinatie/declinatie (°, + omhoog / − omlaag)<input type="number" id="dcNoteAngle" step="1" min="-90" max="90" value="${dcEscapeHtml(n.angle ?? '')}" autocomplete="off" placeholder="leeg = geen correctie"></label>
+      <p class="dc-notes-editor-hint">Past de hold van dit doel aan via de Improved Rifleman's Rule. Leeg = gewone hold voor deze afstand.</p>
       <div class="dc-notes-editor-actions">
         <button type="button" data-act="notesave">OPSLAAN</button>
         <button type="button" data-act="notecancel">ANNULEER</button>
@@ -635,10 +662,12 @@ function dcWireTargetScreen(){
     const close = () => { dcNotesEditing = null; dcRenderFullscreen(); };
     editor.querySelector('[data-act="notecancel"]').addEventListener('click', close);
     editor.querySelector('[data-act="notesave"]').addEventListener('click', () => {
+      const angleRaw = editor.querySelector('#dcNoteAngle').value.trim();
       const n = {
         sector: editor.querySelector('#dcNoteSector').value.trim(),
         desc: editor.querySelector('#dcNoteDesc').value.trim(),
         note: editor.querySelector('#dcNoteNote').value.trim(),
+        angle: angleRaw === '' ? '' : Math.max(-90, Math.min(90, parseFloat(angleRaw))),
       };
       if(dcNoteHasContent(n)) dcNotes[dcNotesEditing] = n; else delete dcNotes[dcNotesEditing];
       dcSaveNotes();
@@ -842,9 +871,9 @@ function dcRenderSetup(root){
 
       <div class="st-field">Windstap (swipe op het windvak, ${dcSpeedUnitLabel()} per stap)</div>
       <div class="dryfire-mode-toggle">
-        <label><input type="radio" name="dcWindStep" value="0.5" ${dcSettings.windStep===0.5?'checked':''}> ${dcFmtSpeedMps(0.5)}</label>
-        <label><input type="radio" name="dcWindStep" value="1" ${dcSettings.windStep===1?'checked':''}> ${dcFmtSpeedMps(1)}</label>
-        <label><input type="radio" name="dcWindStep" value="2" ${dcSettings.windStep===2?'checked':''}> ${dcFmtSpeedMps(2)}</label>
+        <label><input type="radio" name="dcWindStep" value="0.5" ${dcSettings.windStep===0.5?'checked':''}> 0.5</label>
+        <label><input type="radio" name="dcWindStep" value="1" ${dcSettings.windStep===1?'checked':''}> 1.0</label>
+        <label><input type="radio" name="dcWindStep" value="2" ${dcSettings.windStep===2?'checked':''}> 2.0</label>
       </div>
 
       <div class="st-field">Pols-modus</div>

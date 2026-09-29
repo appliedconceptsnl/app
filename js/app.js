@@ -824,6 +824,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.84', date:'29-09-2026', items:[
+      'Dope Card: de windstap-keuzes (0.5/1.0/2.0) staan nu altijd in nette getallen in de gekozen eenheid — dus ook 0.5/1.0/2.0 mph in plaats van de omgerekende 1.1/2.2/4.5. Doelnotities hebben er een veld "Inclinatie/declinatie" bij: vul je bijvoorbeeld 45° in, dan wordt de hold van dat doel automatisch aangepast via de Improved Rifleman\'s Rule (hold × cos(hoek)) — windhold blijft ongewijzigd. Leeg laten geeft gewoon de standaard hold voor die afstand.',
+    ]},
     { version:'v1.83', date:'29-09-2026', items:[
       'Dope Card: windsnelheid nu instelbaar in m/s of mph (bij Kaart-instellingen, vóór het openen). Geldt puur voor de weergave — het windvak, het windscherm en de target card tonen de gekozen eenheid, inclusief de windstap-keuzes; de mil-waarden in het raster blijven vanzelfsprekend ongewijzigd.',
     ]},
