@@ -472,7 +472,7 @@ function requestPrint(source){
 }
 window.AppliedConceptsPrint = requestPrint;
 
-const MB_TRAIN_GROUP_TABS = ['dryfire','train','shottimer','dopecard'];
+const MB_TRAIN_GROUP_TABS = ['train','shottimer','dopecard'];
 const MB_OPTIC_GROUP_TABS = ['optic','turret'];
 
 function switchTab(tab){
@@ -824,6 +824,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.82', date:'29-09-2026', items:[
+      'Dry Fire is uit de mobiele navigatie gehaald — op je telefoon heb je er weinig aan, op een laptop/desktop blijft het gewoon in de tabbalk staan.',
+    ]},
     { version:'v1.81', date:'29-09-2026', items:[
       'Dope Card — Target card: per doel een kleine NOTES-knop (links, naast de afstand). Daarmee open je een compact vakje met Sector, Omschrijving en Notitie; na opslaan staat de tekst rustig en dim in het midden van de doelregel. Alleen ingevulde notities zijn zichtbaar, zodat het scherm niet rommelig wordt. Notities verdwijnen samen met het doel (deselecteren of CLR).',
     ]},
