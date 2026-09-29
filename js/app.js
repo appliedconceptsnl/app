@@ -866,6 +866,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.96', date:'29-09-2026', items:[
+      'Train — Opwarm-schijf e.a.: de korte instructietekst onder het label in een cirkel (bv. "Draw — vuur 1 schot") stond niet verticaal gecentreerd in de resterende ruimte, maar bleef vlak onder het label hangen. trText() kan nu ook verticaal centreren (naast horizontaal), toegepast op die instructietekst.',
+    ]},
     { version:'v1.95', date:'29-09-2026', items:[
       'Bugfix printen (6): het kleinere "veilige" printformaat (v1.93/v1.94) bleek op een laptop juist averechts te werken — daar klopte het volle A4-formaat namelijk al gewoon, en liet de extra marge onnodig witruimte staan. Dat kleinere formaat wordt voortaan alleen toegepast op iOS (iPhone/iPad), waar de marge daadwerkelijk nodig is — op laptop/desktop print de inschietschijf en alle Train-oefeningen weer op het volle nominale formaat.',
     ]},

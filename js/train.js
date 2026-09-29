@@ -135,13 +135,20 @@ function trText(x, y, w, h, html, opts){
   const fontSize = opts.fontSize || 0.12;
   const color = opts.color || TR_INK;
   const align = opts.align || 'left';
+  // valign:'middle' vertically centers the block within the full reserved
+  // height h — used for the instruction text inside a cirkel (trGridCell),
+  // which otherwise sat flush against the top of its box instead of
+  // centered in the remaining space below the label.
+  const valign = opts.valign || 'top';
   const lineHeight = opts.lineHeight || 1.35;
   const weight = opts.weight || 400;
   const family = opts.family || "'IBM Plex Mono',monospace";
   const LS = TR_LOCAL_SCALE;
   const lw = (w*LS).toFixed(2), lh = (h*LS).toFixed(2), lfs = (fontSize*LS).toFixed(2);
+  const alignItems = align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start';
+  const justifyContent = valign === 'middle' ? 'center' : valign === 'bottom' ? 'flex-end' : 'flex-start';
   return `<foreignObject x="${x.toFixed(4)}" y="${y.toFixed(4)}" width="${w.toFixed(4)}" height="${h.toFixed(4)}">
-    <div xmlns="http://www.w3.org/1999/xhtml" style="width:${lw}px;height:${lh}px;transform:scale(${(1/LS).toFixed(6)});transform-origin:top left;font-family:${family};font-size:${lfs}px;font-weight:${weight};color:${color};text-align:${align};line-height:${lineHeight};">${html}</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" style="width:${lw}px;height:${lh}px;transform:scale(${(1/LS).toFixed(6)});transform-origin:top left;display:flex;flex-direction:column;align-items:${alignItems};justify-content:${justifyContent};font-family:${family};font-size:${lfs}px;font-weight:${weight};color:${color};text-align:${align};line-height:${lineHeight};">${html}</div>
   </foreignObject>`;
 }
 
@@ -175,7 +182,7 @@ function trGridCell(cx, cy, r, cell){
   if(cell.instr){
     const instrY = labelY + labelFs*0.55;
     const instrH = (cy+r) - instrY - r*0.08;
-    s += trText(cx-r*0.75, instrY, r*1.5, instrH, cell.instr, {fontSize:0.078, align:'center', lineHeight:1.3});
+    s += trText(cx-r*0.75, instrY, r*1.5, instrH, cell.instr, {fontSize:0.078, align:'center', valign:'middle', lineHeight:1.3});
   }
   return s;
 }
