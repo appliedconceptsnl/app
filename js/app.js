@@ -836,6 +836,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.92', date:'29-09-2026', items:[
+      'Turret Tape print: de kalibratielineaal en voettekst stonden bij het printen (v1.91) vast onderaan het oorspronkelijke liggende blad — prima op een kort, breed liggend vel, maar na het draaien voor staand printen liet dat een grote lege strook midden op de pagina, met de tape zelf scheef tegen de rand aan. Het printblad krijgt nu een compacte, op zichzelf staande opmaak (lineaal en voettekst direct onder de tape, niet vastgezet onderaan een leeg blad) die vervolgens gecentreerd wordt op de staande pagina — het liveschermbeeld (liggend) blijft ongewijzigd.',
+    ]},
     { version:'v1.91', date:'29-09-2026', items:[
       'Bugfix printen (3): v1.90\'s CSS-transform-rotatie voor Turret Tape bleek zélf ook niet genoeg — WebKit\'s printpaginering blijkt de ongedraaide (liggende) layout-afmeting te gebruiken om paginabreuken te bepalen, ongeacht hoe de inhoud er via CSS-transform uiteindelijk uitziet, dus bleef de tape alsnog over meerdere bladen versnipperen. Turret Tape krijgt nu een eigen printblad (zoals Train en Dope Card al hadden) waarin de rotatie rechtstreeks in de SVG zelf gebakken zit — de afgedrukte pagina is dus écht (niet alleen visueel) staand geformatteerd, ter grootte van A4. Geverifieerd via de exacte pagina-geometrie (bounding box klopt nu pixel-exact met de paginagrenzen).',
     ]},

@@ -151,8 +151,9 @@ function ttPageOpen(){
 // landscape-sized element kept spilling onto extra printed sheets no matter
 // how it looked on screen. Baking the rotation into the SVG itself means
 // the printed page's actual (layout) size is portrait, matching @page.
-function ttBuildPrintSVG(landscapeSvg){
-  const W = TT_PAGE.w, H = TT_PAGE.h; // W=11.6929 (original width) H=8.2677 (original height)
+function ttBuildPrintSVG(landscapeSvg, contentH){
+  const W = TT_PAGE.w, H = TT_PAGE.h; // W=11.6929 (page width) H=8.2677 (full page height / portrait width)
+  const ch = contentH != null ? contentH : H; // compact content height (< H) if the caller built with compact:true
   // Strip the original page's own <svg>/</svg> wrapper and keep only its
   // content, so everything lands in ONE single top-level coordinate system
   // (1 unit = 1 inch, same convention ttHeader/ttFooter/ttBuildTapeSVG
@@ -162,9 +163,12 @@ function ttBuildPrintSVG(landscapeSvg){
   // outer viewBox's own inch-per-unit ratio, which silently placed the
   // rotated content far outside the visible page (blank print preview).
   const inner = landscapeSvg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
-  // rotate(90) then translate(0,-H) — in that application order — maps the
-  // original W×H box onto exactly [0,H]×[0,W]: the portrait canvas below.
-  return `<svg viewBox="0 0 ${H} ${W}" width="${H}in" height="${W}in" xmlns="http://www.w3.org/2000/svg"><g transform="rotate(90) translate(0,-${H})">${inner}</g></svg>`;
+  // rotate(90) then translate(0,-ch) maps the content's own W×ch box onto
+  // exactly [0,ch]×[0,W] — then translate(offsetX,0) (applied last, i.e.
+  // outermost) shifts that rotated block sideways so it's centered within
+  // the full H-wide portrait page instead of hugging one edge.
+  const offsetX = (H - ch) / 2;
+  return `<svg viewBox="0 0 ${H} ${W}" width="${H}in" height="${W}in" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="${H}" height="${W}" fill="var(--paper)"/><g transform="translate(${offsetX.toFixed(4)},0) rotate(90) translate(0,-${ch.toFixed(4)})">${inner}</g></svg>`;
 }
 function ttHeader(title, sub){
   const W = TT_PAGE.w;
@@ -175,8 +179,8 @@ function ttHeader(title, sub){
   s += `<line x1="${TR_MARGIN}" y1="0.6" x2="${(W-TR_MARGIN).toFixed(4)}" y2="0.6" stroke="${TT_INK}" stroke-width="0.012"/>`;
   return s;
 }
-function ttFooter(name){
-  const W = TT_PAGE.w, H = TT_PAGE.h;
+function ttFooter(name, pageH){
+  const W = TT_PAGE.w, H = pageH != null ? pageH : TT_PAGE.h;
   const ruleY = H-0.35;
   let s = `<line x1="${TR_MARGIN}" y1="${ruleY.toFixed(4)}" x2="${(W-TR_MARGIN).toFixed(4)}" y2="${ruleY.toFixed(4)}" stroke="${TT_INK}" stroke-width="0.01"/>`;
   s += `<text x="${TR_MARGIN}" y="${(H-0.16).toFixed(4)}" font-size="0.09" fill="#8f8f8a" font-family="IBM Plex Mono, monospace">Applied Concepts — Performance · Development</text>`;
@@ -266,7 +270,13 @@ function ttBuildTapeSVG(x0, y0, circumferenceMm, unitsPerRev, clickVal, unit, en
   return { svg: s, height: H };
 }
 
-function ttBuildTapeSheets(){
+// compact=true builds a print-only variant: the calibration ruler + footer
+// sit directly below the tape instead of pinned near the bottom of the full
+// (mostly empty, for a short tape) landscape page — fine on screen, where
+// that's just normal page-bottom whitespace, but rotating that whole tall
+// gap 90° for print turned it into a big empty band down the middle of the
+// portrait sheet, with the tape crowded off to one side instead of centered.
+function ttBuildTapeSheets(compact){
   const rows = ttComputeDopeRows().filter(r => ttState.includedDistances.has(r.distanceM));
   const circumferenceMm = ttCircumferenceMm();
   if(!circumferenceMm || rows.length === 0) return { pages:[], error: !circumferenceMm ? 'diameter' : 'rows' };
@@ -302,7 +312,7 @@ function ttBuildTapeSheets(){
   y += ttMmToIn(tape.height) + 0.35;
 
   // Printer-calibration ruler — independent of the turret, verifies "print op 100%" held.
-  const rulerY = Math.max(y, TT_PAGE.h - 0.85);
+  const rulerY = compact ? y : Math.max(y, TT_PAGE.h - 0.85);
   const rulerXIn = TR_MARGIN;
   svg += `<text x="${rulerXIn}" y="${(rulerY-0.08).toFixed(4)}" font-size="0.095" fill="${TT_DIM}" font-family="IBM Plex Mono, monospace">Controleer je printerschaal: dit liniaaltje moet exact 100 mm meten.</text>`;
   svg += `<svg x="${rulerXIn}" y="${rulerY.toFixed(4)}" width="${ttMmToIn(100).toFixed(4)}" height="${ttMmToIn(6).toFixed(4)}" viewBox="0 0 100 6">
@@ -311,10 +321,16 @@ function ttBuildTapeSheets(){
     <text x="0" y="6" font-size="2.1" font-family="IBM Plex Mono, monospace" fill="${TT_DIM}">0</text>
     <text x="100" y="6" text-anchor="end" font-size="2.1" font-family="IBM Plex Mono, monospace" fill="${TT_DIM}">100mm</text>
   </svg>`;
-  svg += ttFooter('1 strook — plak op de turret');
+  y = rulerY + ttMmToIn(6) + 0.35;
+  const footerPageH = compact ? (y + 0.35) : TT_PAGE.h;
+  svg += ttFooter('1 strook — plak op de turret', footerPageH);
   svg += `</svg>`;
 
-  return { pages: [svg], error: null };
+  // usedHeight: tight bottom edge of the actual content (footer text
+  // baseline + a small breathing margin) — only meaningful when compact.
+  const usedHeight = compact ? (footerPageH - 0.16 + 0.14) : TT_PAGE.h;
+
+  return { pages: [svg], error: null, usedHeight };
 }
 
 /* ---- UI ---- */
@@ -582,8 +598,12 @@ function initTurret(){
 
   document.getElementById('printBtnTT').addEventListener('click', ()=>{
     const batch = document.getElementById('turretPrintBatch');
-    const svg = ttState._pages && ttState._pages[ttState._pageIdx];
-    if(batch) batch.innerHTML = svg ? `<div class="page" style="width:${TT_PAGE.h}in;height:${TT_PAGE.w}in;">${ttBuildPrintSVG(svg)}</div>` : '';
+    // Rebuilt fresh with compact:true — the live on-screen page (ttState._pages)
+    // uses the pinned-near-bottom ruler/footer layout, which is correct for
+    // that landscape view but leaves a big gap once rotated for print.
+    const { pages, usedHeight } = ttBuildTapeSheets(true);
+    const svg = pages && pages[0];
+    if(batch) batch.innerHTML = svg ? `<div class="page" style="width:${TT_PAGE.h}in;height:${TT_PAGE.w}in;">${ttBuildPrintSVG(svg, usedHeight)}</div>` : '';
     if(window.AppliedConceptsPrint) window.AppliedConceptsPrint('turret-tape');
   });
 
