@@ -147,8 +147,19 @@ function trText(x, y, w, h, html, opts){
   const lw = (w*LS).toFixed(2), lh = (h*LS).toFixed(2), lfs = (fontSize*LS).toFixed(2);
   const alignItems = align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start';
   const justifyContent = valign === 'middle' ? 'center' : valign === 'bottom' ? 'flex-end' : 'flex-start';
+  // The flex container's content is wrapped in its own <div> rather than
+  // left as a bare text/HTML fragment — a raw text node as a direct flex
+  // child doesn't reliably participate in flex alignment across every
+  // rendering engine (confirmed: iOS's print/PDF pipeline ignored
+  // justify-content on it, letting the instruction text spill out below
+  // its circle instead of centering within its reserved box). overflow:
+  // hidden is a defensive backstop, but only when vertically centering —
+  // the (many) plain top-anchored paragraph calls elsewhere keep their
+  // existing lenient behavior, since some of those already run their text
+  // close to the full reserved height.
+  const overflow = valign !== 'top' ? 'overflow:hidden;' : '';
   return `<foreignObject x="${x.toFixed(4)}" y="${y.toFixed(4)}" width="${w.toFixed(4)}" height="${h.toFixed(4)}">
-    <div xmlns="http://www.w3.org/1999/xhtml" style="width:${lw}px;height:${lh}px;transform:scale(${(1/LS).toFixed(6)});transform-origin:top left;display:flex;flex-direction:column;align-items:${alignItems};justify-content:${justifyContent};font-family:${family};font-size:${lfs}px;font-weight:${weight};color:${color};text-align:${align};line-height:${lineHeight};">${html}</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" style="width:${lw}px;height:${lh}px;${overflow}transform:scale(${(1/LS).toFixed(6)});transform-origin:top left;display:flex;flex-direction:column;align-items:${alignItems};justify-content:${justifyContent};font-family:${family};font-size:${lfs}px;font-weight:${weight};color:${color};text-align:${align};line-height:${lineHeight};"><div>${html}</div></div>
   </foreignObject>`;
 }
 

@@ -866,6 +866,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.97', date:'29-09-2026', items:[
+      'Train — bugfix op v1.96: de verticale centrering van de instructietekst in een cirkel werkte via CSS flexbox op de tekst rechtstreeks, wat op sommige rendering-pipelines (bevestigd: printen/PDF) niet werkt — de tekst zakte dan onder de cirkel uit in plaats van te centreren. Tekst zit nu in een eigen blokje (i.p.v. los tekstfragment) zodat de centrering overal werkt, met een harde begrenzing als extra vangnet zodat tekst nooit meer buiten zijn cirkel kan lopen.',
+    ]},
     { version:'v1.96', date:'29-09-2026', items:[
       'Train — Opwarm-schijf e.a.: de korte instructietekst onder het label in een cirkel (bv. "Draw — vuur 1 schot") stond niet verticaal gecentreerd in de resterende ruimte, maar bleef vlak onder het label hangen. trText() kan nu ook verticaal centreren (naast horizontaal), toegepast op die instructietekst.',
     ]},
