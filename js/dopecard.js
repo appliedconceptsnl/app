@@ -27,9 +27,15 @@ const DC_DEFAULT_SETTINGS = {
   rangeStart: 200, rangeEnd: 980, rangeInterval: 20,
   wristMode: 'device', theme: 'day',
   windStep: 0.5,
+  windUnit: 'ms', // 'ms' | 'mph' — puur weergave; intern blijft alles m/s (fysica/clamp ongewijzigd)
   windCellMode: 'wind', // 'wind' | 'spindrift' | 'combined' — welke waarde de kolommen tonen
   printMode: 'wind', // 'wind' | 'spindrift' | 'both' | 'combined' — welke kolom(men) op de geprinte kaart
 };
+const DC_MPH_PER_MS = 2.236936;
+function dcSpeedUnitLabel(){ return dcSettings.windUnit === 'mph' ? 'mph' : 'm/s'; }
+function dcFmtSpeedMps(mps){
+  return ((dcSettings.windUnit === 'mph' ? mps * DC_MPH_PER_MS : mps)).toFixed(1);
+}
 // 5.0 m/s @ 3:00 doubles as the spec's own worked example (R5.0) — a sane,
 // checkable default rather than an arbitrary one.
 const DC_DEFAULT_WIND = { speedMps: 5.0, angleDeg: 90 };
@@ -143,7 +149,7 @@ function dcEffWind(){
 }
 function dcEffWindStr(){
   const { eff, dir } = dcEffWind();
-  const s = eff.toFixed(1);
+  const s = dcFmtSpeedMps(eff);
   return (dir == null || s === '0.0') ? '0.0' : dir + s;
 }
 function dcClockLabel(){
@@ -430,9 +436,9 @@ function dcDopeScreenHtml(){
       <div class="dc-wind-cell" data-role="windcell" style="flex:${DC_WIND_CELL_WEIGHT} 1 0;">
         <div class="dc-wind-info">
           <span class="dc-wind-badge">${dir || '—'}</span>
-          <span class="dc-wind-value">${dcEffWind().eff.toFixed(1)}</span>
-          <span class="dc-wind-label">EFF WIND m/s</span>
-          <span class="dc-wind-sub">${dcWind.speedMps.toFixed(1)} @ ${dcClockLabel()}</span>
+          <span class="dc-wind-value">${dcFmtSpeedMps(dcEffWind().eff)}</span>
+          <span class="dc-wind-label">EFF WIND ${dcSpeedUnitLabel()}</span>
+          <span class="dc-wind-sub">${dcFmtSpeedMps(dcWind.speedMps)} @ ${dcClockLabel()}</span>
         </div>
         <div class="dc-wind-mode-toggle" data-role="windmodetoggle">
           <button type="button" class="dc-wind-mode-btn${(!dcSettings.windCellMode||dcSettings.windCellMode==='wind')?' active':''}" data-mode="wind">WIND</button>
@@ -516,15 +522,15 @@ function dcWindScreenHtml(){
     <div class="dc-wind-screen">
       <div class="dc-wind-left">
         <button class="dc-wind-back" data-act="back">&larr; DOPE</button>
-        <div class="dc-wind-speed-label">WIND SPEED m/s</div>
-        <div class="dc-wind-speed-value" data-role="speedval">${dcWind.speedMps.toFixed(1)}</div>
-        <div class="dc-wind-speed-hint">(swipe &uarr;&darr; &plusmn;0.5)</div>
+        <div class="dc-wind-speed-label">WIND SPEED ${dcSpeedUnitLabel()}</div>
+        <div class="dc-wind-speed-value" data-role="speedval">${dcFmtSpeedMps(dcWind.speedMps)}</div>
+        <div class="dc-wind-speed-hint">(swipe &uarr;&darr; &plusmn;${dcFmtSpeedMps(dcSettings.windStep)})</div>
         <div class="dc-wind-pm">
           <button type="button" data-act="minus">&minus;</button>
           <button type="button" data-act="plus">+</button>
         </div>
         <div class="dc-eff-box">
-          <div class="dc-eff-box-label">EFF WIND</div>
+          <div class="dc-eff-box-label">EFF WIND ${dcSpeedUnitLabel()}</div>
           <div class="dc-eff-box-value" data-role="effval">${dcEffWindStr()}</div>
         </div>
       </div>
@@ -597,7 +603,7 @@ function dcTargetScreenHtml(){
       <div class="dc-target-head">
         <button class="dc-wind-back" data-act="back">&larr; DOPE</button>
         <div style="display:flex;align-items:center;gap:10px;">
-          <span class="dc-target-eff" data-role="efflabel">EFF ${dcEffWindStr()} m/s</span>
+          <span class="dc-target-eff" data-role="efflabel">EFF ${dcEffWindStr()} ${dcSpeedUnitLabel()}</span>
           ${dcTargets.length ? '<button type="button" class="dc-target-clr" data-act="clr">CLR</button>' : ''}
         </div>
       </div>
@@ -828,11 +834,17 @@ function dcRenderSetup(root){
       <label for="dcRangeInterval">Interval (m)</label>
       <input type="number" id="dcRangeInterval" step="5" value="${dcSettings.rangeInterval}">
 
-      <div class="st-field">Windstap (swipe op het windvak, m/s per stap)</div>
+      <div class="st-field">Windsnelheid-eenheid</div>
       <div class="dryfire-mode-toggle">
-        <label><input type="radio" name="dcWindStep" value="0.5" ${dcSettings.windStep===0.5?'checked':''}> 0.5</label>
-        <label><input type="radio" name="dcWindStep" value="1" ${dcSettings.windStep===1?'checked':''}> 1.0</label>
-        <label><input type="radio" name="dcWindStep" value="2" ${dcSettings.windStep===2?'checked':''}> 2.0</label>
+        <label><input type="radio" name="dcWindUnit" value="ms" ${dcSettings.windUnit!=='mph'?'checked':''}> m/s</label>
+        <label><input type="radio" name="dcWindUnit" value="mph" ${dcSettings.windUnit==='mph'?'checked':''}> mph</label>
+      </div>
+
+      <div class="st-field">Windstap (swipe op het windvak, ${dcSpeedUnitLabel()} per stap)</div>
+      <div class="dryfire-mode-toggle">
+        <label><input type="radio" name="dcWindStep" value="0.5" ${dcSettings.windStep===0.5?'checked':''}> ${dcFmtSpeedMps(0.5)}</label>
+        <label><input type="radio" name="dcWindStep" value="1" ${dcSettings.windStep===1?'checked':''}> ${dcFmtSpeedMps(1)}</label>
+        <label><input type="radio" name="dcWindStep" value="2" ${dcSettings.windStep===2?'checked':''}> ${dcFmtSpeedMps(2)}</label>
       </div>
 
       <div class="st-field">Pols-modus</div>
@@ -878,6 +890,7 @@ function dcRenderSetup(root){
     dcSettings.rangeEnd = parseFloat(root.querySelector('#dcRangeEnd').value) || 0;
     dcSettings.rangeInterval = Math.max(1, parseFloat(root.querySelector('#dcRangeInterval').value) || 1);
     dcSettings.windStep = parseFloat(root.querySelector('input[name="dcWindStep"]:checked').value);
+    dcSettings.windUnit = root.querySelector('input[name="dcWindUnit"]:checked').value;
     dcSettings.printMode = root.querySelector('input[name="dcPrintMode"]:checked').value;
     dcSettings.wristMode = root.querySelector('input[name="dcWrist"]:checked').value;
     dcSettings.theme = root.querySelector('input[name="dcTheme"]:checked').value;
@@ -897,6 +910,13 @@ function dcRenderSetup(root){
       root.querySelector('#dcAltitude').hidden = e.target.value !== 'altitude';
       root.querySelector('#dcPressure').hidden = e.target.value !== 'pressure';
       root.querySelector('#dcUseLocationBtn').hidden = e.target.value !== 'altitude';
+    }
+    if(e.target.name === 'dcWindUnit'){
+      // De windstap-labels (0.5/1.0/2.0) staan in de gekozen eenheid — een
+      // volledige her-render is simpeler dan losse tekst-patches.
+      syncFromForm();
+      dcRenderSetup(root);
+      return;
     }
     syncFromForm();
     renderPreview();

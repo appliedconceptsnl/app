@@ -824,6 +824,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.83', date:'29-09-2026', items:[
+      'Dope Card: windsnelheid nu instelbaar in m/s of mph (bij Kaart-instellingen, vóór het openen). Geldt puur voor de weergave — het windvak, het windscherm en de target card tonen de gekozen eenheid, inclusief de windstap-keuzes; de mil-waarden in het raster blijven vanzelfsprekend ongewijzigd.',
+    ]},
     { version:'v1.82', date:'29-09-2026', items:[
       'Dry Fire is uit de mobiele navigatie gehaald — op je telefoon heb je er weinig aan, op een laptop/desktop blijft het gewoon in de tabbalk staan.',
     ]},
