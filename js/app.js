@@ -836,6 +836,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.91', date:'29-09-2026', items:[
+      'Bugfix printen (3): v1.90\'s CSS-transform-rotatie voor Turret Tape bleek zélf ook niet genoeg — WebKit\'s printpaginering blijkt de ongedraaide (liggende) layout-afmeting te gebruiken om paginabreuken te bepalen, ongeacht hoe de inhoud er via CSS-transform uiteindelijk uitziet, dus bleef de tape alsnog over meerdere bladen versnipperen. Turret Tape krijgt nu een eigen printblad (zoals Train en Dope Card al hadden) waarin de rotatie rechtstreeks in de SVG zelf gebakken zit — de afgedrukte pagina is dus écht (niet alleen visueel) staand geformatteerd, ter grootte van A4. Geverifieerd via de exacte pagina-geometrie (bounding box klopt nu pixel-exact met de paginagrenzen).',
+    ]},
     { version:'v1.90', date:'29-09-2026', items:[
       'Bugfix printen (2): de vorige poging voor Turret Tape (v1.88) ging uit van een liggende (landscape) fysieke printpagina via CSS — dat bleek in de praktijk (iOS/Safari\'s printvenster) genegeerd te worden, dus versnipperde de tape nog steeds over 3 bladen. Turret Tape print nu in plaats daarvan altijd op een staande pagina (zoals de rest van de app) met de liggende tape er zelf 90° in gedraaid via een CSS-transform — geen afhankelijkheid meer van of de printer/telefoon liggend printen ondersteunt.',
     ]},

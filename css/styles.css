@@ -276,6 +276,8 @@
   .dc-print-batch .page{background:#fff;}
 
   /* ---- Turret Tape ---- */
+  .turret-print-batch{display:none;}
+  .turret-print-batch .page{background:#fff;}
   .tt-manual-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
   .tt-manual-row span{font-size:12px;color:var(--cream-dim);}
   .tt-manual-row input{padding:6px 7px;font-size:12.5px;}
@@ -748,26 +750,21 @@
     .dc-print-batch .page{box-shadow:none;margin:0 auto;page-break-after:always;}
     .dc-print-batch .page:last-child{page-break-after:auto;}
 
-    /* Turret Tape: the only liggend (landscape, 11.6929 x 8.2677in) blad —
-       @page's own "landscape" keyword is not honored by iOS/Safari's print
-       pipeline (verified: it still split across 3 sheets), so instead of
-       relying on physical page orientation, rotate the landscape content
-       90° to fill the (always-portrait) page box exactly. .page-shell
-       becomes the portrait "window" (8.2677 x 11.6929in, clipped); .page
-       keeps its original landscape footprint and is rotated + repositioned
-       to exactly fill that window, top-left anchored (rotate(90deg) around
-       the top-left corner, then translateY(-100%) of its own un-rotated
-       height — the standard landscape-in-portrait CSS trick). */
-    #panel-turret .page-shell{
-      width:8.2677in !important;height:11.6929in !important;
-      overflow:hidden;position:relative;margin:0 auto;
-    }
-    #panel-turret .page{
-      position:absolute !important;top:0;left:0;
-      width:11.6929in !important;height:8.2677in !important;
-      transform-origin:top left !important;
-      transform:rotate(90deg) translateY(-100%) !important;
-    }
+    /* Turret Tape: the only liggend (landscape) blad. Two things turned out
+       not to survive iOS/Safari's actual print pipeline: @page{size:...
+       landscape} is silently ignored there, AND a CSS `transform: rotate()`
+       only rotates what's PAINTED — WebKit's print pagination still
+       measures the un-rotated (pre-transform) LAYOUT box to decide where
+       page breaks fall, so a landscape-sized box kept overflowing onto
+       extra sheets no matter how it was visually rotated. So instead of
+       rotating a landscape box with CSS at print time, ttBuildPrintSVG()
+       in turret.js bakes the rotation directly into the SVG itself (an
+       inner <g transform="rotate(90) ..."> inside a genuinely portrait-
+       shaped outer <svg>) — the printed .page's LAYOUT size really is
+       portrait A4, no CSS trickery for WebKit's pagination to ignore. */
+    #panel-turret .preview{display:none !important;}
+    .turret-print-batch{display:block !important;}
+    .turret-print-batch .page{box-shadow:none;margin:0 auto;}
   }
 
   /* ---- Gate / pass phrase screen ---- */

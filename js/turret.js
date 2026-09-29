@@ -144,6 +144,28 @@ function ttPageOpen(){
   const W = TT_PAGE.w, H = TT_PAGE.h;
   return `<svg viewBox="0 0 ${W} ${H}" width="${W}in" height="${H}in" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="${W}" height="${H}" fill="var(--paper)"/>`;
 }
+// Print-only: wraps the (landscape) tape page in a genuinely portrait-sized
+// outer <svg>, rotating the original content 90° via an SVG <g transform>
+// instead of a CSS transform. A CSS transform only rotates what's PAINTED —
+// WebKit's print pagination still measures the un-rotated layout box, so a
+// landscape-sized element kept spilling onto extra printed sheets no matter
+// how it looked on screen. Baking the rotation into the SVG itself means
+// the printed page's actual (layout) size is portrait, matching @page.
+function ttBuildPrintSVG(landscapeSvg){
+  const W = TT_PAGE.w, H = TT_PAGE.h; // W=11.6929 (original width) H=8.2677 (original height)
+  // Strip the original page's own <svg>/</svg> wrapper and keep only its
+  // content, so everything lands in ONE single top-level coordinate system
+  // (1 unit = 1 inch, same convention ttHeader/ttFooter/ttBuildTapeSVG
+  // already use) instead of nesting a whole second absolute-sized <svg>
+  // page inside this one — a nested <svg> with absolute ("in") width/height
+  // resolves those via the standard 96px/inch conversion, NOT against the
+  // outer viewBox's own inch-per-unit ratio, which silently placed the
+  // rotated content far outside the visible page (blank print preview).
+  const inner = landscapeSvg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
+  // rotate(90) then translate(0,-H) — in that application order — maps the
+  // original W×H box onto exactly [0,H]×[0,W]: the portrait canvas below.
+  return `<svg viewBox="0 0 ${H} ${W}" width="${H}in" height="${W}in" xmlns="http://www.w3.org/2000/svg"><g transform="rotate(90) translate(0,-${H})">${inner}</g></svg>`;
+}
 function ttHeader(title, sub){
   const W = TT_PAGE.w;
   const logoH = 0.38, logoW = logoH*LOGO_ASPECT;
@@ -558,7 +580,12 @@ function initTurret(){
   document.getElementById('ttRangeInterval').addEventListener('change', e=>{ ttState.rangeInterval = parseFloat(e.target.value); ttUpdateAll(); });
   document.getElementById('ttRangeMax').addEventListener('input', e=>{ ttState.rangeMax = parseFloat(e.target.value) || 1000; ttUpdateAll(); });
 
-  document.getElementById('printBtnTT').addEventListener('click', ()=>{ if(window.AppliedConceptsPrint) window.AppliedConceptsPrint('turret-tape'); });
+  document.getElementById('printBtnTT').addEventListener('click', ()=>{
+    const batch = document.getElementById('turretPrintBatch');
+    const svg = ttState._pages && ttState._pages[ttState._pageIdx];
+    if(batch) batch.innerHTML = svg ? `<div class="page" style="width:${TT_PAGE.h}in;height:${TT_PAGE.w}in;">${ttBuildPrintSVG(svg)}</div>` : '';
+    if(window.AppliedConceptsPrint) window.AppliedConceptsPrint('turret-tape');
+  });
 
   ttUpdateAll();
 
