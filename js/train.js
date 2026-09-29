@@ -191,8 +191,17 @@ function trGridCell(cx, cy, r, cell){
   const labelY = cy + labelFs*0.34;
   s += `<text x="${cx.toFixed(4)}" y="${labelY.toFixed(4)}" text-anchor="middle" font-size="${labelFs.toFixed(3)}" font-family="Oswald, sans-serif" font-weight="700" fill="${cell.big ? TR_GRAY : TR_INK}">${cell.label}</text>`;
   if(cell.instr){
-    const instrY = labelY + labelFs*0.55;
-    const instrH = (cy+r) - instrY - r*0.08;
+    // Center the instr text within the AVAILABLE space (label to circle
+    // edge), not stretched to fill it — a box that reaches almost to the
+    // edge still "centers" its (short) text near the bottom of that box,
+    // which reads as hugging the circle's edge rather than looking
+    // centered in the circle's remaining room. Capping the box height and
+    // centering *that* within the available space keeps the text's own
+    // visual center at the available space's midpoint instead.
+    const availTop = labelY + labelFs*0.55;
+    const availBottom = (cy+r) - r*0.08;
+    const instrH = Math.min(availBottom - availTop, 0.34);
+    const instrY = availTop + (availBottom - availTop - instrH)/2;
     s += trText(cx-r*0.75, instrY, r*1.5, instrH, cell.instr, {fontSize:0.078, align:'center', valign:'middle', lineHeight:1.3});
   }
   return s;

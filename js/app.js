@@ -866,6 +866,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.98', date:'29-09-2026', items:[
+      'Train — bugfix op v1.97: de instructietekst in een cirkel centreerde technisch binnen zijn eigen (te grote) vak, maar dat vak reikte bijna tot de rand van de cirkel — dus stond de tekst nog steeds laag/tegen de rand aan, niet visueel gecentreerd in wat er van de cirkel overblijft onder het label. Het vak is nu begrensd in hoogte en wordt zelf gecentreerd in de resterende ruimte, zodat de tekst in het midden van die ruimte komt te staan in plaats van onderin.',
+    ]},
     { version:'v1.97', date:'29-09-2026', items:[
       'Train — bugfix op v1.96: de verticale centrering van de instructietekst in een cirkel werkte via CSS flexbox op de tekst rechtstreeks, wat op sommige rendering-pipelines (bevestigd: printen/PDF) niet werkt — de tekst zakte dan onder de cirkel uit in plaats van te centreren. Tekst zit nu in een eigen blokje (i.p.v. los tekstfragment) zodat de centrering overal werkt, met een harde begrenzing als extra vangnet zodat tekst nooit meer buiten zijn cirkel kan lopen.',
     ]},
