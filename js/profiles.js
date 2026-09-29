@@ -293,7 +293,7 @@ const AC_AMMO_PRESETS = [
   { label:'7.62 M80 147gr', dragModel:'G7', bc:0.200, v0Ms:830 },
   { label:'7.62 M118LR 175gr', dragModel:'G7', bc:0.243, v0Ms:790 },
   { label:'6.5 CM 140gr ELD-M', dragModel:'G7', bc:0.326, v0Ms:820 },
-  { label:'.338 LM Lapua Scenar-L 250gr (Lock Base)', dragModel:'G7', bc:0.313, v0Ms:905 },
+  { label:'.338 LM Lapua Scenar-L 250gr (Lock Base)', dragModel:'G7', bc:0.313, v0Ms:905, bulletWeightGr:250, bulletLengthIn:1.471, sightHeightIn:2.75 },
 ];
 
 function acRenderProfileEditor(root){
@@ -472,6 +472,18 @@ function acRenderProfileEditor(root){
     form.querySelector('#pfBc').value = preset.bc;
     form.querySelector('#pfMv').value = preset.v0Ms;
     form.querySelector('#pfMvUnit').value = 'ms';
+    // Kogelgewicht/-lengte horen net zo goed bij een specifieke lading als
+    // BC/V0 — presets die ze meegeven vullen ze dus ook meteen in (niet elke
+    // preset heeft ze, dus alleen overschrijven als de preset het aangeeft).
+    if(preset.bulletWeightGr != null) form.querySelector('#pfBulletWeight').value = preset.bulletWeightGr;
+    if(preset.bulletLengthIn != null) form.querySelector('#pfBulletLength').value = preset.bulletLengthIn;
+    // Sight height hoort strikt genomen bij de kijker/montage, niet bij de
+    // munitie — maar een preset die 'm toch meegeeft (bv. iemands eigen
+    // complete build) vult 'm mee, zodat "snelle preset" ook echt snel is.
+    if(preset.sightHeightIn != null){
+      form.querySelector('#pfSightHeight').value = preset.sightHeightIn;
+      form.querySelector('#pfSightHeightUnit').value = 'in';
+    }
     syncDraftFromForm();
     renderDopeTable();
   });

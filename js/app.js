@@ -839,6 +839,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.89', date:'29-09-2026', items:[
+      'Wapenprofielen: de snelle preset ".338 LM Lapua Scenar-L 250gr" vult nu ook meteen kogelgewicht (250gr), kogellengte (1.471") en sight height (2.75") in — een "snelle preset" moet ook echt snel zijn. Presets kunnen dit voortaan optioneel meegeven; andere presets zonder deze velden laten bestaande waarden gewoon staan.',
+    ]},
     { version:'v1.88', date:'29-09-2026', items:[
       'Bugfix printen: alle printbare bladen (inschietschijf, Train-oefeningen, Turret Tape) misten een expliciete paginagrootte, waardoor de browser zijn eigen standaardmarge toevoegde bovenop een blad dat al exact op A4 was opgemaakt — met als gevolg dat de inschietschijf en Train-bladen soms over 2 pagina\'s versnipperden en alles net niet goed uitgelijnd stond. Turret Tape (liggend/landscape) werd bovendien op een staand standaardformaat geprint, wat de tape over 3 vellen uitsmeerde met de tape zelf maar half zichtbaar op het middelste vel. Elke printopdracht zet nu expliciet de juiste paginagrootte + oriëntatie, zonder marge. Turret Tape\'s aparte "Download als SVG" is vervallen (niet elke printer-app ondersteunt .svg) — gebruik voortaan altijd de printknop en kies in het printvenster "Bewaar als PDF".',
     ]},
