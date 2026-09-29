@@ -108,19 +108,23 @@ const CLICKS = { MOA:[1,0.5,0.25], MIL:[0.1,0.2] };
 const PAGE_DIMS = { a4:{w:8.2677,h:11.6929,label:'A4'}, letter:{w:8.5,h:11,label:'Letter'} };
 
 // iOS/Safari's print pipeline enforces its own non-removable margin — no
-// @page{margin:0} CSS override survives it (confirmed on a real device:
+// @page{margin:0} CSS override survives it (confirmed on a real iPhone:
 // content built at the exact nominal page size still overflows onto a 2nd
-// sheet, by roughly the same amount top and bottom). Grid/circle sizes must
-// stay at exact 1:1 physical scale (that's the entire point of these
-// sheets — dialing in real click corrections, or a drill run at a real
-// working distance), so we can't just shrink content to compensate.
-// Instead, PRINT output is built at this slightly smaller "safe" page size
-// instead of the full nominal one — same functions, same absolute-inch
-// math, just a bit less canvas — leaving room for whatever margin the
-// device insists on adding. The on-screen preview keeps using the full
-// PAGE_DIMS.a4/letter size, unaffected.
+// sheet, by roughly the same amount top and bottom). Desktop browsers
+// (confirmed on a real laptop) do NOT have this problem — printing there at
+// the full nominal size was already correct, and shrinking it anyway just
+// left an unwanted extra border. So this safety margin is iOS-only. Grid/
+// circle sizes must stay at exact 1:1 physical scale either way (that's the
+// entire point of these sheets — dialing in real click corrections, or a
+// drill run at a real working distance), so PRINT output is built at this
+// slightly smaller "safe" page size instead of rescaling content — same
+// functions, same absolute-inch math, just a bit less canvas on iOS,
+// leaving room for the margin that platform insists on adding. The
+// on-screen preview keeps using the full PAGE_DIMS.a4/letter size everywhere.
+const AC_IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 const PRINT_MARGIN_SAFETY_IN = 0.5;
 function printSafePaper(paper){
+  if(!AC_IS_IOS) return paper;
   return { w: paper.w - 2*PRINT_MARGIN_SAFETY_IN, h: paper.h - 2*PRINT_MARGIN_SAFETY_IN, label: paper.label };
 }
 
@@ -862,6 +866,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.95', date:'29-09-2026', items:[
+      'Bugfix printen (6): het kleinere "veilige" printformaat (v1.93/v1.94) bleek op een laptop juist averechts te werken — daar klopte het volle A4-formaat namelijk al gewoon, en liet de extra marge onnodig witruimte staan. Dat kleinere formaat wordt voortaan alleen toegepast op iOS (iPhone/iPad), waar de marge daadwerkelijk nodig is — op laptop/desktop print de inschietschijf en alle Train-oefeningen weer op het volle nominale formaat.',
+    ]},
     { version:'v1.94', date:'29-09-2026', items:[
       'Bugfix printen (5): alle overige Train-oefenbladen gecontroleerd en op dezelfde manier gefixt als Throttle Control-schijf (v1.93) — printen nu allemaal op het iets kleinere "veilige" formaat, zonder de fysieke schaal (MOA/mil-afmetingen) aan te tasten. Meerdere bladen zetten hun onderste tekst/cirkelrij vast op een positie die alleen bij het volle A4-formaat klopte (Opwarm-schijf, Flinch-schijf, Zero Target, NPA & No-Bag, Bipod Pressure Load Test, Tripod Eval, 21 Dot Drill e.a.) — die posities zijn nu relatief aan de paginahoogte in plaats van vast, zodat ze automatisch ruimte overhouden boven de voettekst.',
     ]},
