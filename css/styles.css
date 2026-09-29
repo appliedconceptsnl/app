@@ -271,6 +271,8 @@
   }
   .train-pagetab:hover{color:var(--cream);}
   .train-pagetab.active{border-color:var(--gold);color:var(--gold);}
+  .optic-print-batch{display:none;}
+  .optic-print-batch .page{background:#fff;}
   .train-print-batch{display:none;}
   .dc-print-batch{display:none;}
   .dc-print-batch .page{background:#fff;}
@@ -735,9 +737,18 @@
     .page-shell{box-shadow:none;transform:none !important;width:auto !important;height:auto !important;}
     .page{box-shadow:none;transform:none !important;transform-origin:initial !important;}
 
+    /* Zero Optic Calculator: print a fresh build at printSafePaper() size
+       (see js/app.js) instead of the live-preview page — iOS/Safari's print
+       pipeline enforces its own non-removable margin, so a page built at
+       the exact nominal A4 size overflowed onto a 2nd sheet. */
+    #panel-optic .preview{display:none !important;}
+    .optic-print-batch{display:block !important;}
+    .optic-print-batch .page{box-shadow:none;margin:0 auto;}
+
     /* Train: print a batch of full-size pages (one per selected oefening/blad)
        instead of the single live-preview page, which still carries its
-       on-screen fit-to-viewport scale. */
+       on-screen fit-to-viewport scale. Same printSafePaper() margin-safety
+       sizing as Zero Optic Calculator, for the same reason. */
     .train-panel .preview{display:none !important;}
     .train-print-batch{display:block !important;}
     .train-print-batch .page{box-shadow:none;margin:0 auto;page-break-after:always;}

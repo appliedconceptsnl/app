@@ -107,6 +107,23 @@ function acTrackEvent(payload){
 const CLICKS = { MOA:[1,0.5,0.25], MIL:[0.1,0.2] };
 const PAGE_DIMS = { a4:{w:8.2677,h:11.6929,label:'A4'}, letter:{w:8.5,h:11,label:'Letter'} };
 
+// iOS/Safari's print pipeline enforces its own non-removable margin — no
+// @page{margin:0} CSS override survives it (confirmed on a real device:
+// content built at the exact nominal page size still overflows onto a 2nd
+// sheet, by roughly the same amount top and bottom). Grid/circle sizes must
+// stay at exact 1:1 physical scale (that's the entire point of these
+// sheets — dialing in real click corrections, or a drill run at a real
+// working distance), so we can't just shrink content to compensate.
+// Instead, PRINT output is built at this slightly smaller "safe" page size
+// instead of the full nominal one — same functions, same absolute-inch
+// math, just a bit less canvas — leaving room for whatever margin the
+// device insists on adding. The on-screen preview keeps using the full
+// PAGE_DIMS.a4/letter size, unaffected.
+const PRINT_MARGIN_SAFETY_IN = 0.5;
+function printSafePaper(paper){
+  return { w: paper.w - 2*PRINT_MARGIN_SAFETY_IN, h: paper.h - 2*PRINT_MARGIN_SAFETY_IN, label: paper.label };
+}
+
 const SIGHTS = [
   {id:'compm4', label:'Aimpoint CompM4', hobIn:1.54, src:'Geissele Super Precision CompM4-mount / 39mm co-witness spacer'},
   {id:'compm5', label:'Aimpoint CompM5', hobIn:1.54, src:'Standaard 39mm co-witness spacer'},
@@ -557,7 +574,16 @@ function initOptic(){
   });
   el('zeroDistO').addEventListener('change', ()=>{ refreshWorkDistOptions(OPTIC_DIST,'zeroDistO','workDistO'); renderOptic(); });
   el('adjUnitO').addEventListener('change', ()=>{ refreshClickOptions('adjUnitO','clickValO'); renderOptic(); });
-  el('printBtnO').addEventListener('click', ()=>requestPrint('zero-optic-calculator'));
+  el('printBtnO').addEventListener('click', ()=>{
+    const batch = el('opticPrintBatch');
+    if(batch){
+      const s = getStateOptic();
+      s.paper = printSafePaper(s.paper);
+      const result = buildTargetSVG(s);
+      batch.innerHTML = `<div class="page" style="width:${s.paper.w}in;height:${s.paper.h}in;">${result.svg}</div>`;
+    }
+    requestPrint('zero-optic-calculator');
+  });
   window.addEventListener('resize', ()=>{ if(el('panel-optic').classList.contains('active')) fitPreview('pageO','pageShellO','scaleLabelO'); });
 
   el('platformO').addEventListener('change', ()=>{
@@ -836,6 +862,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.93', date:'29-09-2026', items:[
+      'Bugfix printen (4): bevestigd dat iOS/Safari\'s printvenster een eigen, niet-uit-te-zetten marge toevoegt — zelfs met @page{margin:0} bleven de inschietschijf en Train-oefenbladen (getest: Throttle Control-schijf) over 2 pagina\'s versnipperen. De Zero Optic Calculator print nu op een iets kleiner "veilig" formaat (0,5" marge rondom) in plaats van het volle A4 — exact dezelfde 1:1 schaal, gewoon iets minder canvas, zodat er ruimte overblijft voor die marge. Bij Train kan dit niet blind overal toegepast worden: meerdere oefenbladen plaatsen inhoud op vaste posities die alleen voor het volle A4-formaat kloppen. Throttle Control-schijf is als eerste gecontroleerd en gefixt; overige oefeningen volgen naarmate ze getest worden.',
+    ]},
     { version:'v1.92', date:'29-09-2026', items:[
       'Turret Tape print: de kalibratielineaal en voettekst stonden bij het printen (v1.91) vast onderaan het oorspronkelijke liggende blad — prima op een kort, breed liggend vel, maar na het draaien voor staand printen liet dat een grote lege strook midden op de pagina, met de tape zelf scheef tegen de rand aan. Het printblad krijgt nu een compacte, op zichzelf staande opmaak (lineaal en voettekst direct onder de tape, niet vastgezet onderaan een leeg blad) die vervolgens gecentreerd wordt op de staande pagina — het liveschermbeeld (liggend) blijft ongewijzigd.',
     ]},
