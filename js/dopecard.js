@@ -450,7 +450,7 @@ function dcStripHtml(){
   const n = dcTargets.length;
   return `<div class="dc-strip">
     <button class="dc-strip-btn dc-strip-tgt${n===0?' dc-dim':''}" data-act="tgt">TGT<span>${n||''}</span></button>
-    <button class="dc-strip-btn" data-act="theme">${dcSettings.theme==='night'?'☀':'☾'}</button>
+    <button class="dc-strip-btn" data-act="theme">${dcSettings.theme==='day'?'☾':dcSettings.theme==='night'?'NV':'☀'}</button>
     <button class="dc-strip-btn" data-act="settings">⚙</button>
     <button class="dc-strip-btn" data-act="close">✕</button>
   </div>`;
@@ -460,7 +460,15 @@ function dcWireStrip(){
     b.addEventListener('click', () => {
       const act = b.dataset.act;
       if(act === 'tgt') dcGoScreen('target');
-      else if(act === 'theme'){ dcSettings.theme = dcSettings.theme==='night' ? 'day' : 'night'; dcSave(DC_SETTINGS_KEY, dcSettings); dcRenderFullscreen(); }
+      else if(act === 'theme'){
+        // Dag -> nacht -> nachtzicht (NVG) -> dag. NVG staat los van "nacht":
+        // een NVG-bril/monoculair is extreem gevoelig voor licht, dus dit is
+        // geen simpele donkere versie van het nachtthema maar diep rood op
+        // zwart met minimale helderheid — voorkomt "whitout" van de bril en
+        // beschermt je eigen donker-adaptatie.
+        dcSettings.theme = dcSettings.theme==='day' ? 'night' : dcSettings.theme==='night' ? 'nv' : 'day';
+        dcSave(DC_SETTINGS_KEY, dcSettings); dcRenderFullscreen();
+      }
       else if(act === 'settings') dcExitFullscreen('setup');
       else if(act === 'close') dcExitFullscreen('app');
     });
@@ -714,8 +722,8 @@ function dcWireTargetScreen(){
 /* ---- Render-dispatch ---- */
 function dcRenderFullscreen(){
   if(!dcOverlayEl) return;
-  dcOverlayEl.classList.remove('dc-theme-day','dc-theme-night');
-  dcOverlayEl.classList.add(dcSettings.theme === 'night' ? 'dc-theme-night' : 'dc-theme-day');
+  dcOverlayEl.classList.remove('dc-theme-day','dc-theme-night','dc-theme-nv');
+  dcOverlayEl.classList.add(dcSettings.theme === 'night' ? 'dc-theme-night' : dcSettings.theme === 'nv' ? 'dc-theme-nv' : 'dc-theme-day');
   const inner = dcScreen === 'dope' ? dcDopeScreenHtml() : dcScreen === 'wind' ? dcWindScreenHtml() : dcTargetScreenHtml();
   dcOverlayEl.innerHTML = `<div class="dc-rotor">${inner}</div>`;
   if(dcScreen === 'dope') dcWireDopeScreen();
@@ -921,7 +929,9 @@ function dcRenderSetup(root){
       <div class="dryfire-mode-toggle">
         <label><input type="radio" name="dcTheme" value="day" ${dcSettings.theme==='day'?'checked':''}> Dag</label>
         <label><input type="radio" name="dcTheme" value="night" ${dcSettings.theme==='night'?'checked':''}> Nacht</label>
+        <label><input type="radio" name="dcTheme" value="nv" ${dcSettings.theme==='nv'?'checked':''}> Nachtzicht</label>
       </div>
+      <p class="hint">Nachtzicht: diep rood op zwart, veel minder fel dan het nachtthema op minimale schermhelderheid — voorkomt "whiteout" van een NVG-bril/monoculair en beschermt je eigen donker-adaptatie.</p>
     </fieldset>
 
     <fieldset class="dryfire-mode-fieldset">

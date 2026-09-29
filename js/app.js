@@ -824,6 +824,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.87', date:'29-09-2026', items:[
+      'Dope Card: het thema heeft er een derde stand bij, Nachtzicht — diep rood op zwart in plaats van het bestaande crème-op-zwart nachtthema, want ook op de laagste schermhelderheid is dat laatste nog te fel voor gebruik met een NVG-bril/monoculair. Cyclus via de thema-knop is nu Dag → Nacht → Nachtzicht → Dag, of direct instelbaar bij Kaart-instellingen.',
+    ]},
     { version:'v1.86', date:'29-09-2026', items:[
       'Dope Card — bugfix: bij het wisselen tussen m/s en mph bleef de opgeslagen windsnelheid intern ongewijzigd, waardoor een net getal in de ene eenheid er lelijk uitzag in de andere (bv. 1,9 m/s → 4,2 mph in plaats van 4,0). De windsnelheid wordt nu afgerond naar de dichtstbijzijnde windstap in de actief gekozen eenheid, zowel bij het wisselen als eenmalig bij het openen.',
     ]},
