@@ -870,6 +870,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v2.00', date:'01-10-2026', items:[
+      'Turret Tape: Schmidt & Bender Ultra Short én High Performance (SOF) presets stonden op Ø 38 mm — zelf nagemeten op 36.5 mm, beide presets aangepast.',
+    ]},
     { version:'v1.99', date:'29-09-2026', items:[
       'Zero Optic Calculator: het klikraster (de vakjes waarmee je je correctie aflleest) stond te licht/dun (#d8d8d2 @ 0.006") om op sommige printers/print-apps goed door te komen — vooral bij inkt-/tonerbesparende afdrukstanden vielen die lijnen soms helemaal weg. Donkerder en dikker gemaakt, met behoud van hiërarchie (nog steeds duidelijk lichter/dunner dan de zwarte kruislijnen).',
     ]},

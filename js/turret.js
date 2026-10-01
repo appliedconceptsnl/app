@@ -36,8 +36,8 @@ const TT_CLICK_PRESETS_MOA = [0.25, 0.125, 0.5, 1];
 
 const TT_TURRET_PRESETS = [
   { id:'sb_12x', label:'Schmidt & Bender 12x (regulier) — 0.1 mrad/klik, 12 mrad/omwenteling, Ø 30 mm', unit:'mil', clickVal:0.1, unitsPerRev:12, diameterMm:30 },
-  { id:'sb_ultrashort', label:'Schmidt & Bender Ultra Short (SOF) — 0.1 mrad/klik, 12 mrad/omwenteling, Ø 38 mm', unit:'mil', clickVal:0.1, unitsPerRev:12, diameterMm:38 },
-  { id:'sb_highperformance', label:'Schmidt & Bender High Performance (SOF) — 0.1 mrad/klik, 12 mrad/omwenteling, Ø 38 mm', unit:'mil', clickVal:0.1, unitsPerRev:12, diameterMm:38 },
+  { id:'sb_ultrashort', label:'Schmidt & Bender Ultra Short (SOF) — 0.1 mrad/klik, 12 mrad/omwenteling, Ø 36.5 mm', unit:'mil', clickVal:0.1, unitsPerRev:12, diameterMm:36.5 },
+  { id:'sb_highperformance', label:'Schmidt & Bender High Performance (SOF) — 0.1 mrad/klik, 12 mrad/omwenteling, Ø 36.5 mm', unit:'mil', clickVal:0.1, unitsPerRev:12, diameterMm:36.5 },
   { id:'std10', label:'Standaard 10 mrad/omwenteling (Tangent Theta, ZCO, Vortex, Nightforce e.a.) — 0.1 mrad/klik', unit:'mil', clickVal:0.1, unitsPerRev:10, diameterMm:null },
   { id:'moa15', label:'Standaard 15 MOA/omwenteling — 1/4 MOA/klik', unit:'moa', clickVal:0.25, unitsPerRev:15, diameterMm:null },
   { id:'custom', label:'Handmatig instellen', unit:null, clickVal:null, unitsPerRev:null, diameterMm:null },
