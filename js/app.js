@@ -327,7 +327,11 @@ function buildTargetSVG(cfg){
   let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}in" height="${H}in" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">`;
   svg += `<rect x="0" y="0" width="${W}" height="${H}" fill="var(--paper)"/>`;
 
-  svg += `<g stroke="#d8d8d2" stroke-width="0.006">`;
+  // Was #d8d8d2 @ 0.006in — too light/thin to survive some printers (low-ink
+  // "Nada Print"-style draft modes drop near-white lines entirely). Darker +
+  // thicker, but still lighter/thinner than the dark crosshair (0.012, below)
+  // so the grid stays visually secondary to it.
+  svg += `<g stroke="#8f8f8a" stroke-width="0.010">`;
   for(let x=gridLeft; x<=gridRight+0.001; x+=cfg.gridIn){
     svg += `<line x1="${x.toFixed(4)}" y1="${gridTop}" x2="${x.toFixed(4)}" y2="${gridBottom}"/>`;
   }
@@ -866,6 +870,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v1.99', date:'29-09-2026', items:[
+      'Zero Optic Calculator: het klikraster (de vakjes waarmee je je correctie aflleest) stond te licht/dun (#d8d8d2 @ 0.006") om op sommige printers/print-apps goed door te komen — vooral bij inkt-/tonerbesparende afdrukstanden vielen die lijnen soms helemaal weg. Donkerder en dikker gemaakt, met behoud van hiërarchie (nog steeds duidelijk lichter/dunner dan de zwarte kruislijnen).',
+    ]},
     { version:'v1.98', date:'29-09-2026', items:[
       'Train — bugfix op v1.97: de instructietekst in een cirkel centreerde technisch binnen zijn eigen (te grote) vak, maar dat vak reikte bijna tot de rand van de cirkel — dus stond de tekst nog steeds laag/tegen de rand aan, niet visueel gecentreerd in wat er van de cirkel overblijft onder het label. Het vak is nu begrensd in hoogte en wordt zelf gecentreerd in de resterende ruimte, zodat de tekst in het midden van die ruimte komt te staan in plaats van onderin.',
     ]},
