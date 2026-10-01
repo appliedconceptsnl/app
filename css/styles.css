@@ -1013,6 +1013,7 @@
   .dc-wind-speed-hint{font-size:10px;color:var(--dcdim);text-align:center;}
   .dc-wind-pm{display:flex;justify-content:center;gap:16px;margin:10px 0;}
   .dc-wind-pm button{width:44px;height:44px;font-size:20px;font-weight:700;background:none;border:1px solid var(--dcline-strong);color:var(--dcfg);cursor:pointer;}
+  .dc-angle-clear-btn{background:none;border:1px solid var(--dcline-strong);color:var(--dcdim);font-family:inherit;font-size:11px;font-weight:700;letter-spacing:.05em;padding:8px 10px;cursor:pointer;min-height:36px;margin-top:auto;}
   .dc-eff-box{border:1px solid var(--dcline-strong);padding:10px;margin-top:auto;text-align:center;}
   .dc-eff-box-label{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--dcdim);}
   .dc-eff-box-value{font-size:clamp(26px,5vw,40px);font-weight:700;}

@@ -69,6 +69,7 @@ let dcWind = Object.assign({}, DC_DEFAULT_WIND, dcLoad(DC_WIND_KEY, {}));
 let dcTargets = dcLoad(DC_TARGETS_KEY, []);
 let dcNotes = dcLoad(DC_NOTES_KEY, {}); // { [afstand]: {sector, desc, note} }
 let dcNotesEditing = null; // afstand waarvan de editor open staat
+let dcAngleEditingDist = null; // afstand waarvan het hoek-scherm open staat
 let dcActiveTargetIdx = null;
 let dcTable = null; // Map<distanceM, {elevMil, driftMilPerMps}>
 
@@ -326,6 +327,131 @@ function dcInclinedElevMil(elevMil, angleDeg){
   return elevMil * Math.cos(angleDeg * Math.PI / 180);
 }
 function dcSaveNotes(){ dcSave(DC_NOTES_KEY, dcNotes); }
+
+/* ---- Hoek-scherm (snelle inclinatie/declinatie-invoer, klok-stijl) ----
+   Los van de notities-editor — dezelfde sleep-interactie als de windklok,
+   maar als een halve cirkel (−90° onder tot +90° boven, 0° horizontaal
+   rechts) in plaats van een volle 360°, want een hellingshoek is één as
+   (omhoog/omlaag), geen windrichting. Schrijft direct naar dcNotes
+   (zelfde opslag als de editor), dus blijft overal in sync. */
+function dcAngleSnap(deg){ return Math.max(-90, Math.min(90, Math.round(deg/5)*5)); }
+function dcSetAngleEditing(angle){
+  if(dcAngleEditingDist == null) return;
+  const existing = dcNoteFor(dcAngleEditingDist) || {};
+  const updated = Object.assign({}, existing, { angle });
+  if(dcNoteHasContent(updated)) dcNotes[dcAngleEditingDist] = updated;
+  else delete dcNotes[dcAngleEditingDist];
+  dcSaveNotes();
+}
+function dcAngleDialSvg(angleDeg){
+  const cx=50, cy=50;
+  const a = angleDeg == null ? 0 : angleDeg;
+  let ticks = '';
+  for(let deg=-90; deg<=90; deg+=15){
+    const isLong = (deg % 45 === 0);
+    const rOuter=45, rInner = rOuter - (isLong?10:6);
+    const rad = deg*Math.PI/180;
+    const x1=cx+rOuter*Math.cos(rad), y1=cy-rOuter*Math.sin(rad);
+    const x2=cx+rInner*Math.cos(rad), y2=cy-rInner*Math.sin(rad);
+    ticks += `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="currentColor" stroke-width="${isLong?2:1}"/>`;
+  }
+  const rad = a*Math.PI/180;
+  const bx = cx + 36*Math.cos(rad), by = cy - 36*Math.sin(rad);
+  const arcPath = `M ${cx} ${(cy-47).toFixed(2)} A 47 47 0 0 1 ${cx} ${(cy+47).toFixed(2)}`;
+  return `<svg class="dc-dial-svg" viewBox="0 0 100 100" data-role="angledial">
+    <path d="${arcPath}" fill="none" stroke="currentColor" stroke-width="1"/>
+    <line x1="${cx}" y1="${(cy-47).toFixed(2)}" x2="${cx}" y2="${(cy+47).toFixed(2)}" stroke="currentColor" stroke-width="1" stroke-dasharray="2,2" opacity="0.3"/>
+    ${ticks}
+    <line class="dc-dial-line" x1="${cx}" y1="${cy}" x2="${bx.toFixed(2)}" y2="${by.toFixed(2)}" stroke="currentColor" stroke-width="2"/>
+    <circle class="dc-dial-handle" cx="${bx.toFixed(2)}" cy="${by.toFixed(2)}" r="4" fill="currentColor"/>
+  </svg>`;
+}
+function dcAttachAngleDialDrag(svgEl){
+  function handleMove(clientX, clientY){
+    const rect = svgEl.getBoundingClientRect();
+    const cx = rect.left + rect.width/2, cy = rect.top + rect.height/2;
+    const logical = dcLogicalDelta(clientX - cx, clientY - cy);
+    let angle = Math.atan2(-logical.dy, logical.dx) * 180/Math.PI;
+    angle = Math.max(-90, Math.min(90, angle));
+    dcSetAngleEditing(dcAngleSnap(angle));
+    dcAngleDialLiveUpdate();
+  }
+  svgEl.addEventListener('pointerdown', e => {
+    try { svgEl.setPointerCapture(e.pointerId); } catch(err){}
+    handleMove(e.clientX, e.clientY);
+    const onMove = ev => handleMove(ev.clientX, ev.clientY);
+    svgEl.addEventListener('pointermove', onMove);
+    svgEl.addEventListener('pointerup', function onUp(){
+      svgEl.removeEventListener('pointermove', onMove);
+      svgEl.removeEventListener('pointerup', onUp);
+    });
+  });
+}
+function dcAngleDialLiveUpdate(){
+  if(!dcOverlayEl) return;
+  const a = dcNoteAngle(dcNoteFor(dcAngleEditingDist));
+  const svg = dcOverlayEl.querySelector('[data-role="angledial"]');
+  if(svg){
+    const cx=50, cy=50;
+    const rad = (a||0)*Math.PI/180;
+    const bx = cx + 36*Math.cos(rad), by = cy - 36*Math.sin(rad);
+    const line = svg.querySelector('.dc-dial-line');
+    const handle = svg.querySelector('.dc-dial-handle');
+    if(line){ line.setAttribute('x2', bx.toFixed(2)); line.setAttribute('y2', by.toFixed(2)); }
+    if(handle){ handle.setAttribute('cx', bx.toFixed(2)); handle.setAttribute('cy', by.toFixed(2)); }
+  }
+  const valEl = dcOverlayEl.querySelector('[data-role="angleval"]');
+  if(valEl) valEl.textContent = a == null ? '0°' : `${a>0?'+':''}${a}°`;
+}
+function dcAngleScreenHtml(){
+  const dist = dcAngleEditingDist;
+  const a = dcNoteAngle(dcNoteFor(dist));
+  const ti = dcTargets.indexOf(dist) + 1;
+  return `<div class="dc-main">
+    <div class="dc-wind-screen">
+      <div class="dc-wind-left">
+        <button class="dc-wind-back" data-act="back">&larr; TARGETS</button>
+        <div class="dc-wind-speed-label">HOEK — T${ti} · ${dist} M</div>
+        <div class="dc-wind-speed-value" data-role="angleval">${a == null ? '0°' : `${a>0?'+':''}${a}°`}</div>
+        <div class="dc-wind-speed-hint">sleep de wijzer · + omhoog / − omlaag</div>
+        <div class="dc-wind-pm">
+          <button type="button" data-act="angleminus">&minus;</button>
+          <button type="button" data-act="angleplus">+</button>
+        </div>
+        <button type="button" class="dc-angle-clear-btn" data-act="angleclear">WIS HOEK</button>
+      </div>
+      <div class="dc-wind-right">
+        <div class="dc-dial-tgt">0° = HORIZONTAAL</div>
+        <div class="dc-dial-wrap">
+          <div class="dc-dial-watermark" style="background-image:url('icons/logo.svg')"></div>
+          ${dcAngleDialSvg(a)}
+        </div>
+      </div>
+    </div>
+  </div>${dcStripHtml()}`;
+}
+function dcWireAngleScreen(){
+  dcWireStrip();
+  const back = dcOverlayEl.querySelector('[data-act="back"]');
+  if(back) back.addEventListener('click', () => dcGoScreen('target'));
+  const minus = dcOverlayEl.querySelector('[data-act="angleminus"]');
+  const plus = dcOverlayEl.querySelector('[data-act="angleplus"]');
+  const step = (delta) => {
+    const cur = dcNoteAngle(dcNoteFor(dcAngleEditingDist)) || 0;
+    dcSetAngleEditing(dcAngleSnap(cur + delta));
+    dcAngleDialLiveUpdate();
+    if(navigator.vibrate) navigator.vibrate(10);
+  };
+  if(minus) minus.addEventListener('click', () => step(-5));
+  if(plus) plus.addEventListener('click', () => step(5));
+  const clear = dcOverlayEl.querySelector('[data-act="angleclear"]');
+  if(clear) clear.addEventListener('click', () => {
+    dcSetAngleEditing('');
+    dcAngleDialLiveUpdate();
+  });
+  const dial = dcOverlayEl.querySelector('[data-role="angledial"]');
+  if(dial) dcAttachAngleDialDrag(dial);
+}
 
 function dcToggleTarget(d){
   const idx = dcTargets.indexOf(d);
@@ -621,7 +747,9 @@ function dcTargetScreenHtml(){
     const active = dcActiveTargetIdx === i;
     const has = dcNoteHasContent(n);
     const angleLabel = angle != null ? `${angle > 0 ? '+' : ''}${angle}°` : ''; // getal + vaste tekens — geen escaping nodig
-    const headLine = has ? [n.sector && dcEscapeHtml(n.sector), n.desc && dcEscapeHtml(n.desc), angleLabel].filter(Boolean).join(' · ') : '';
+    // Hoek staat al op zijn eigen knop (zie dc-angle-btn hieronder), dus niet
+    // nogmaals herhalen in de notitiekop ernaast.
+    const headLine = has ? [n.sector && dcEscapeHtml(n.sector), n.desc && dcEscapeHtml(n.desc)].filter(Boolean).join(' · ') : '';
     const noteBox = has ? `<div class="dc-note-box">
         ${headLine ? `<div class="dc-note-head">${headLine}</div>` : ''}
         ${n.note ? `<div class="dc-note-text">${dcEscapeHtml(n.note)}</div>` : ''}
@@ -630,6 +758,7 @@ function dcTargetScreenHtml(){
       <span class="dc-target-num">T${i+1}</span>
       <span class="dc-target-rng">${d}</span>
       <button type="button" class="dc-notes-btn${has?' dc-has-note':''}" data-notes="${d}">NOTES</button>
+      <button type="button" class="dc-notes-btn dc-angle-btn${angle!=null?' dc-has-note':''}" data-angle="${d}">${angle!=null?angleLabel:'HOEK'}</button>
       ${noteBox}
       <span class="dc-target-vals">${elevStr} ${windStr}</span>
     </div>`;
@@ -643,8 +772,6 @@ function dcTargetScreenHtml(){
       <label>Sector<input type="text" id="dcNoteSector" maxlength="30" value="${dcEscapeHtml(n.sector||'')}" autocomplete="off"></label>
       <label>Omschrijving<input type="text" id="dcNoteDesc" maxlength="60" value="${dcEscapeHtml(n.desc||'')}" autocomplete="off"></label>
       <label>Notitie<input type="text" id="dcNoteNote" maxlength="120" value="${dcEscapeHtml(n.note||'')}" autocomplete="off"></label>
-      <label>Inclinatie/declinatie (°, + omhoog / − omlaag)<input type="number" id="dcNoteAngle" step="1" min="-90" max="90" value="${dcEscapeHtml(n.angle ?? '')}" autocomplete="off" placeholder="leeg = geen correctie"></label>
-      <p class="dc-notes-editor-hint">Past de hold van dit doel aan via de Improved Rifleman's Rule. Leeg = gewone hold voor deze afstand.</p>
       <div class="dc-notes-editor-actions">
         <button type="button" data-act="notesave">OPSLAAN</button>
         <button type="button" data-act="notecancel">ANNULEER</button>
@@ -677,7 +804,7 @@ function dcWireTargetScreen(){
     dcNotes = {}; dcNotesEditing = null; dcSaveNotes();
     dcGoScreen('dope');
   });
-  dcOverlayEl.querySelectorAll('.dc-notes-btn').forEach(btn => {
+  dcOverlayEl.querySelectorAll('.dc-notes-btn[data-notes]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       dcNotesEditing = parseInt(btn.dataset.notes, 10);
@@ -686,17 +813,26 @@ function dcWireTargetScreen(){
       if(first) first.focus();
     });
   });
+  dcOverlayEl.querySelectorAll('.dc-angle-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dcAngleEditingDist = parseInt(btn.dataset.angle, 10);
+      dcGoScreen('angle');
+    });
+  });
   const editor = dcOverlayEl.querySelector('[data-role="noteseditor"]');
   if(editor){
     const close = () => { dcNotesEditing = null; dcRenderFullscreen(); };
     editor.querySelector('[data-act="notecancel"]').addEventListener('click', close);
     editor.querySelector('[data-act="notesave"]').addEventListener('click', () => {
-      const angleRaw = editor.querySelector('#dcNoteAngle').value.trim();
+      // Hoek wordt niet hier bewerkt (zie de aparte HOEK-knop/scherm) — dus
+      // gewoon de bestaande waarde van dit doel overnemen i.p.v. wissen.
+      const existingAngle = dcNoteFor(dcNotesEditing)?.angle ?? '';
       const n = {
         sector: editor.querySelector('#dcNoteSector').value.trim(),
         desc: editor.querySelector('#dcNoteDesc').value.trim(),
         note: editor.querySelector('#dcNoteNote').value.trim(),
-        angle: angleRaw === '' ? '' : Math.max(-90, Math.min(90, parseFloat(angleRaw))),
+        angle: existingAngle,
       };
       if(dcNoteHasContent(n)) dcNotes[dcNotesEditing] = n; else delete dcNotes[dcNotesEditing];
       dcSaveNotes();
@@ -724,10 +860,11 @@ function dcRenderFullscreen(){
   if(!dcOverlayEl) return;
   dcOverlayEl.classList.remove('dc-theme-day','dc-theme-night','dc-theme-nv');
   dcOverlayEl.classList.add(dcSettings.theme === 'night' ? 'dc-theme-night' : dcSettings.theme === 'nv' ? 'dc-theme-nv' : 'dc-theme-day');
-  const inner = dcScreen === 'dope' ? dcDopeScreenHtml() : dcScreen === 'wind' ? dcWindScreenHtml() : dcTargetScreenHtml();
+  const inner = dcScreen === 'dope' ? dcDopeScreenHtml() : dcScreen === 'wind' ? dcWindScreenHtml() : dcScreen === 'angle' ? dcAngleScreenHtml() : dcTargetScreenHtml();
   dcOverlayEl.innerHTML = `<div class="dc-rotor">${inner}</div>`;
   if(dcScreen === 'dope') dcWireDopeScreen();
   else if(dcScreen === 'wind') dcWireWindScreen();
+  else if(dcScreen === 'angle') dcWireAngleScreen();
   else dcWireTargetScreen();
 }
 

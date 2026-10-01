@@ -870,6 +870,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v2.01', date:'01-10-2026', items:[
+      'Dope Card — Target card: inclinatie/declinatie heeft nu een eigen HOEK-knop naast NOTES, met een snel sleep-scherm (halve wijzerplaat, −90° tot +90°, net als de windklok) in plaats van typen in het notitievak. Het hoekveld is uit de NOTES-editor gehaald om dubbel werk te voorkomen — de hoek zelf wijzig je voortaan via HOEK.',
+    ]},
     { version:'v2.00', date:'01-10-2026', items:[
       'Turret Tape: Schmidt & Bender Ultra Short én High Performance (SOF) presets stonden op Ø 38 mm — zelf nagemeten op 36.5 mm, beide presets aangepast.',
     ]},
