@@ -610,6 +610,32 @@ function initOptic(){
   renderOptic();
 }
 
+// "Zero target"-knop op een carbine-wapenprofiel (js/profiles.js): spring naar
+// Zero Optic met dit wapen al ingevuld — naam op de schijf, platform, hoogte
+// over loop (sight height) en nulpunt-afstand — zodat je meteen kunt printen.
+function openOpticFromProfile(p){
+  switchTab('optic');
+  if(OPTIC_PLATFORMS[p.platform]) el('platformO').value = p.platform;
+  el('weaponLabelO').value = p.label || '';
+  const hob = parseFloat(p.sightHeight);
+  if(hob > 0){
+    el('sightO').value = SIGHTS.findIndex(s=>s.id==='manual_sight');
+    el('mountO').value = MOUNTS.findIndex(m=>m.id==='manual_mount');
+    el('hobUnitO').value = p.sightHeightUnit === 'in' ? 'in' : 'cm';
+    el('hobValueO').value = hob;
+    delete el('hobValueO').dataset.autofilled;
+    applyAutoHOB('O');
+  }
+  const zIdx = OPTIC_DIST.indexOf(parseFloat(p.zeroDistanceM));
+  if(zIdx !== -1){
+    el('zeroDistO').selectedIndex = zIdx;
+    refreshWorkDistOptions(OPTIC_DIST,'zeroDistO','workDistO');
+  }
+  renderOptic();
+  window.scrollTo(0, 0);
+}
+window.AppliedConceptsOpticFromProfile = openOpticFromProfile;
+
 function applyAutoHOB(suffix){
   const sight = SIGHTS[el('sight'+suffix).value];
   const mount = MOUNTS[el('mount'+suffix).value];
@@ -877,6 +903,10 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v2.04', date:'02-10-2026', items:[
+      'Wapenprofielen: nieuw veld "Wapenplatform (carbine)" (HK416, HK416 14.5", SIG MCX Virtus/Rattler). Heeft een profiel een platform, dan staat er naast "Bewerken" een knop "Zero target" — die brengt je naar Zero Optic met naam, platform, hoogte over loop (sight height) en nulpunt-afstand al ingevuld, zodat je meteen kunt printen/opslaan. Bestaande profielen: kies eenmalig een platform via Bewerken.',
+      'Wapenprofielen: de knop "Verwijderen" naast "Bewerken" is weg; het verwijderen zit nu onderaan in het profiel zelf, onder "Schietdag loggen", als rode knop "Wapenprofiel verwijderen" (met bevestiging).',
+    ]},
     { version:'v2.03', date:'02-10-2026', items:[
       'Refresh-knop naast het versienummer (desktop: bovenin; telefoon: onderaan de Contact-pagina, onder "Idee doorgeven via WhatsApp"). Wist de offline-cache en laadt de app opnieuw, zodat je de nieuwste versie krijgt zonder de app te sluiten en weer te openen.',
     ]},

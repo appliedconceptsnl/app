@@ -195,6 +195,15 @@ function acInterpolateWindcall(profile, distanceM){
   return lower ? lower[1] : (upper ? upper[1] : null);
 }
 
+// Carbine-platformen waarvoor een snelle "Zero target" bestaat (zelfde sleutels
+// als OPTIC_PLATFORMS in js/app.js — dat is de lijst van het Zero Optic-tabblad).
+const AC_CARBINE_PLATFORMS = [
+  { key:'416', label:'HK416' },
+  { key:'416_145', label:'HK416 14.5"' },
+  { key:'mcx_virtus', label:'SIG MCX Virtus' },
+  { key:'mcx_rattler', label:'SIG MCX Rattler' },
+];
+
 let acProfilesUI = { mode: 'list', editingId: null, draft: null };
 
 function acBlankProfile(){
@@ -202,7 +211,7 @@ function acBlankProfile(){
     id: null, label: '', caliber: '', bulletWeightGr: '', bulletLengthIn: '', bulletDiameterIn: '',
     dragModel: 'G7', bc: '', customDragFactor: '', muzzleVelocity: '', muzzleVelocityUnit: 'ms',
     zeroDistanceM: 100, sightHeight: 5, sightHeightUnit: 'cm', twistRateIn: '', dope: {},
-    roundLog: [],
+    roundLog: [], platform: '',
   };
 }
 
@@ -247,7 +256,7 @@ function acRenderProfileList(root){
         <div class="profile-card-rounds">${roundsLine}</div>
         <div class="profile-card-actions">
           <button class="profile-editbtn" data-id="${p.id}">Bewerken</button>
-          <button class="profile-delbtn" data-id="${p.id}">Verwijderen</button>
+          ${p.platform ? `<button class="profile-zerobtn" data-id="${p.id}">Zero target</button>` : ''}
         </div>
       </div>
     `;
@@ -262,10 +271,9 @@ function acRenderProfileList(root){
     acProfilesUI = { mode:'edit', editingId:b.dataset.id, draft: JSON.parse(JSON.stringify(p)) };
     renderProfilesTab();
   }));
-  grid.querySelectorAll('.profile-delbtn').forEach(b=>b.addEventListener('click', ()=>{
-    if(!confirm('Dit wapenprofiel verwijderen?')) return;
-    acSaveProfiles(acLoadProfiles().filter(p=>p.id!==b.dataset.id));
-    renderProfilesTab();
+  grid.querySelectorAll('.profile-zerobtn').forEach(b=>b.addEventListener('click', ()=>{
+    const p = acLoadProfiles().find(x=>x.id===b.dataset.id);
+    if(p && window.AppliedConceptsOpticFromProfile) window.AppliedConceptsOpticFromProfile(p);
   }));
 }
 
@@ -319,6 +327,13 @@ function acRenderProfileEditor(root){
           </select>
           <input type="text" id="pfCaliber" placeholder="bv. 9x19mm" value="${acEscapeHtml(p.caliber)}" ${AC_CALIBERS.includes(p.caliber) ? 'hidden' : ''}>
           <!-- iOS Safari geeft een <input list=datalist> geen betrouwbare dropdown-UI — vandaar een echte <select>, met deze vrije-tekstinvoer als fallback voor kalibers die er niet in staan. -->
+
+          <label for="pfPlatform">Wapenplatform (carbine)</label>
+          <select id="pfPlatform">
+            <option value="">Geen / sniper</option>
+            ${AC_CARBINE_PLATFORMS.map(pl=>`<option value="${pl.key}" ${p.platform===pl.key?'selected':''}>${pl.label}</option>`).join('')}
+          </select>
+          <p class="hint">Kies je een carbine, dan krijgt dit profiel in de lijst een "Zero target"-knop die de Zero Optic Calculator meteen met dit wapen invult (naam, hoogte over loop, nulpunt).</p>
 
           <label for="pfTwist">Twist rate</label>
           <input type="text" id="pfTwist" placeholder="bv. 1:10" value="${acEscapeHtml(p.twistRateIn)}">
@@ -403,11 +418,12 @@ function acRenderProfileEditor(root){
     </form>
 
     <div class="maintenance-section" id="maintenanceSection"></div>
+    ${acProfilesUI.editingId ? `<div class="profile-delete-section"><button type="button" class="profile-delete-bigbtn" id="profileDeleteBtn">Wapenprofiel verwijderen</button></div>` : ''}
   `;
 
   const form = root.querySelector('#profileForm');
   const fieldIds = {
-    label:'pfLabel', caliber:'pfCaliber', twistRateIn:'pfTwist',
+    label:'pfLabel', platform:'pfPlatform', caliber:'pfCaliber', twistRateIn:'pfTwist',
     bulletWeightGr:'pfBulletWeight', bulletLengthIn:'pfBulletLength', bulletDiameterIn:'pfBulletDiameter', dragModel:'pfDragModel',
     bc:'pfBc', customDragFactor:'pfDragFactor', muzzleVelocity:'pfMv', muzzleVelocityUnit:'pfMvUnit',
     sightHeight:'pfSightHeight', sightHeightUnit:'pfSightHeightUnit', zeroDistanceM:'pfZero',
@@ -573,6 +589,14 @@ function acRenderProfileEditor(root){
     }));
   }
   renderMaintenanceSection();
+
+  const delBtn = root.querySelector('#profileDeleteBtn');
+  if(delBtn) delBtn.addEventListener('click', ()=>{
+    if(!confirm('Dit wapenprofiel verwijderen? Dit kan niet ongedaan worden gemaakt.')) return;
+    acSaveProfiles(acLoadProfiles().filter(x=>x.id!==acProfilesUI.editingId));
+    acProfilesUI = { mode:'list', editingId:null, draft:null };
+    renderProfilesTab();
+  });
 
   root.querySelector('#profileCancelBtn').addEventListener('click', ()=>{
     acProfilesUI = { mode:'list', editingId:null, draft:null };

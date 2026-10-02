@@ -332,7 +332,11 @@
     padding:6px 8px;font-size:11.5px;cursor:pointer;font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.03em;
   }
   .profile-card-actions button:hover{color:var(--cream);border-color:var(--cream-dim);}
-  .profile-delbtn:hover{color:#f0b39e;border-color:#5c3320;}
+  .profile-zerobtn{color:var(--gold) !important;border-color:rgba(201,163,92,.45) !important;}
+  .profile-delete-section{margin-top:26px;padding-top:20px;border-top:1px solid var(--line);}
+  .profile-delete-bigbtn{width:100%;background:#a82a1c;color:#fff;border:none;border-radius:var(--radius-sm);padding:12px 16px;
+    font-family:'Oswald',sans-serif;font-size:14px;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;}
+  .profile-delete-bigbtn:hover{background:#c13322;}
 
   .profile-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:18px;}
   .profile-form-grid fieldset{margin:0;}
