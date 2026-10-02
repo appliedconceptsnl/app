@@ -825,6 +825,9 @@
     background:none;border:1px solid var(--line);border-radius:10px;padding:3px 10px;cursor:pointer;
   }
   .versionlink:hover{color:var(--cream);border-color:var(--cream-dim);}
+  .masthead .refreshlink{order:3;margin-left:0;}
+  .contact-version-row{display:flex;justify-content:center;gap:10px;margin-top:22px;}
+  .contact-version-row .versionlink{order:0;margin-left:0;}
   .changelog{position:fixed;top:0;left:0;right:0;bottom:0;z-index:90;display:none;align-items:flex-start;justify-content:flex-end;
     background:rgba(8,8,7,.45);padding:64px 22px 0 0;}
   .changelog.open{display:flex;}

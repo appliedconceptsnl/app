@@ -877,6 +877,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v2.03', date:'02-10-2026', items:[
+      'Refresh-knop naast het versienummer (desktop: bovenin; telefoon: onderaan de Contact-pagina, onder "Idee doorgeven via WhatsApp"). Wist de offline-cache en laadt de app opnieuw, zodat je de nieuwste versie krijgt zonder de app te sluiten en weer te openen.',
+    ]},
     { version:'v2.02', date:'02-10-2026', items:[
       'Zero Optic Calculator: A3 toegevoegd als papierformaat. De vakjes blijven exact even groot als op A4 (dus de klikwaardes en POI-afstanden blijven kloppen) — alleen het zwarte vierkant, de kaderdikte en de POA-stip zijn groter, zodat het grotere vel gevuld wordt. Het printvenster krijgt nu ook de juiste paginagrootte (A3/A4/Letter) mee. De stippellijn van het POI-vak is een stuk dikker en donkerder gemaakt, zodat hij ook op een thermische printer goed te zien is.',
       'Shottimer: bij de schotkalibratie op een binnenbaan telde één schot als 17, doordat galm/echo\'s elk als apart schot werden geteld. Pieken die kort op elkaar volgen tellen nu als één schot (de luidste telt), en te zachte pieken ten opzichte van de luidste worden genegeerd.',
@@ -1262,9 +1265,30 @@ try {
       <ul>${c.items.map(i=>`<li>${i}</li>`).join('')}</ul>
     </div>
   `).join('');
-  document.querySelectorAll('.versionlink').forEach(btn=>{
+  // Contact-pagina (mobiel heeft geen masthead): zelfde versienummer als bovenin.
+  const contactVer = document.getElementById('contactVersionLink');
+  if(contactVer) contactVer.textContent = document.getElementById('versionLink').textContent;
+  document.querySelectorAll('.versionlink:not(.refreshlink)').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       document.getElementById('changelog').classList.add('open');
+    });
+  });
+  // Refresh: service worker + caches wissen en opnieuw laden, zodat je de
+  // nieuwste versie krijgt zonder de app te sluiten en opnieuw te starten.
+  document.querySelectorAll('.refreshlink').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      btn.disabled = true; btn.textContent = '…';
+      try {
+        if('serviceWorker' in navigator){
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map(r=>r.unregister()));
+        }
+        if(window.caches){
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k=>caches.delete(k)));
+        }
+      } catch(e){ /* herladen we hoe dan ook */ }
+      location.reload();
     });
   });
   document.getElementById('changelogClose').addEventListener('click', ()=>{
