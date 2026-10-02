@@ -618,9 +618,13 @@ function openOpticFromProfile(p){
   if(OPTIC_PLATFORMS[p.platform]) el('platformO').value = p.platform;
   el('weaponLabelO').value = p.label || '';
   const hob = parseFloat(p.sightHeight);
+  const sIdx = SIGHTS.findIndex(s=>s.id===p.sightId), mIdx = MOUNTS.findIndex(m=>m.id===(p.mountId||'none'));
+  if(sIdx !== -1){ el('sightO').value = sIdx; el('mountO').value = mIdx !== -1 ? mIdx : MOUNTS.findIndex(m=>m.id==='none'); applyAutoHOB('O'); }
   if(hob > 0){
-    el('sightO').value = SIGHTS.findIndex(s=>s.id==='manual_sight');
-    el('mountO').value = MOUNTS.findIndex(m=>m.id==='manual_mount');
+    if(sIdx === -1){
+      el('sightO').value = SIGHTS.findIndex(s=>s.id==='manual_sight');
+      el('mountO').value = MOUNTS.findIndex(m=>m.id==='manual_mount');
+    }
     el('hobUnitO').value = p.sightHeightUnit === 'in' ? 'in' : 'cm';
     el('hobValueO').value = hob;
     delete el('hobValueO').dataset.autofilled;
@@ -903,6 +907,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v2.05', date:'02-10-2026', items:[
+      'Wapenprofielen: kies je een carbine-platform (HK416, HK416 14.5", MCX Virtus/Rattler), dan worden kaliber 5.56x45mm, twist rate (1:7), kogelgewicht (62 gr), kogeldiameter, kogellengte (~0,91"), drag model, BC en mondingssnelheid direct ingevuld met gemiddelde NATO-waarden voor dat platform (V0 per loopLengte) — de meeste operators kennen die data niet. Daarbij kies je je richtmiddel en montage/riser: de sight height wordt dan automatisch ingevuld (zelfde waarden als Zero Optic, aan te passen). De Zero target-knop neemt je richtmiddel en riser mee naar Zero Optic.',
+    ]},
     { version:'v2.04', date:'02-10-2026', items:[
       'Wapenprofielen: nieuw veld "Wapenplatform (carbine)" (HK416, HK416 14.5", SIG MCX Virtus/Rattler). Heeft een profiel een platform, dan staat er naast "Bewerken" een knop "Zero target" — die brengt je naar Zero Optic met naam, platform, hoogte over loop (sight height) en nulpunt-afstand al ingevuld, zodat je meteen kunt printen/opslaan. Bestaande profielen: kies eenmalig een platform via Bewerken.',
       'Wapenprofielen: de knop "Verwijderen" naast "Bewerken" is weg; het verwijderen zit nu onderaan in het profiel zelf, onder "Schietdag loggen", als rode knop "Wapenprofiel verwijderen" (met bevestiging).',

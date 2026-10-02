@@ -204,6 +204,21 @@ const AC_CARBINE_PLATFORMS = [
   { key:'mcx_rattler', label:'SIG MCX Rattler' },
 ];
 
+// Gemiddelde (NATO-standaard) 5.56-gegevens voor een carbine-platform: de
+// meeste operators weten hun twist/BC/V0 niet, dus die worden bij het kiezen
+// van een platform voor ze ingevuld. Kogel/V0/BC komen uit OPTIC_PLATFORM_AMMO
+// (js/app.js — dezelfde bron als het kogelbaan-blok op de Zero Optic-schijf);
+// twist (1:7) en kogellengte (M855A1 62gr, ~0.91") zijn gangbare NATO-waarden.
+const AC_CARBINE_DEFAULTS = { caliber:'5.56x45mm', bulletDiameterIn:0.224, bulletLengthIn:0.91, twistRateIn:'1:7' };
+function acCarbineDefaultsFor(platformKey){
+  const ammo = (typeof OPTIC_PLATFORM_AMMO !== 'undefined') ? OPTIC_PLATFORM_AMMO[platformKey] : null;
+  if(!ammo) return null;
+  return Object.assign({}, AC_CARBINE_DEFAULTS, {
+    bulletWeightGr: ammo.bulletWeightGr, dragModel: ammo.dragModel, bc: ammo.bc,
+    muzzleVelocity: ammo.muzzleVelocityFps, muzzleVelocityUnit: 'fps',
+  });
+}
+
 let acProfilesUI = { mode: 'list', editingId: null, draft: null };
 
 function acBlankProfile(){
@@ -211,7 +226,7 @@ function acBlankProfile(){
     id: null, label: '', caliber: '', bulletWeightGr: '', bulletLengthIn: '', bulletDiameterIn: '',
     dragModel: 'G7', bc: '', customDragFactor: '', muzzleVelocity: '', muzzleVelocityUnit: 'ms',
     zeroDistanceM: 100, sightHeight: 5, sightHeightUnit: 'cm', twistRateIn: '', dope: {},
-    roundLog: [], platform: '',
+    roundLog: [], platform: '', sightId: '', mountId: '',
   };
 }
 
@@ -389,6 +404,14 @@ function acRenderProfileEditor(root){
 
         <fieldset>
           <legend>Montage &amp; zero</legend>
+          <div id="pfCarbineOptic" ${p.platform ? '' : 'hidden'}>
+            <label for="pfSightId">Richtmiddel</label>
+            <select id="pfSightId"><option value="">— kies je richtmiddel —</option>${SIGHTS.map(s=>`<option value="${s.id}" ${p.sightId===s.id?'selected':''}>${s.label}</option>`).join('')}</select>
+            <label for="pfMountId">Montage / riser</label>
+            <select id="pfMountId"><option value="">— kies je montage/riser —</option>${MOUNTS.map(m=>`<option value="${m.id}" ${p.mountId===m.id?'selected':''}>${m.label}</option>`).join('')}</select>
+            <p class="hint" id="pfHobHint">Kies je richtmiddel en riser — de sight height hieronder wordt dan automatisch ingevuld (aan te passen als jouw opbouw afwijkt).</p>
+          </div>
+
           <label for="pfSightHeight">Sight height</label>
           <div class="row2">
             <input type="number" id="pfSightHeight" step="0.01" min="0" value="${acEscapeHtml(p.sightHeight)}">
@@ -426,7 +449,7 @@ function acRenderProfileEditor(root){
     label:'pfLabel', platform:'pfPlatform', caliber:'pfCaliber', twistRateIn:'pfTwist',
     bulletWeightGr:'pfBulletWeight', bulletLengthIn:'pfBulletLength', bulletDiameterIn:'pfBulletDiameter', dragModel:'pfDragModel',
     bc:'pfBc', customDragFactor:'pfDragFactor', muzzleVelocity:'pfMv', muzzleVelocityUnit:'pfMvUnit',
-    sightHeight:'pfSightHeight', sightHeightUnit:'pfSightHeightUnit', zeroDistanceM:'pfZero',
+    sightHeight:'pfSightHeight', sightHeightUnit:'pfSightHeightUnit', sightId:'pfSightId', mountId:'pfMountId', zeroDistanceM:'pfZero',
   };
 
   function syncDraftFromForm(){
@@ -481,6 +504,54 @@ function acRenderProfileEditor(root){
     syncDraftFromForm();
     renderDopeTable();
   });
+  // Platform gekozen -> alle 5.56-gegevens invullen met gemiddelden.
+  root.querySelector('#pfPlatform').addEventListener('change', (e)=>{
+    const d = acCarbineDefaultsFor(e.target.value);
+    form.querySelector('#pfCarbineOptic').hidden = !d;
+    if(!d) return;
+    const calSel = form.querySelector('#pfCaliberSelect');
+    calSel.value = d.caliber;
+    const calInput = form.querySelector('#pfCaliber');
+    calInput.hidden = true; calInput.value = d.caliber;
+    form.querySelector('#pfTwist').value = d.twistRateIn;
+    form.querySelector('#pfBulletWeight').value = d.bulletWeightGr;
+    form.querySelector('#pfBulletDiameter').value = d.bulletDiameterIn;
+    form.querySelector('#pfBulletLength').value = d.bulletLengthIn;
+    form.querySelector('#pfDragModel').value = d.dragModel;
+    form.querySelector('#pfBc').value = d.bc;
+    form.querySelector('#pfMv').value = d.muzzleVelocity;
+    form.querySelector('#pfMvUnit').value = d.muzzleVelocityUnit;
+    applyHobFromOptic();
+    syncDraftFromForm();
+    renderDopeTable();
+  });
+
+  // Richtmiddel + riser -> sight height (zelfde regels/waarden als Zero Optic).
+  function applyHobFromOptic(){
+    const sight = SIGHTS.find(s=>s.id===form.querySelector('#pfSightId').value);
+    // Nog geen montage gekozen telt als "geen aparte montage" zodra er een richtmiddel is.
+    const mount = MOUNTS.find(m=>m.id===(form.querySelector('#pfMountId').value || 'none'));
+    const hint = form.querySelector('#pfHobHint');
+    if(!sight || !mount) return;
+    if(mount.id === 'manual_mount'){ hint.textContent = 'Handmatige montage — vul zelf de gemeten sight height in.'; return; }
+    const hobIn = mount.id !== 'none' ? mount.hobIn : sight.hobIn;
+    if(hobIn == null){
+      hint.textContent = `Geen standaardwaarde voor ${sight.label} zonder montage — meet zelf de afstand hart loop tot hart richtmiddel.`;
+      return;
+    }
+    form.querySelector('#pfSightHeight').value = (hobIn/CM_IN).toFixed(2);
+    form.querySelector('#pfSightHeightUnit').value = 'cm';
+    hint.textContent = mount.id !== 'none' ? `Bepaald door montage: ${mount.label}.` : `Bepaald door richtmiddel: ${sight.label}.`;
+  }
+  form.querySelector('#pfSightId').addEventListener('change', ()=>{
+    const sight = SIGHTS.find(s=>s.id===form.querySelector('#pfSightId').value);
+    const mountSel = form.querySelector('#pfMountId');
+    if(sight && sight.id === 'lpvo') mountSel.value = 'none';
+    else if(sight && sight.id === 'rmr') mountSel.value = 'lpvo_riser';
+    applyHobFromOptic(); syncDraftFromForm(); renderDopeTable();
+  });
+  form.querySelector('#pfMountId').addEventListener('change', ()=>{ applyHobFromOptic(); syncDraftFromForm(); renderDopeTable(); });
+
   root.querySelector('#pfAmmoPreset').addEventListener('change', (e)=>{
     const preset = AC_AMMO_PRESETS[e.target.value];
     if(!preset) return;
