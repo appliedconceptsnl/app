@@ -105,7 +105,8 @@ function acTrackEvent(payload){
 })();
 
 const CLICKS = { MOA:[1,0.5,0.25], MIL:[0.1,0.2] };
-const PAGE_DIMS = { a4:{w:8.2677,h:11.6929,label:'A4'}, letter:{w:8.5,h:11,label:'Letter'} };
+const PAGE_DIMS = { a4:{w:8.2677,h:11.6929,label:'A4'}, a3:{w:11.6929,h:16.5354,label:'A3'}, letter:{w:8.5,h:11,label:'Letter'} };
+const AC_PAGE_SIZE_CSS = { a4:'A4', a3:'A3', letter:'Letter' };
 
 // iOS/Safari's print pipeline enforces its own non-removable margin — no
 // @page{margin:0} CSS override survives it (confirmed on a real iPhone:
@@ -319,9 +320,13 @@ function buildTargetSVG(cfg){
   const cx = W/2;
   const targetCy = gridTop + (gridBottom-gridTop)*0.40;
 
-  const S = 16*CM_IN;
-  const FT = cfg.gridIn*2;
-  const dot = cfg.gridIn*0.8;
+  // Op A3 blijft de rastermaat (cfg.gridIn) gelijk — dus ook de klikwaardes —
+  // en worden alleen het zwarte vierkant, de kaderdikte en de stip groter, zodat
+  // het vel gevuld wordt. Alle andere maten (POI-offset, HOB, tabel) ongewijzigd.
+  const isA3 = P.label === 'A3';
+  const S = (isA3 ? 22 : 16)*CM_IN;
+  const FT = cfg.gridIn*(isA3 ? 3 : 2);
+  const dot = cfg.gridIn*(isA3 ? 1.1 : 0.8);
   const pad = cfg.gridIn*3;
 
   let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}in" height="${H}in" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">`;
@@ -373,11 +378,11 @@ function buildTargetSVG(cfg){
     // drawn relative to, and near the zero distance the offset is small
     // enough that the marker can land partly inside the black frame itself.
     // A near-black-on-black marker there would be unreadable.
-    const markerColor = '#c9a35c';
+    const markerColor = '#9a7424';
     svg += `<rect x="${(mCx-markerBS/2).toFixed(4)}" y="${(mCy-markerBS/2).toFixed(4)}" width="${markerBS.toFixed(4)}" height="${markerBS.toFixed(4)}"
-      fill="none" stroke="${markerColor}" stroke-width="0.026" stroke-dasharray="0.06,0.05"/>`;
+      fill="none" stroke="${markerColor}" stroke-width="0.06" stroke-dasharray="0.13,0.09"/>`;
     svg += `<circle cx="${mCx.toFixed(4)}" cy="${mCy.toFixed(4)}" r="${(cfg.gridIn*0.18).toFixed(4)}" fill="${markerColor}"/>`;
-    svg += `<line x1="${startX.toFixed(4)}" y1="${startY.toFixed(4)}" x2="${endX.toFixed(4)}" y2="${endY.toFixed(4)}" stroke="${markerColor}" stroke-width="0.013"/>`;
+    svg += `<line x1="${startX.toFixed(4)}" y1="${startY.toFixed(4)}" x2="${endX.toFixed(4)}" y2="${endY.toFixed(4)}" stroke="${markerColor}" stroke-width="0.03"/>`;
     svg += `<text x="${mCx.toFixed(4)}" y="${(mCy+markerBS/2+0.16).toFixed(4)}" text-anchor="middle" font-size="0.13" font-weight="700" fill="${markerColor}" font-family="IBM Plex Mono, monospace">${m.label}</text>`;
     if(m.detail) svg += `<text x="${mCx.toFixed(4)}" y="${(mCy+markerBS/2+0.33).toFixed(4)}" text-anchor="middle" font-size="0.11" fill="#6e6e6a">${m.detail}</text>`;
   });
@@ -495,9 +500,9 @@ function refitAllPreviews(){
 // Turret Tape (het enige liggende ontwerp) wordt in plaats daarvan met een
 // CSS-transform 90° gedraaid zodat het liggende blad binnen dat staande
 // paginakader past — zie css/styles.css (#panel-turret print-regels).
-function requestPrint(source){
+function requestPrint(source, paperKey){
   const pageSizeEl = document.getElementById('dynPageSize');
-  if(pageSizeEl) pageSizeEl.textContent = '@page { size: A4 portrait; margin: 0; }';
+  if(pageSizeEl) pageSizeEl.textContent = `@page { size: ${AC_PAGE_SIZE_CSS[paperKey] || 'A4'} portrait; margin: 0; }`;
   const evt = new CustomEvent('ac:print-request', { cancelable: true, detail: { source } });
   const handledByNativeShell = !window.dispatchEvent(evt);
   if(handledByNativeShell) return;
@@ -590,7 +595,7 @@ function initOptic(){
       const result = buildTargetSVG(s);
       batch.innerHTML = `<div class="page" style="width:${s.paper.w}in;height:${s.paper.h}in;">${result.svg}</div>`;
     }
-    requestPrint('zero-optic-calculator');
+    requestPrint('zero-optic-calculator', el('paperSizeO').value);
   });
   window.addEventListener('resize', ()=>{ if(el('panel-optic').classList.contains('active')) fitPreview('pageO','pageShellO','scaleLabelO'); });
 
@@ -756,6 +761,8 @@ function renderOptic(){
   const advice = el('paperAdviceO');
   advice.textContent = s.paperKey==='a4'
     ? 'A4 is 6% smaller dan Letter. Bij grote HOB (bv. GBRS Hydra) met een korte controleafstand kan de referentie-box krap komen — check de waarschuwing hierboven.'
+    : s.paperKey==='a3'
+    ? 'A3: de vakjes (en dus de klikwaardes) blijven exact even groot als op A4 — alleen het zwarte vierkant is groter en er passen meer vakjes en ruimte voor grote offsets op.'
     : 'Letter is gangbaar bij Amerikaanse optiek-fabrikanten en geeft iets meer ruimte voor grote offsets.';
 
   fitPreview('pageO','pageShellO','scaleLabelO');
@@ -870,6 +877,10 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v2.02', date:'02-10-2026', items:[
+      'Zero Optic Calculator: A3 toegevoegd als papierformaat. De vakjes blijven exact even groot als op A4 (dus de klikwaardes en POI-afstanden blijven kloppen) — alleen het zwarte vierkant, de kaderdikte en de POA-stip zijn groter, zodat het grotere vel gevuld wordt. Het printvenster krijgt nu ook de juiste paginagrootte (A3/A4/Letter) mee. De stippellijn van het POI-vak is een stuk dikker en donkerder gemaakt, zodat hij ook op een thermische printer goed te zien is.',
+      'Shottimer: bij de schotkalibratie op een binnenbaan telde één schot als 17, doordat galm/echo\'s elk als apart schot werden geteld. Pieken die kort op elkaar volgen tellen nu als één schot (de luidste telt), en te zachte pieken ten opzichte van de luidste worden genegeerd.',
+    ]},
     { version:'v2.01', date:'01-10-2026', items:[
       'Dope Card — Target card: inclinatie/declinatie heeft nu een eigen HOEK-knop naast NOTES, met een snel sleep-scherm (halve wijzerplaat, −90° tot +90°, net als de windklok) in plaats van typen in het notitievak. Het hoekveld is uit de NOTES-editor gehaald om dubbel werk te voorkomen — de hoek zelf wijzig je voortaan via HOEK.',
     ]},

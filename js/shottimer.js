@@ -519,6 +519,31 @@ async function acStOnboardLatency(body) {
   acStOnboardNav(body, { back: true, onNext: () => { acStUI.onboardingStep = 5; acStRender(); } });
 }
 
+// De kalibratie luistert met een heel lage drempel (0.02) om ook zachte schoten
+// te vangen — maar op een binnenbaan geeft één schot dan tientallen galm-/echo-
+// pieken (17 gemeld bij 1 schot). Dus: te zachte pieken t.o.v. de luidste weg,
+// en pieken kort na elkaar tellen als één schot (de luidste telt).
+const ST_CAL_MIN_REL_AMPLITUDE = 0.3; // pieken < 30% van de luidste = ruis/galm
+const ST_CAL_CLUSTER_GAP_S = 1.0;     // schoten liggen in de praktijk > 1 s uit elkaar
+function acStClusterShotEvents(events, sampleRate) {
+  if (!events.length) return [];
+  const maxAmp = Math.max(...events.map(e => e.amplitude));
+  const loud = events.filter(e => e.amplitude >= maxAmp * ST_CAL_MIN_REL_AMPLITUDE)
+    .sort((a, b) => a.frame - b.frame);
+  const gapFrames = ST_CAL_CLUSTER_GAP_S * sampleRate;
+  const clusters = [];
+  loud.forEach(ev => {
+    const last = clusters[clusters.length - 1];
+    if (last && ev.frame - last.lastFrame <= gapFrames) {
+      last.lastFrame = ev.frame;
+      if (ev.amplitude > last.amplitude) last.amplitude = ev.amplitude;
+    } else {
+      clusters.push({ frame: ev.frame, lastFrame: ev.frame, amplitude: ev.amplitude });
+    }
+  });
+  return clusters;
+}
+
 async function acStOnboardShotCal(body) {
   body.innerHTML = `
     <p class="hint">Optioneel, op de baan: los 1 à 2 schoten terwijl je toestel meeluistert. De app stelt de gevoeligheid automatisch in op basis van de gemeten piek. Zonder toegang tot een baan kun je dit overslaan — de standaardgevoeligheid werkt in de meeste gevallen goed.</p>
@@ -538,17 +563,20 @@ async function acStOnboardShotCal(body) {
     acStWorkletNode.port.postMessage({ type: 'setMode', mode: 'listening' });
     acStWorkletNode.port.postMessage({ type: 'maskUntil', frame: 0 });
     const source = acStConnectMicToWorklet();
-    const peaks = [];
-    acStWorkletNode.port.onmessage = (e) => { if (e.data.type === 'shot') peaks.push(e.data.amplitude); };
+    const events = [];
+    acStWorkletNode.port.onmessage = (e) => { if (e.data.type === 'shot') events.push({ frame: e.data.frame, amplitude: e.data.amplitude }); };
     await new Promise(r => setTimeout(r, 8000));
     acStWorkletNode.port.onmessage = (ev) => acStOnWorkletMessage(ev.data);
     acStWorkletNode.port.postMessage({ type: 'setMode', mode: 'idle' });
     try { source.disconnect(); } catch (e) {}
     startBtn.disabled = false;
-    if (peaks.length) {
-      const peak = Math.max(...peaks);
+    const shots = acStClusterShotEvents(events, ctx.sampleRate);
+    if (shots.length) {
+      const peak = Math.max(...shots.map(sh => sh.amplitude));
       acStOnboard.shotThreshold = Math.round(peak * 0.6 * 1000) / 1000;
-      progress.innerHTML = `<span class="st-status-ok">✅ ${peaks.length} schot(en) gedetecteerd, piek ${peak.toFixed(3)} — gevoeligheid ingesteld op ${acStOnboard.shotThreshold}.</span>`;
+      const merged = events.length - shots.length;
+      const echoNote = merged > 0 ? ` (${merged} echo-/galmpieken samengevoegd)` : '';
+      progress.innerHTML = `<span class="st-status-ok">✅ ${shots.length} schot(en) gedetecteerd${echoNote}, piek ${peak.toFixed(3)} — gevoeligheid ingesteld op ${acStOnboard.shotThreshold}.</span>`;
     } else {
       progress.innerHTML = `<span class="st-status-warn">⚠️ Geen schoten gedetecteerd — standaardgevoeligheid blijft staan. Je kunt dit later via Instellingen bijstellen.</span>`;
     }
