@@ -877,7 +877,7 @@ function dcRenderFullscreen(){
 const DC_PRINT_W_IN = 12.7 / 2.54;
 const DC_PRINT_H_IN = 7.6 / 2.54;
 const DC_PRINT_MARGIN = 0.12;
-const DC_PRINT_HEADER_H = 0.26;
+const DC_PRINT_HEADER_H = 0.32;
 const DC_PRINT_ROW_H = 0.135;
 const DC_PRINT_FONT = 0.095;
 const DC_PRINT_INK = '#171510';
@@ -908,15 +908,44 @@ function dcBuildPrintPages(){
   return pages;
 }
 
+// A printed card freezes the wind and atmosphere it was computed with —
+// unlike the live screen, nothing on paper says which, so print it.
+function dcPrintConditionsText(mode){
+  const parts = ['MIL'];
+  if(mode !== 'spindrift'){
+    parts.push(`wind ${dcFmtSpeedMps(dcWind.speedMps)} ${dcSpeedUnitLabel()} @ ${dcClockLabel()} (eff. ${dcEffWindStr()})`);
+  }
+  if(dcSettings.envMode === 'da') parts.push(`DA ${Math.round(dcSettings.envDaFt)} ft`);
+  else if(dcSettings.envMode === 'pressure') parts.push(`${dcSettings.envTempC} °C · ${dcSettings.envPressureHpa} hPa`);
+  else parts.push(`${dcSettings.envTempC} °C · ${dcSettings.envAltitudeM} m`);
+  return parts.join(' · ');
+}
+
+// Column headings, aligned exactly like dcPrintRowSvg's values.
+function dcPrintHeadSvg(x, y, w, mode){
+  const distW = w*0.22, elevW = w*0.3;
+  const t = (tx, anchor, str) => `<text x="${tx.toFixed(3)}" y="${y.toFixed(3)}" text-anchor="${anchor}" font-size="0.058" font-family="'IBM Plex Mono',monospace" font-weight="600" letter-spacing="0.008" fill="${DC_PRINT_DIM}">${str}</text>`;
+  let s = t(x, 'start', 'M') + t(x+distW+elevW, 'end', 'ELEV');
+  if(mode === 'both'){
+    const halfW = (w - distW - elevW) / 2;
+    s += t(x+distW+elevW+halfW-0.03, 'end', 'WIND') + t(x+w, 'end', 'SPIN');
+  } else {
+    s += t(x+w, 'end', mode === 'spindrift' ? 'SPIN' : mode === 'combined' ? 'WIND+SPIN' : 'WIND');
+  }
+  return s;
+}
+
 function dcPrintCardSvg(cardDistances, mode, label, pageNum, totalPages, rowsPerCol, colW, colGap){
   const W = DC_PRINT_W_IN, H = DC_PRINT_H_IN, M = DC_PRINT_MARGIN;
   let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}in" height="${H}in" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="${W}" height="${H}" fill="#fff"/>`;
   svg += `<text x="${M}" y="${(M+0.09).toFixed(3)}" font-size="0.1" font-family="'Oswald',sans-serif" font-weight="700" fill="${DC_PRINT_INK}">${dcEscapeHtml(label || 'DOPE CARD')}</text>`;
   svg += `<text x="${(W-M).toFixed(3)}" y="${(M+0.09).toFixed(3)}" text-anchor="end" font-size="0.08" font-family="'IBM Plex Mono',monospace" fill="${DC_PRINT_DIM}">${pageNum}/${totalPages}</text>`;
-  const ruleY = M + DC_PRINT_HEADER_H - 0.06;
+  svg += `<text x="${M}" y="${(M+0.18).toFixed(3)}" font-size="0.062" font-family="'IBM Plex Mono',monospace" fill="${DC_PRINT_DIM}">${dcEscapeHtml(dcPrintConditionsText(mode))}</text>`;
+  const ruleY = M + 0.215;
   svg += `<line x1="${M}" y1="${ruleY.toFixed(3)}" x2="${(W-M).toFixed(3)}" y2="${ruleY.toFixed(3)}" stroke="${DC_PRINT_INK}" stroke-width="0.01"/>`;
 
   const colXs = [M, M + colW + colGap];
+  colXs.forEach(colX => { svg += dcPrintHeadSvg(colX, M + 0.29, colW, mode); });
   const topY = M + DC_PRINT_HEADER_H;
   colXs.forEach((colX, ci) => {
     const colDistances = cardDistances.slice(ci*rowsPerCol, (ci+1)*rowsPerCol);
@@ -1020,6 +1049,7 @@ function dcRenderSetup(root){
       </div>
       <input type="number" id="dcAltitude" step="10" value="${dcSettings.envAltitudeM}" ${dcSettings.envMode!=='altitude'?'hidden':''}>
       <input type="number" id="dcPressure" step="1" value="${dcSettings.envPressureHpa}" ${dcSettings.envMode!=='pressure'?'hidden':''}>
+      <p class="hint" ${dcSettings.envMode!=='pressure'?'hidden':''}>Vul de <strong>stationsdruk</strong> in (de absolute druk waar je staat, zoals een Kestrel die toont) — níet de luchtdruk uit een weer-app: die is omgerekend naar zeeniveau (QNH) en rekent op hoogte met te dichte lucht, dus een te grote hold.</p>
       <button type="button" class="printbtn st-btn-secondary" id="dcUseLocationBtn" style="width:auto;padding:9px 16px;margin-top:8px;" ${dcSettings.envMode!=='altitude'?'hidden':''}>Hoogte via locatie</button>
       <p class="hint" id="dcLocationHint" ${dcSettings.envMode!=='altitude'?'hidden':''}>Vult de hoogte in via de locatievoorziening van je toestel (GPS) — temperatuur en luchtdruk kan de telefoon niet meten en blijven dus handmatig.</p>
 

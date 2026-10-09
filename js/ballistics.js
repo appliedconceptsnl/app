@@ -22,8 +22,9 @@
    drift and is exact for the "compute once per 1 m/s, then scale
    linearly" approach the spec asks for, since both sides of the lag-time
    formula are already produced by the existing vertical-only simulation.
-   Still out of scope for v1/v2, per spec: spin drift, Coriolis, and the
-   vertical component of head/tailwind.
+   Spin drift was added later (Miller stability + Litz' formula, see below);
+   still out of scope: Coriolis, aerodynamic jump and the effect of
+   head/tailwind.
 --------------------------------------------------------------------- */
 
 const BALLISTICS_GRAVITY_FPS2 = 32.17405;
@@ -237,6 +238,34 @@ function computeHoldTableMil(profile, distancesM){
 }
 
 /**
+ * Height of the bullet relative to the line of sight (cm, + = above) at one
+ * distance, for a rifle zeroed at zeroDistanceM. Used by the Zero Optic
+ * Calculator for the POI at the short check distance (e.g. 25 m for a
+ * 100 m zero): the bore is angled up to cover BOTH the sight height and the
+ * gravity drop at the zero distance, so at a short distance the bullet sits
+ * noticeably higher than the pure-geometry HOB·(1 − d/zero) suggests
+ * (~1.3–2.9 cm for 5.56 at 25 m with a 100 m zero).
+ */
+function computeHeightAtDistanceCm({ dragModel, bc, customDragFactor, muzzleVelocityFps, sightHeightCm, zeroDistanceM, distanceM }){
+  const dragTable = dragTableFor(dragModel);
+  const customFactor = (customDragFactor && customDragFactor > 0) ? customDragFactor : 1;
+  const effectiveBC = bc * customFactor;
+  const sightHeightFt = (sightHeightCm || 0) / 30.48;
+  const barrelElevationRad = solveSightAngleRad({
+    effectiveBC, dragTable, muzzleVelocityFps, sightHeightFt, zeroDistanceFt: zeroDistanceM * BALLISTICS_FT_PER_M,
+  });
+  const calcStepFt = getCalculationStepFt(10 * BALLISTICS_FT_PER_M);
+  const results = simulateDropAtDistances({
+    effectiveBC, dragTable, muzzleVelocityFps, sightHeightFt, barrelElevationRad,
+    targetDistancesFt: [distanceM * BALLISTICS_FT_PER_M], calcStepFt,
+  });
+  if(!results.length) return null;
+  // Scale to exactly distanceM (the integrator lands a few mm past it).
+  const r = results[0];
+  return r.y * 30.48 * (distanceM * BALLISTICS_FT_PER_M) / r.x;
+}
+
+/**
  * Finds where the true (gravity-drop) trajectory crosses the line of sight
  * a second time downrange of the zero distance — the "far zero" every
  * flat-fired zero has, since the bullet keeps rising above the sight line
@@ -267,20 +296,31 @@ function computeTrajectoryProfile({ dragModel, bc, customDragFactor, muzzleVeloc
     targetDistancesFt, calcStepFt,
   }).map(r => ({ m: r.distanceFt / BALLISTICS_FT_PER_M, yCm: r.y * 30.48, velocityFps: r.velocity }));
 
-  // Walk past the near zero, then find the next sample where height above
-  // the line of sight (yCm > 0) drops back to/through 0 — linear-interpolate
-  // between the two bracketing samples for the actual crossing distance.
-  let farZeroM = null;
-  for(let i = 1; i < results.length; i++){
+  // Every flat-fired zero has two line-of-sight crossings: the bullet starts
+  // below the sight line, rises through it (1st crossing), peaks, and falls
+  // back through it (2nd crossing). The chosen zero distance can be EITHER
+  // one — with a small HOB (red dot) and a 100 m zero, 100 m is usually the
+  // 2nd crossing and the 1st lies around 50–60 m. So find both actual sign
+  // changes (linear-interpolated between the 1 m samples) instead of assuming
+  // the zero distance is the 1st. A zero right at the apex (tangent) is
+  // reported as both crossings at (nearly) the same distance.
+  const crossings = [];
+  for(let i = 1; i < results.length && crossings.length < 2; i++){
     const prev = results[i-1], cur = results[i];
-    if(cur.m <= zeroDistanceM + 1) continue;
-    if(prev.yCm > 0 && cur.yCm <= 0){
+    if((prev.yCm < 0) !== (cur.yCm < 0)){
       const t = prev.yCm / (prev.yCm - cur.yCm);
-      farZeroM = prev.m + t * (cur.m - prev.m);
-      break;
+      crossings.push(prev.m + t * (cur.m - prev.m));
     }
   }
-  if(farZeroM == null) return null;
+  let nearZeroM, farZeroM;
+  if(crossings.length === 2){
+    [nearZeroM, farZeroM] = crossings;
+  } else if(crossings.length === 0){
+    // Never strictly above the sight line: zero sits exactly at the apex.
+    nearZeroM = farZeroM = zeroDistanceM;
+  } else {
+    return null; // rose through the sight line but the 2nd crossing is beyond maxRangeM
+  }
 
   const targetM = farZeroM + 100;
   let sample = results.find(r => r.m >= targetM);
@@ -293,7 +333,8 @@ function computeTrajectoryProfile({ dragModel, bc, customDragFactor, muzzleVeloc
   const targetEnergyFtLbs = energyFtLbs(sample.velocityFps);
 
   return {
-    nearZeroM: zeroDistanceM,
+    nearZeroM,
+    zeroIsFar: Math.abs(farZeroM - zeroDistanceM) < Math.abs(nearZeroM - zeroDistanceM),
     farZeroM,
     targetM: sample.m,
     dropCm: -sample.yCm, // yCm is negative (below LOS) past the far zero — report the positive drop magnitude
@@ -386,7 +427,10 @@ function computeDopeCardTable(profile, atmosphere, distancesM, spinParams){
     targetDistancesFt, calcStepFt, densityFactor, machFps,
   });
 
-  const sg = spinParams ? millerStability(spinParams) : null;
+  // Miller's SG is for standard air (59°F, 29.92 inHg); stability scales with
+  // 1/air density (Litz' temperature/pressure correction), so thinner air at
+  // altitude/heat gives a slightly higher SG and thus a bit more spin drift.
+  const sg = spinParams ? millerStability(spinParams) / (densityFactor || 1) : null;
 
   const table = new Map();
   results.forEach(r => {
@@ -476,7 +520,7 @@ function runSelfTest(){
 }
 
 window.AppliedConceptsBallistics = {
-  computeHoldTableMil, computeTrajectoryProfile, computeAtmosphere, computeDopeCardTable,
+  computeHoldTableMil, computeTrajectoryProfile, computeHeightAtDistanceCm, computeAtmosphere, computeDopeCardTable,
   computeAtmosphereFromDensityAltitude, densityAltitudeFromFactor,
   millerStability, spinDriftIn,
   runSelfTest, G1_DRAG_TABLE, G7_DRAG_TABLE,

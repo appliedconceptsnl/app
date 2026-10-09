@@ -208,8 +208,9 @@ const AC_CARBINE_PLATFORMS = [
 // meeste operators weten hun twist/BC/V0 niet, dus die worden bij het kiezen
 // van een platform voor ze ingevuld. Kogel/V0/BC komen uit OPTIC_PLATFORM_AMMO
 // (js/app.js — dezelfde bron als het kogelbaan-blok op de Zero Optic-schijf);
-// twist (1:7) en kogellengte (M855A1 62gr, ~0.91") zijn gangbare NATO-waarden.
-const AC_CARBINE_DEFAULTS = { caliber:'5.56x45mm', bulletDiameterIn:0.224, bulletLengthIn:0.91, twistRateIn:'1:7' };
+// twist 1:7 (HK416, MCX Virtus en Rattler 5.56) en kogellengte ~1.00" (M855A1
+// — duidelijk langer dan de oude M855 van ~0.91", door de lichtere koperkern).
+const AC_CARBINE_DEFAULTS = { caliber:'5.56x45mm', bulletDiameterIn:0.224, bulletLengthIn:1.00, twistRateIn:'1:7' };
 function acCarbineDefaultsFor(platformKey){
   const ammo = (typeof OPTIC_PLATFORM_AMMO !== 'undefined') ? OPTIC_PLATFORM_AMMO[platformKey] : null;
   if(!ammo) return null;
@@ -243,7 +244,7 @@ function acRenderProfileList(root){
     <div class="simplepanel-head">
       <div>
         <h2>Wapenprofielen</h2>
-        <p class="sub">Vul de munitie- en optiekgegevens van je systeem in — de app berekent automatisch de hold per afstand (standaardatmosfeer op zeeniveau, geen wind/spin drift). Deze profielen gebruik je in Turret Tape en Dry Fire; windcall vul je zelf in op basis van je eigen geverifieerde dope.</p>
+        <p class="sub">Vul de munitie- en optiekgegevens van je systeem in — de app berekent automatisch de hold per afstand. De tabel hier, Turret Tape en Dry Fire rekenen met de standaardatmosfeer op zeeniveau (15 °C) en zonder wind/spindrift; de Dope Card rekent wél met jouw omgeving (temperatuur, hoogte/druk of density altitude), wind en spindrift. Windcall in de tabel hieronder vul je zelf in op basis van je eigen geverifieerde dope.</p>
       </div>
       <button class="printbtn profile-newbtn" id="profileNewBtn">+ Nieuw wapenprofiel</button>
     </div>

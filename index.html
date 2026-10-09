@@ -51,7 +51,7 @@
 <div class="mobile-watermark" aria-hidden="true"></div>
 <div class="appshell" id="appshell">
   <header class="masthead">
-    <button class="versionlink" id="versionLink">v2.05</button>
+    <button class="versionlink" id="versionLink">v2.06</button>
     <button class="versionlink refreshlink" type="button" title="Haal de nieuwste versie op">refresh</button>
     <div class="mh-brand">
       <img src="icons/logo.svg" alt="Applied Concepts logo">
@@ -236,7 +236,7 @@
       <button class="printbtn" id="printBtnO">Print schijf</button>
       <p class="printnote">Zet in het printvenster de schaal op "100%" / "actual size" (niet "fit to page"), anders klopt het raster niet meer.</p>
 
-      <p class="disclaimer">HOB-waarden zijn gangbare fabrieks-/community-cijfers (Aimpoint, GBRS Group, Sig Sauer, Scalarworks e.a.) — controleer altijd zelf de exacte hoogte van jouw eigen montage. De POA/POI-offset op de schijf is een geometrische (mechanische) berekening, zonder kogelval, wind of munitie-ballistiek. De kogelbaan-info (kruispunten/drop/energie, alleen zichtbaar bij een gekozen wapenplatform) gebruikt wél echte ballistiek, maar met gemiddelde NATO-standaardmunitie — geen gemeten data voor jouw eigen exemplaar. Beide zijn een hulpmiddel, geen vervanging voor daadwerkelijk inschieten.</p>
+      <p class="disclaimer">HOB-waarden zijn gangbare fabrieks-/community-cijfers (Aimpoint, GBRS Group, Sig Sauer, Scalarworks e.a.) — controleer altijd zelf de exacte hoogte van jouw eigen montage. Met een gekozen wapenplatform (of via "Zero target" vanuit een wapenprofiel) berekent de schijf de POI op de controle-afstand met echte ballistiek, inclusief kogelval — met gemiddelde NATO-standaardmunitie per looplengte, of de gegevens uit je wapenprofiel. Zonder platform is de POA/POI-offset alleen geometrisch (HOB), zónder kogelval; bij 5.56 ligt de echte POI op 25 m dan ±1,5 cm hoger. Geen wind of gemeten data voor jouw eigen exemplaar: een hulpmiddel, geen vervanging voor daadwerkelijk inschieten en controleren op de nulpunt-afstand.</p>
     </aside>
 
     <main class="preview">
@@ -275,7 +275,7 @@
         <legend>Wapenprofiel</legend>
         <label for="ttProfileSelect">Profiel</label>
         <select id="ttProfileSelect"></select>
-        <p class="hint">Beheer je profielen (BC, snelheid, nulpunt) via het tabblad Wapenprofielen — de hold per afstand wordt hier automatisch overgenomen.</p>
+        <p class="hint">Beheer je profielen (BC, snelheid, nulpunt) via het tabblad Wapenprofielen — de hold per afstand wordt hier automatisch overgenomen, berekend voor de standaardatmosfeer op zeeniveau (15 °C). Schiet je op grote hoogte of bij extreme temperaturen, controleer de verre afstanden dan met de Dope Card of je eigen dope.</p>
       </fieldset>
 
       <fieldset id="ttManualFields" hidden>

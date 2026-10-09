@@ -119,48 +119,111 @@ function trFooter(W, H, name){
   return s;
 }
 
-// Wrapped, styled text block via foreignObject — much simpler than manual
-// tspan line-splitting for content whose length varies per sheet.
+// Wrapped, styled text block as native SVG <text> lines.
 //
-// This SVG's viewBox uses 1 unit = 1 inch, so a font-size that matches our
-// inch-scale values directly (e.g. "0.115px") would need to be sub-1px —
-// and Chrome silently clamps/mangles CSS font sizes below ~1px *before* the
-// SVG's own scale-up is applied, rendering the text invisible. Dodge that by
-// laying the div out at a much larger local scale (LS px per inch) and then
-// shrinking it back down with a CSS transform, which is a geometric (not
-// font) operation and isn't subject to that floor.
-const TR_LOCAL_SCALE = 200;
+// This used to be a <foreignObject> with an HTML <div> laid out at 200 px
+// per inch and shrunk back with transform:scale(1/200) (CSS font sizes below
+// ~1px get clamped). Chrome lays that out correctly but *paints* it wrong in
+// print/PDF output: the text lands ~0.45" left of its box (the Quad sheet's
+// paragraph started on the paper edge), gets clipped mid-word ("STERKE HAN")
+// or disappears. Native SVG text has none of that, so the (small) HTML
+// subset the sheets use is parsed here and word-wrapped by measured width:
+// top-level <div style="…"> blocks (font-family/-weight/-size in em,
+// letter-spacing, color, margin/padding in px at the old 200 px/inch scale)
+// plus loose text, with &nbsp; kept as a non-breaking space.
+const TR_OLD_PX_PER_IN = 200;
+// css/styles.css forces `svg text{font-family:'IBM Plex Mono'}` (a CSS rule
+// beats the font-family attribute), so every line renders in Plex Mono —
+// whose glyphs all advance exactly 0.6 em, at every weight. That makes the
+// width exact without measuring, and independent of web-font loading.
+function trTextWidth(str, fontSize, letterSpacing){
+  return str.length * (fontSize * 0.6 + (letterSpacing || 0));
+}
+function trEscXml(str){
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function trParseBlocks(html, base){
+  const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
+  const px = v => (parseFloat(v) || 0) / TR_OLD_PX_PER_IN;
+  const blocks = [];
+  let loose = '';
+  const flushLoose = () => {
+    if(loose.replace(/[ \t\r\n]+/g, '')) blocks.push(Object.assign({}, base, { text: loose }));
+    loose = '';
+  };
+  doc.body.childNodes.forEach(node => {
+    if(node.nodeType === 1 && node.tagName === 'DIV'){
+      flushLoose();
+      const st = node.style;
+      const b = Object.assign({}, base, { text: node.textContent });
+      if(st.fontFamily) b.family = st.fontFamily;
+      if(st.fontWeight) b.weight = st.fontWeight;
+      if(st.fontSize && /em$/.test(st.fontSize)) b.fontSize = base.fontSize * parseFloat(st.fontSize);
+      if(st.letterSpacing && /em$/.test(st.letterSpacing)) b.letterSpacing = b.fontSize * parseFloat(st.letterSpacing);
+      if(st.color) b.color = st.color;
+      b.spaceBefore = px(st.marginTop) + px(st.paddingTop);
+      b.spaceAfter = px(st.marginBottom) + px(st.paddingBottom);
+      blocks.push(b);
+    } else {
+      loose += node.textContent;
+    }
+  });
+  flushLoose();
+  return blocks;
+}
 function trText(x, y, w, h, html, opts){
   opts = opts || {};
-  const fontSize = opts.fontSize || 0.12;
-  const color = opts.color || TR_INK;
+  const base = {
+    fontSize: opts.fontSize || 0.12,
+    color: opts.color || TR_INK,
+    weight: String(opts.weight || 400),
+    family: opts.family || "'IBM Plex Mono',monospace",
+    letterSpacing: 0,
+    spaceBefore: 0,
+    spaceAfter: 0,
+  };
   const align = opts.align || 'left';
-  // valign:'middle' vertically centers the block within the full reserved
-  // height h — used for the instruction text inside a cirkel (trGridCell),
-  // which otherwise sat flush against the top of its box instead of
-  // centered in the remaining space below the label.
+  // valign:'middle' centers the whole block within the reserved height h —
+  // used for the instruction text inside a cirkel (trGridCell).
   const valign = opts.valign || 'top';
   const lineHeight = opts.lineHeight || 1.35;
-  const weight = opts.weight || 400;
-  const family = opts.family || "'IBM Plex Mono',monospace";
-  const LS = TR_LOCAL_SCALE;
-  const lw = (w*LS).toFixed(2), lh = (h*LS).toFixed(2), lfs = (fontSize*LS).toFixed(2);
-  const alignItems = align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start';
-  const justifyContent = valign === 'middle' ? 'center' : valign === 'bottom' ? 'flex-end' : 'flex-start';
-  // The flex container's content is wrapped in its own <div> rather than
-  // left as a bare text/HTML fragment — a raw text node as a direct flex
-  // child doesn't reliably participate in flex alignment across every
-  // rendering engine (confirmed: iOS's print/PDF pipeline ignored
-  // justify-content on it, letting the instruction text spill out below
-  // its circle instead of centering within its reserved box). overflow:
-  // hidden is a defensive backstop, but only when vertically centering —
-  // the (many) plain top-anchored paragraph calls elsewhere keep their
-  // existing lenient behavior, since some of those already run their text
-  // close to the full reserved height.
-  const overflow = valign !== 'top' ? 'overflow:hidden;' : '';
-  return `<foreignObject x="${x.toFixed(4)}" y="${y.toFixed(4)}" width="${w.toFixed(4)}" height="${h.toFixed(4)}">
-    <div xmlns="http://www.w3.org/1999/xhtml" style="width:${lw}px;height:${lh}px;${overflow}transform:scale(${(1/LS).toFixed(6)});transform-origin:top left;display:flex;flex-direction:column;align-items:${alignItems};justify-content:${justifyContent};font-family:${family};font-size:${lfs}px;font-weight:${weight};color:${color};text-align:${align};line-height:${lineHeight};"><div>${html}</div></div>
-  </foreignObject>`;
+  const blocks = trParseBlocks(html, base);
+  // Greedy word-wrap per block; spaces collapse like they did in HTML.
+  const laid = blocks.map(b => {
+    const words = b.text.split(/[ \t\r\n]+/).filter(Boolean);
+    const lines = [];
+    let cur = '';
+    words.forEach(word => {
+      const tryLine = cur ? cur + ' ' + word : word;
+      if(cur && trTextWidth(tryLine, b.fontSize, b.letterSpacing) > w){
+        lines.push(cur); cur = word;
+      } else cur = tryLine;
+    });
+    if(cur) lines.push(cur);
+    return { b, lines, height: b.spaceBefore + lines.length * b.fontSize * lineHeight + b.spaceAfter };
+  });
+  const total = laid.reduce((sum, l) => sum + l.height, 0);
+  let top = y;
+  if(valign === 'middle') top = y + Math.max(0, (h - total) / 2);
+  else if(valign === 'bottom') top = y + Math.max(0, h - total);
+  const anchor = align === 'center' ? 'middle' : align === 'right' ? 'end' : 'start';
+  const tx = align === 'center' ? x + w/2 : align === 'right' ? x + w : x;
+  let s = '';
+  laid.forEach(({ b, lines }) => {
+    top += b.spaceBefore;
+    const lh = b.fontSize * lineHeight;
+    // Baseline sits where CSS put it: glyph box centered in the line box,
+    // i.e. half Plex Mono's ascent–descent difference (1.025 − 0.275 em)
+    // below the line's middle.
+    const baseOff = lh/2 + b.fontSize * 0.375;
+    lines.forEach(line => {
+      const ls = b.letterSpacing ? ` letter-spacing="${b.letterSpacing.toFixed(4)}"` : '';
+      s += `<text x="${tx.toFixed(4)}" y="${(top + baseOff).toFixed(4)}" text-anchor="${anchor}" font-size="${b.fontSize.toFixed(4)}" font-family="${b.family.replace(/"/g, "'")}" font-weight="${b.weight}" fill="${b.color}"${ls}>${trEscXml(line)}</text>`;
+      top += lh;
+    });
+    top += b.spaceAfter;
+  });
+  return s;
 }
 
 function trBlankCircle(cx, cy, r, label){
@@ -175,7 +238,7 @@ function trGridCell(cx, cy, r, cell){
   let s = '';
   if(cell.type === 'flag'){
     s += `<circle cx="${cx.toFixed(4)}" cy="${cy.toFixed(4)}" r="${r.toFixed(4)}" fill="${TR_INK}"/>`;
-    s += trText(cx-r*0.8, cy-0.22, r*1.6, 0.46, cell.label, {fontSize:0.125, color:'#fff', align:'center', weight:600, family:"'Oswald',sans-serif", lineHeight:1.2});
+    s += trText(cx-r*0.8, cy-0.23, r*1.6, 0.46, cell.label, {fontSize:0.125, color:'#fff', align:'center', valign:'middle', weight:600, family:"'Oswald',sans-serif", lineHeight:1.2});
     s += `<text x="${cx.toFixed(4)}" y="${(cy+r+0.26).toFixed(4)}" text-anchor="middle" font-size="0.14" font-family="Oswald, sans-serif" font-weight="600" fill="${TR_INK}">×${cell.count}</text>`;
     return s;
   }
@@ -431,13 +494,15 @@ function buildBipodPressureSheet(paper){
   const W = paper.w, H = paper.h;
   let svg = trPageOpen(paper);
   svg += trHeader(W, 'BIPOD PRESSURE LOAD TEST', '100M · TECHNIEK & POSITIES');
-  svg += trText(TR_MARGIN, 0.85, W-0.9, 0.85, 'Consistente belasting van de bipod voorkomt "bipod hop" en houdt de POI stabiel — te veel voorwaartse druk drukt de POI doorgaans omlaag, loslaten/achterwaarts juist omhoog. Vuur een groep van 3 schoten per cirkel en vergelijk de POI-verschuiving t.o.v. NORMAAL.', {fontSize:0.115, lineHeight:1.4});
+  svg += trText(TR_MARGIN, 0.85, W-0.9, 0.85, 'Consistente belasting van de bipod voorkomt "bipod hop" en houdt de POI stabiel — een andere belasting verschuift de POI, meestal verticaal; richting en grootte verschillen per wapen en bipod. Vuur een groep van 3 schoten per cirkel en vergelijk de POI-verschuiving t.o.v. NORMAAL.', {fontSize:0.115, lineHeight:1.4});
 
   const cx = W/2, topY = 3.15, botY = 6.95, R_LABEL = 1.5;
   svg += trMoaCircle(cx, topY, 2, {dotMoa:0.3});
   svg += `<text x="${cx.toFixed(4)}" y="${(topY+R_LABEL).toFixed(4)}" text-anchor="middle" font-size="0.16" font-family="Oswald, sans-serif" font-weight="700" fill="${TR_INK}">NORMAAL</text>`;
 
-  const cols = [W/2-2.3, W/2, W/2+2.3];
+  // 2 MOA = 2.29" wide, so 2.5" spacing leaves ~5 mm between the circles
+  // (at 2.3" they touched) while the outer ones stay inside the margins.
+  const cols = [W/2-2.5, W/2, W/2+2.5];
   const names = ['VOORWAARTS', 'NEUTRAAL', 'ACHTERWAARTS'];
   cols.forEach((cx2, i)=>{
     svg += trMoaCircle(cx2, botY, 2, {dotMoa:0.3});
@@ -468,7 +533,9 @@ function buildNpaNoBagSheet(paper){
   const rowsY = [3.4, 5.7, 7.4, 8.7];
   cols.forEach((cx, colI)=>{
     sizes.forEach((moa, i)=>{
-      svg += trMoaCircle(cx, rowsY[i], moa, {dotMoa:0.15, stroke: i===0?TR_DIM:TR_INK});
+      // Hourglass capped at ~2/3 of the circle so the 0.4 MOA ring stays
+      // visible around it (at 0.15 MOA it filled the ring edge to edge).
+      svg += trMoaCircle(cx, rowsY[i], moa, {dotMoa:Math.min(0.15, moa*0.28), stroke: i===0?TR_DIM:TR_INK});
     });
     svg += `<text x="${cx.toFixed(4)}" y="${(H-2.2929).toFixed(4)}" text-anchor="middle" font-size="0.12" font-family="Oswald, sans-serif" font-weight="600" fill="${TR_DIM}">REEKS ${colI+1}</text>`;
   });
@@ -560,7 +627,10 @@ function buildConsistencyCheckSheet(paper){
     for(let c=0; c<cols; c++){
       const x = left+c*colGap, y = top+r*rowGap;
       svg += trMoaCircle(x, y, moa, {fill:TR_GRAY, strokeWidth:0.03});
-      svg += `<text x="${(x+0.35).toFixed(4)}" y="${(y-0.35).toFixed(4)}" text-anchor="middle" font-size="0.09" font-family="IBM Plex Mono, monospace" fill="${TR_DIM}">${n}</text>`;
+      // Number just outside the circle's upper-right edge, in ink: inside
+      // the gray fill it ran into the stroke ("10"–"15") and dithered away
+      // on a thermal printer.
+      svg += `<text x="${(x+0.5).toFixed(4)}" y="${(y-0.5).toFixed(4)}" text-anchor="start" font-size="0.11" font-family="IBM Plex Mono, monospace" font-weight="600" fill="${TR_INK}">${n}</text>`;
       n++;
     }
   }

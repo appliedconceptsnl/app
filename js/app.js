@@ -9,6 +9,8 @@ const LOGO_ASPECT = 1147.706297/867.606644; // width/height from source viewBox
 const SHEET_LOGO_SCALE = 0.85;
 
 const el = id => document.getElementById(id);
+// Vrije tekst (wapennaam, profielnaam) die op een printbaar SVG-blad komt.
+const svgEsc = str => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 /* ---------------------------------------------------------------------
    Analytics — a fire-and-forget beacon to a small self-hosted Cloudflare
@@ -179,22 +181,26 @@ const OPTIC_PLATFORMS = {
   'mcx_rattler': { weaponLabel: 'SIG MCX Rattler' },
 };
 
-// Average NATO-standard 5.56x45mm ammunition (M855A1 62gr EPR reference —
-// current US/NATO service load) per platform's typical barrel length, used
-// ONLY for the "kogelbaan"-info block below (22-09-2026, on request: "altijd
-// de gemiddelde waarde en op basis van NATO standaard munitie"). This is
-// published/typical data, NOT a chronographed measurement of the user's own
-// rifle — real drop varies with the actual ammo lot, barrel and conditions.
-// '416' has no documented length in OPTIC_PLATFORMS above; treated here as
-// the other common short HK416 configuration (11") alongside the explicit
-// 14.5" entry. MCX Rattler is normally a .300 BLK-first platform, but is
-// kept in 5.56 NATO here for a consistent "NATO standard" framing across
-// every platform, at its much shorter ~6.75" barrel.
+// Average NATO-standard 5.56x45mm ammunition (M855A1 62gr EPR — current
+// US/NATO service load) per platform's typical barrel length. Used for the
+// "kogelbaan"-info block AND for the POI at the short check distance (gravity
+// matters there — see computeHeightAtDistanceCm in js/ballistics.js), plus
+// the carbine defaults in Wapenprofielen. Typical data, NOT a chronographed
+// measurement of the user's own rifle — lot, temperature and barrel vary.
+// Sources (checked 09-10-2026):
+//  - G1 BC 0.291: Litz, "Ballistic Performance of Rifle Bullets" (M855A1).
+//  - 14.5": ~2,950 fps — M855A1 chronographed through three 14.5" barrels
+//    (2,939 / 2,949 / 2,966 fps).
+//  - 11" / 16" / 5.5": interpolated from a published M855 barrel-length test
+//    (7" 2,257 · 10.5" 2,653 · 14.5" 2,920 · 16" 2,990 fps, Lucky Gunner)
+//    plus M855A1's ~+30 fps over M855. '416' = the common short HK416 (11").
+//  - MCX Rattler: standard 5.5" barrel (the Rattler LT is 7.75"); 5.56 in
+//    that very short barrel loses a lot of velocity, hence the low value.
 const OPTIC_PLATFORM_AMMO = {
-  '416':         { caliber:'5.56×45mm NATO — 11", M855A1 62gr (gem.)', bulletWeightGr:62, muzzleVelocityFps:2750, bc:0.304, dragModel:'G1' },
-  '416_145':     { caliber:'5.56×45mm NATO — 14.5", M855A1 62gr (gem.)', bulletWeightGr:62, muzzleVelocityFps:2920, bc:0.304, dragModel:'G1' },
-  'mcx_virtus':  { caliber:'5.56×45mm NATO — 16", M855A1 62gr (gem.)', bulletWeightGr:62, muzzleVelocityFps:2970, bc:0.304, dragModel:'G1' },
-  'mcx_rattler': { caliber:'5.56×45mm NATO — 6.75", M855A1 62gr (gem.)', bulletWeightGr:62, muzzleVelocityFps:2300, bc:0.304, dragModel:'G1' },
+  '416':         { caliber:'5.56×45mm NATO — 11", M855A1 62gr (gem.)', bulletWeightGr:62, muzzleVelocityFps:2720, bc:0.291, dragModel:'G1' },
+  '416_145':     { caliber:'5.56×45mm NATO — 14.5", M855A1 62gr (gem.)', bulletWeightGr:62, muzzleVelocityFps:2950, bc:0.291, dragModel:'G1' },
+  'mcx_virtus':  { caliber:'5.56×45mm NATO — 16", M855A1 62gr (gem.)', bulletWeightGr:62, muzzleVelocityFps:3020, bc:0.291, dragModel:'G1' },
+  'mcx_rattler': { caliber:'5.56×45mm NATO — 5.5", M855A1 62gr (gem.)', bulletWeightGr:62, muzzleVelocityFps:2100, bc:0.291, dragModel:'G1' },
 };
 
 function populateSelect(sel, items, fmt){
@@ -244,7 +250,19 @@ function clickSizeIn(clickVal, adjUnit, dist){
    that tab if it comes back.
 --------------------------------------------------------------------- */
 
-function drawFrame(cx, cy, S, FT, dot){
+// A label on a white "plate": the grid lines, the crosshair and the POI
+// leader run straight through the target's labels otherwise (and over the
+// black frame a label is unreadable). Width comes from IBM Plex Mono's fixed
+// 0.6 em advance — css/styles.css forces that font on all svg text.
+function svgPlatedText(x, y, text, fontSize, anchor, attrs){
+  const chars = String(text).replace(/&#?\w+;/g, 'x').replace(/\s+/g, ' ').trim().length;
+  const w = chars*fontSize*0.6 + 0.08;
+  const left = anchor === 'middle' ? x - w/2 : anchor === 'end' ? x - w + 0.04 : x - 0.04;
+  return `<rect x="${left.toFixed(4)}" y="${(y - fontSize*0.92).toFixed(4)}" width="${w.toFixed(4)}" height="${(fontSize*1.22).toFixed(4)}" fill="#fff"/>` +
+    `<text x="${x.toFixed(4)}" y="${y.toFixed(4)}" text-anchor="${anchor}" font-size="${fontSize}" font-family="IBM Plex Mono, monospace" ${attrs}>${text}</text>`;
+}
+
+function drawFrame(cx, cy, S, FT){
   const half = S/2;
   let g = `<g>`;
   g += `<path d="M${(cx-half).toFixed(4)},${(cy-half).toFixed(4)}
@@ -252,8 +270,6 @@ function drawFrame(cx, cy, S, FT, dot){
     M${(cx-half+FT).toFixed(4)},${(cy-half+FT).toFixed(4)}
     h${(S-2*FT).toFixed(4)} v${(S-2*FT).toFixed(4)} h${(-(S-2*FT)).toFixed(4)} Z"
     fill="#171510" fill-rule="evenodd"/>`;
-  g += `<rect x="${(cx-dot/2).toFixed(4)}" y="${(cy-dot/2).toFixed(4)}" width="${dot.toFixed(4)}" height="${dot.toFixed(4)}" fill="#171510"/>`;
-  g += `<text x="${cx.toFixed(4)}" y="${(cy+dot/2+0.16).toFixed(4)}" text-anchor="middle" font-size="0.13" font-weight="600" fill="#171510" font-family="IBM Plex Mono, monospace">POA</text>`;
   g += `</g>`;
   return g;
 }
@@ -291,12 +307,21 @@ function buildTable(clickVal, adjUnit, gridIn, distOptions, distUnit, x, y, w){
 // and retained energy 100 m past that 2nd crossing. Only rendered when a
 // Wapenplatform preset is selected (see OPTIC_PLATFORM_AMMO) — average NATO-
 // standard ammunition data, not measured for the user's specific rifle.
-function buildTrajectoryBlock(x, y, w, traj, caliber){
+// "1e kruispunt 58 m · 2e kruispunt 100 m (nulpunt)" — welke van de twee je
+// nulpunt is hangt af van HOB en nulpunt-afstand (rooddot op 100 m: de 2e).
+function opticCrossingText(traj){
+  const n = Math.round(traj.nearZeroM), f = Math.round(traj.farZeroM);
+  if(n === f) return `Nulpunt ${f} m = top van de kogelbaan (raakt de vizierlijn)`;
+  return `1e kruispunt: ${n} m${traj.zeroIsFar ? '' : ' (nulpunt)'} &#183; 2e kruispunt: ${f} m${traj.zeroIsFar ? ' (nulpunt)' : ''}`;
+}
+
+function buildTrajectoryBlock(x, y, w, traj, caliber, source){
   let g = `<g font-family="IBM Plex Mono, monospace" fill="#171510">`;
-  g += `<text x="${x}" y="${(y+0.13).toFixed(4)}" font-size="0.11" font-family="Oswald, sans-serif" font-weight="600">KOGELBAAN — ${caliber}</text>`;
-  g += `<text x="${x}" y="${(y+0.30).toFixed(4)}" font-size="0.105">1e kruispunt (inschiet): ${traj.nearZeroM} m &#183; 2e kruispunt: ${traj.farZeroM.toFixed(0)} m</text>`;
-  g += `<text x="${x}" y="${(y+0.47).toFixed(4)}" font-size="0.105">Drop @ +100 m na 2e kruispunt: ${traj.dropCm.toFixed(0)} cm &#183; Energie daar: ${traj.energyJAtTarget.toFixed(0)} J (${traj.energyFtLbsAtTarget.toFixed(0)} ft-lbs)</text>`;
-  g += `<text x="${x}" y="${(y+0.60).toFixed(4)}" font-size="0.085" fill="#8f8f8a">Gemiddelde NATO-standaardmunitie — geen gemeten data voor dit exemplaar.</text>`;
+  g += `<text x="${x}" y="${(y+0.13).toFixed(4)}" font-size="0.11" font-family="Oswald, sans-serif" font-weight="600">KOGELBAAN — ${svgEsc(caliber)}</text>`;
+  g += `<text x="${x}" y="${(y+0.30).toFixed(4)}" font-size="0.105">${opticCrossingText(traj)}</text>`;
+  const energy = traj.energyJAtTarget > 0 ? ` &#183; Energie daar: ${traj.energyJAtTarget.toFixed(0)} J (${traj.energyFtLbsAtTarget.toFixed(0)} ft-lbs)` : '';
+  g += `<text x="${x}" y="${(y+0.47).toFixed(4)}" font-size="0.105">Drop @ +100 m na 2e kruispunt: ${traj.dropCm.toFixed(0)} cm${energy}</text>`;
+  g += `<text x="${x}" y="${(y+0.60).toFixed(4)}" font-size="0.085" fill="#8f8f8a">${source === 'profile' ? 'Gegevens uit je wapenprofiel — controleer altijd met echte schoten.' : 'Gemiddelde NATO-standaardmunitie — geen gemeten data voor dit exemplaar.'}</text>`;
   g += `</g>`;
   return g;
 }
@@ -336,11 +361,19 @@ function buildTargetSVG(cfg){
   // "Nada Print"-style draft modes drop near-white lines entirely). Darker +
   // thicker, but still lighter/thinner than the dark crosshair (0.012, below)
   // so the grid stays visually secondary to it.
+  //
+  // The lines are anchored on the POA (cx, targetCy), not on the grid's
+  // top-left corner: you count whole squares from the POA to the POI, so
+  // the crosshair itself has to be a grid line. Partial squares end up at
+  // the outer edges, closed off by the outline.
   svg += `<g stroke="#8f8f8a" stroke-width="0.010">`;
-  for(let x=gridLeft; x<=gridRight+0.001; x+=cfg.gridIn){
-    svg += `<line x1="${x.toFixed(4)}" y1="${gridTop}" x2="${x.toFixed(4)}" y2="${gridBottom}"/>`;
+  svg += `<rect x="${gridLeft}" y="${gridTop.toFixed(4)}" width="${(gridRight-gridLeft).toFixed(4)}" height="${(gridBottom-gridTop).toFixed(4)}" fill="none"/>`;
+  const gx0 = cx - Math.floor((cx - gridLeft)/cfg.gridIn + 1e-6)*cfg.gridIn;
+  for(let x=gx0; x<=gridRight+0.001; x+=cfg.gridIn){
+    svg += `<line x1="${x.toFixed(4)}" y1="${gridTop.toFixed(4)}" x2="${x.toFixed(4)}" y2="${gridBottom.toFixed(4)}"/>`;
   }
-  for(let y=gridTop; y<=gridBottom+0.001; y+=cfg.gridIn){
+  const gy0 = targetCy - Math.floor((targetCy - gridTop)/cfg.gridIn + 1e-6)*cfg.gridIn;
+  for(let y=gy0; y<=gridBottom+0.001; y+=cfg.gridIn){
     svg += `<line x1="${gridLeft}" y1="${y.toFixed(4)}" x2="${gridRight}" y2="${y.toFixed(4)}"/>`;
   }
   svg += `</g>`;
@@ -350,15 +383,13 @@ function buildTargetSVG(cfg){
     <line x1="${gridLeft}" y1="${targetCy}" x2="${gridRight}" y2="${targetCy}"/>
   </g>`;
 
-  const qfs = 0.16;
-  svg += `<g fill="#8f8f89" font-size="${qfs}" font-family="IBM Plex Mono, monospace">
-    <text x="${gridLeft+0.15}" y="${targetCy-0.2}">R/D</text>
-    <text x="${gridRight-0.55}" y="${targetCy-0.2}">L/D</text>
-    <text x="${gridLeft+0.15}" y="${targetCy+0.35}">R/U</text>
-    <text x="${gridRight-0.55}" y="${targetCy+0.35}">L/U</text>
-  </g>`;
+  const qfs = 0.16, qAttrs = 'fill="#8f8f89"';
+  svg += svgPlatedText(gridLeft+0.15, targetCy-0.2, 'R/D', qfs, 'start', qAttrs);
+  svg += svgPlatedText(gridRight-0.15, targetCy-0.2, 'L/D', qfs, 'end', qAttrs);
+  svg += svgPlatedText(gridLeft+0.15, targetCy+0.35, 'R/U', qfs, 'start', qAttrs);
+  svg += svgPlatedText(gridRight-0.15, targetCy+0.35, 'L/U', qfs, 'end', qAttrs);
 
-  svg += drawFrame(cx, targetCy, S, FT, dot);
+  svg += drawFrame(cx, targetCy, S, FT);
 
   const markerBS = cfg.gridIn*4.2;
   let anyFits = true;
@@ -366,35 +397,53 @@ function buildTargetSVG(cfg){
     if(!m.show) return;
     const mMag = Math.hypot(m.offX, m.offY);
     const mCx = cx + m.offX, mCy = targetCy + m.offY;
-    const mFits = (mCx - pad) > gridLeft && (mCx + pad) < gridRight && (mCy + pad) < gridBottom;
+    const mFits = (mCx - pad) > gridLeft && (mCx + pad) < gridRight && (mCy + pad) < gridBottom && (mCy - pad) > gridTop;
     if(!mFits){ anyFits = false; return; }
     const dirLen = Math.max(mMag, 0.0001);
     const ux = m.offX/dirLen, uy = m.offY/dirLen;
-    const startX = cx + ux*(S/2), startY = targetCy + uy*(S/2);
-    const endX = mCx - ux*(markerBS/2), endY = mCy - uy*(markerBS/2);
+    // Leader from the POA dot's edge to the POI box's edge — only when the
+    // box doesn't already contain the POA (then the box itself shows the
+    // relation, and a line would just cut through the box and its label).
+    const boxHasPoa = Math.abs(m.offX) < markerBS/2 && Math.abs(m.offY) < markerBS/2;
+    const axis = Math.max(Math.abs(ux), Math.abs(uy));
+    const startD = (dot/2 + 0.05)/axis, endD = mMag - (markerBS/2)/axis;
+    const startX = cx + ux*startD, startY = targetCy + uy*startD;
+    const endX = cx + ux*endD, endY = targetCy + uy*endD;
 
     // POI marker uses the gold accent instead of the frame's ink color — the
     // black square frame/POA dot sit at the same coordinates the marker is
     // drawn relative to, and near the zero distance the offset is small
     // enough that the marker can land partly inside the black frame itself.
     // A near-black-on-black marker there would be unreadable.
+    // Each gold element sits on a white underlay: over the black frame a
+    // gold-on-black dash vanishes (certainly on a thermal printer), and
+    // over the grid the white gap keeps the dashed box crisp.
     const markerColor = '#9a7424';
-    svg += `<rect x="${(mCx-markerBS/2).toFixed(4)}" y="${(mCy-markerBS/2).toFixed(4)}" width="${markerBS.toFixed(4)}" height="${markerBS.toFixed(4)}"
-      fill="none" stroke="${markerColor}" stroke-width="0.06" stroke-dasharray="0.13,0.09"/>`;
-    svg += `<circle cx="${mCx.toFixed(4)}" cy="${mCy.toFixed(4)}" r="${(cfg.gridIn*0.18).toFixed(4)}" fill="${markerColor}"/>`;
-    svg += `<line x1="${startX.toFixed(4)}" y1="${startY.toFixed(4)}" x2="${endX.toFixed(4)}" y2="${endY.toFixed(4)}" stroke="${markerColor}" stroke-width="0.03"/>`;
-    svg += `<text x="${mCx.toFixed(4)}" y="${(mCy+markerBS/2+0.16).toFixed(4)}" text-anchor="middle" font-size="0.13" font-weight="700" fill="${markerColor}" font-family="IBM Plex Mono, monospace">${m.label}</text>`;
-    if(m.detail) svg += `<text x="${mCx.toFixed(4)}" y="${(mCy+markerBS/2+0.33).toFixed(4)}" text-anchor="middle" font-size="0.11" fill="#6e6e6a">${m.detail}</text>`;
+    if(!boxHasPoa && endD > startD){
+      svg += `<line x1="${startX.toFixed(4)}" y1="${startY.toFixed(4)}" x2="${endX.toFixed(4)}" y2="${endY.toFixed(4)}" stroke="#fff" stroke-width="0.08"/>`;
+      svg += `<line x1="${startX.toFixed(4)}" y1="${startY.toFixed(4)}" x2="${endX.toFixed(4)}" y2="${endY.toFixed(4)}" stroke="${markerColor}" stroke-width="0.03"/>`;
+    }
+    const boxAttrs = `x="${(mCx-markerBS/2).toFixed(4)}" y="${(mCy-markerBS/2).toFixed(4)}" width="${markerBS.toFixed(4)}" height="${markerBS.toFixed(4)}" fill="none"`;
+    svg += `<rect ${boxAttrs} stroke="#fff" stroke-width="0.11"/>`;
+    svg += `<rect ${boxAttrs} stroke="${markerColor}" stroke-width="0.06" stroke-dasharray="0.13,0.09"/>`;
+    svg += `<circle cx="${mCx.toFixed(4)}" cy="${mCy.toFixed(4)}" r="${(cfg.gridIn*0.18).toFixed(4)}" fill="${markerColor}" stroke="#fff" stroke-width="0.03" paint-order="stroke"/>`;
+    svg += svgPlatedText(mCx, mCy+markerBS/2+0.19, m.label, 0.13, 'middle', `font-weight="700" fill="${markerColor}"`);
+    if(m.detail) svg += svgPlatedText(mCx, mCy+markerBS/2+0.36, m.detail, 0.11, 'middle', 'fill="#6e6e6a"');
   });
   const anyShown = (cfg.markers || []).some(m=>m.show);
   if(!anyShown && cfg.sameDistanceCaption){
-    svg += `<text x="${cx.toFixed(4)}" y="${(targetCy+S/2+0.28).toFixed(4)}" text-anchor="middle" font-size="0.14" fill="#6e6e6a">${cfg.sameDistanceCaption}</text>`;
+    svg += svgPlatedText(cx, targetCy+S/2+0.28, cfg.sameDistanceCaption, 0.14, 'middle', 'fill="#6e6e6a"');
   }
 
   if(!anyFits && anyShown){
-    svg += `<text x="${cx.toFixed(4)}" y="${(gridBottom-0.15).toFixed(4)}" text-anchor="middle" font-size="0.15" fill="#c9573f">
-      Let op: één of meer offsets vallen buiten dit papierformaat — zie waarschuwing links</text>`;
+    svg += svgPlatedText(cx, gridBottom-0.15, 'Let op: één of meer offsets vallen buiten dit papierformaat — zie waarschuwing links', 0.15, 'middle', 'fill="#c9573f"');
   }
+
+  // POA dot + label last: the POI box's white underlay must not clip the
+  // dot when the box overlaps it, and a POI leader heading downward runs
+  // *under* the plated label instead of striking through the letters.
+  svg += `<rect x="${(cx-dot/2).toFixed(4)}" y="${(targetCy-dot/2).toFixed(4)}" width="${dot.toFixed(4)}" height="${dot.toFixed(4)}" fill="#171510"/>`;
+  svg += svgPlatedText(cx, targetCy+dot/2+0.17, 'POA', 0.13, 'middle', 'font-weight="600" fill="#171510"');
 
   // Big top-right logo, reaching almost down to the grid — the meta text
   // used to share a second column at W/2 with the logo's old, much
@@ -414,14 +463,14 @@ function buildTargetSVG(cfg){
     <text x="${MARGIN}" y="0.24" font-size="0.19" font-family="Oswald, sans-serif" font-weight="600">${cfg.titleMain}</text>
     <text x="${MARGIN}" y="0.40" font-size="0.10" letter-spacing="0.01" fill="#6e6e6a">APPLIED CONCEPTS — PERFORMANCE · DEVELOPMENT</text>
     <line x1="${MARGIN}" y1="0.50" x2="${textRight.toFixed(4)}" y2="0.50" stroke="#171510" stroke-width="0.012"/>
-    <text x="${MARGIN}" y="${metaFirstY.toFixed(4)}" font-size="0.13">Wapen: ${cfg.weaponLabel || '________________________'}</text>
+    <text x="${MARGIN}" y="${metaFirstY.toFixed(4)}" font-size="0.13">Wapen: ${cfg.weaponLabel ? svgEsc(cfg.weaponLabel) : '________________________'}</text>
     <text x="${MARGIN}" y="${(metaFirstY+metaLineH).toFixed(4)}" font-size="0.13">Datum: ${new Date().toLocaleDateString('nl-NL')}</text>`;
   let metaY = metaFirstY + 2*metaLineH;
   cfg.metaRows.forEach(row=>{
-    headerSvg += `<text x="${MARGIN}" y="${metaY.toFixed(4)}" font-size="0.13">${row[0]}</text>`;
+    headerSvg += `<text x="${MARGIN}" y="${metaY.toFixed(4)}" font-size="0.13">${svgEsc(row[0])}</text>`;
     metaY += metaLineH;
     if(row[1]){
-      headerSvg += `<text x="${MARGIN}" y="${metaY.toFixed(4)}" font-size="0.13">${row[1]}</text>`;
+      headerSvg += `<text x="${MARGIN}" y="${metaY.toFixed(4)}" font-size="0.13">${svgEsc(row[1])}</text>`;
       metaY += metaLineH;
     }
   });
@@ -444,14 +493,14 @@ function buildTargetSVG(cfg){
 
   if(cfg.trajectory){
     const trajX = MARGIN + qrSize + 0.25;
-    svg += buildTrajectoryBlock(trajX, H-0.1-qrSize, (W-MARGIN)-trajX, cfg.trajectory, cfg.trajectoryCaliber);
+    svg += buildTrajectoryBlock(trajX, H-0.1-qrSize, (W-MARGIN)-trajX, cfg.trajectory, cfg.trajectoryCaliber, cfg.trajectorySource);
   } else if(cfg.trajectoryNote){
     // Shorter than the on-screen version (cfg.trajectoryNote) — this has to
     // fit on one printed line next to the QR code instead of wrapping.
     const trajX = MARGIN + qrSize + 0.25;
     const shortNote = cfg.trajectoryNote.includes('HOB in')
       ? 'Vul de HOB in om de kogelbaan te berekenen.'
-      : 'Kogelbaan: geen 2e kruispunt binnen bereik voor dit nulpunt/HOB.';
+      : 'Kogelbaan: 2e kruispunt ligt verder dan 800 m voor dit nulpunt/HOB.';
     svg += `<text x="${trajX.toFixed(4)}" y="${(H-0.1-qrSize+0.2).toFixed(4)}" font-size="0.1" fill="#8f8f8a" font-family="IBM Plex Mono, monospace">${shortNote}</text>`;
   }
 
@@ -600,6 +649,7 @@ function initOptic(){
   window.addEventListener('resize', ()=>{ if(el('panel-optic').classList.contains('active')) fitPreview('pageO','pageShellO','scaleLabelO'); });
 
   el('platformO').addEventListener('change', ()=>{
+    opticProfileAmmo = null; // zelf een platform gekozen -> gemiddelde van dat platform
     const preset = OPTIC_PLATFORMS[el('platformO').value];
     if(!preset){ renderOptic(); return; }
     if(!el('weaponLabelO').value) el('weaponLabelO').placeholder = preset.weaponLabel;
@@ -615,6 +665,12 @@ function initOptic(){
 // over loop (sight height) en nulpunt-afstand — zodat je meteen kunt printen.
 function openOpticFromProfile(p){
   switchTab('optic');
+  const input = window.AppliedConceptsProfiles && window.AppliedConceptsProfiles.toBallisticsInput(p);
+  opticProfileAmmo = input ? {
+    dragModel: input.dragModel, bc: input.bc, customDragFactor: input.customDragFactor,
+    muzzleVelocityFps: input.muzzleVelocityFps, bulletWeightGr: parseFloat(p.bulletWeightGr) || 0,
+    caliber: `${p.caliber || 'kaliber ?'} — wapenprofiel ${p.label || ''}`.trim(), source: 'profile',
+  } : null;
   if(OPTIC_PLATFORMS[p.platform]) el('platformO').value = p.platform;
   el('weaponLabelO').value = p.label || '';
   const hob = parseFloat(p.sightHeight);
@@ -698,12 +754,24 @@ function hobInches(suffix){
 // Only available when a Wapenplatform preset is selected (see
 // OPTIC_PLATFORM_AMMO) and a real HOB is filled in — without a known
 // caliber/ammo there's nothing to simulate a trajectory from.
+// Munitie voor de POI-berekening en het kogelbaan-blok: de ballistiek uit het
+// wapenprofiel als je via "Zero target" binnenkwam (tot je zelf een ander
+// platform kiest), anders het gemiddelde van het gekozen wapenplatform.
+// null = geen munitiegegevens -> alleen de geometrische HOB-offset mogelijk.
+let opticProfileAmmo = null;
+function opticAmmo(){
+  if(opticProfileAmmo) return opticProfileAmmo;
+  const a = OPTIC_PLATFORM_AMMO[el('platformO').value];
+  return a ? Object.assign({ source:'platform' }, a) : null;
+}
+
 function computeOpticTrajectory(zeroDist, hobIn){
-  const ammo = OPTIC_PLATFORM_AMMO[el('platformO').value];
+  const ammo = opticAmmo();
   if(!ammo || !(hobIn > 0.03) || !window.AppliedConceptsBallistics) return null;
   return window.AppliedConceptsBallistics.computeTrajectoryProfile({
     dragModel: ammo.dragModel,
     bc: ammo.bc,
+    customDragFactor: ammo.customDragFactor,
     muzzleVelocityFps: ammo.muzzleVelocityFps,
     sightHeightCm: hobIn / CM_IN,
     zeroDistanceM: zeroDist,
@@ -718,16 +786,33 @@ function getStateOptic(){
   if(workDist > zeroDist) workDist = zeroDist;
   const hobIn = hobInches('O');
   const hobDisplay = el('hobUnitO').value === 'cm' ? `${parseFloat(el('hobValueO').value||0).toFixed(2)} cm` : `${parseFloat(el('hobValueO').value||0).toFixed(2)}"`;
-  const off = offsetAxis(hobIn, zeroDist, workDist);
-  const showMarker = workDist < zeroDist && off > 0.03;
+  // POI op de controle-afstand t.o.v. het POA (inch, + = onder het POA).
+  // Met munitiegegevens: de echte kogelbaan — de loop staat schuiner dan
+  // alleen voor de HOB, want hij moet ook de kogelval op de nulpunt-afstand
+  // goedmaken, dus op 25 m zit de POI bij 5.56 ~1,3–2,9 cm hoger dan de pure
+  // HOB-meetkunde. Zonder munitiegegevens alleen die geometrische offset.
+  const ammo = opticAmmo();
+  let off = offsetAxis(hobIn, zeroDist, workDist), offBallistic = false;
+  if(ammo && workDist < zeroDist && hobIn > 0.03 && window.AppliedConceptsBallistics){
+    const yCm = window.AppliedConceptsBallistics.computeHeightAtDistanceCm({
+      dragModel: ammo.dragModel, bc: ammo.bc, customDragFactor: ammo.customDragFactor,
+      muzzleVelocityFps: ammo.muzzleVelocityFps, sightHeightCm: hobIn / CM_IN,
+      zeroDistanceM: zeroDist, distanceM: workDist,
+    });
+    if(yCm != null && isFinite(yCm)){ off = -yCm * CM_IN; offBallistic = true; }
+  }
+  const showMarker = workDist < zeroDist && hobIn > 0.03 && Math.abs(off) > 0.03;
+  const offText = `${fmtLen(Math.abs(off),'cm')} ${off >= 0 ? 'onder' : 'boven'} POA`;
   // Distinguish "no offset because you're checking at the zero distance itself"
   // (expected, POI should sit on POA) from "no offset because HOB is 0/empty"
   // (you forgot to fill it in) — otherwise the same reassuring caption shows
   // in both cases and a missing HOB silently looks like a correct zero.
   const noMarkerCaption = (workDist < zeroDist && hobIn <= 0.03)
     ? 'Vul de height-over-bore in om de POI te tonen — nu op 0.'
+    : (workDist < zeroDist)
+    ? 'POI valt op deze afstand (vrijwel) op het POA'
     : 'Directe controle op nulpunt-afstand — POI hoort hier te vallen';
-  const platformAmmo = OPTIC_PLATFORM_AMMO[el('platformO').value] || null;
+  const platformAmmo = ammo;
   const trajectory = platformAmmo ? computeOpticTrajectory(zeroDist, hobIn) : null;
   // Explains an empty trajectory block instead of just silently omitting it —
   // a small HOB zeroed at a longer distance (e.g. a red dot at 100 m) often
@@ -735,7 +820,7 @@ function getStateOptic(){
   // physics, not a bug, but looks broken without this note.
   let trajectoryNote = null;
   if(platformAmmo && !(hobIn > 0.03)) trajectoryNote = 'Vul de HOB in om de kogelbaan te berekenen.';
-  else if(platformAmmo && !trajectory) trajectoryNote = 'Geen 2e kruispunt binnen bereik voor deze combinatie van nulpunt en HOB (vaak bij een klein HOB op een verder nulpunt, bv. een rooddot op 100 m).';
+  else if(platformAmmo && !trajectory) trajectoryNote = 'Het 2e kruispunt ligt verder dan 800 m voor deze combinatie van nulpunt en HOB.';
   return {
     paper: PAGE_DIMS[el('paperSizeO').value],
     paperKey: el('paperSizeO').value,
@@ -744,10 +829,11 @@ function getStateOptic(){
     metaRows: [
       [ `Richtmiddel: ${SIGHTS[el('sightO').value].label}`, `Montage: ${MOUNTS[el('mountO').value].label}` ],
       [ `HOB: ${hobDisplay} · Nulpunt: ${zeroDist} m · Controle: ${workDist} m`, null ],
+      ...(offBallistic ? [[ `POI incl. kogelval — ${ammo.caliber}`, null ]] : []),
     ],
     markers: [
       { offX:0, offY:off, label:'POI', show:showMarker,
-        detail: `Bevestigt nulpunt op ${zeroDist} m — offset ${fmtLen(off,'cm')} (HOB ${hobDisplay})` },
+        detail: `Bevestigt nulpunt op ${zeroDist} m — POI ${offText} (${offBallistic ? 'incl. kogelval' : 'alleen HOB, zonder kogelval'})` },
     ],
     zeroDist, workDist, distUnit:'m',
     gridIn: 1*CM_IN,
@@ -756,8 +842,9 @@ function getStateOptic(){
     distOptions: OPTIC_DIST,
     sameDistanceCaption: noMarkerCaption,
     footerRight: 'Applied Concepts — Zero Optic Calculator',
-    hobDisplay, off,
+    hobDisplay, off, offBallistic, offText,
     trajectory, trajectoryCaliber: platformAmmo ? platformAmmo.caliber : null, trajectoryNote,
+    trajectorySource: platformAmmo ? platformAmmo.source : null,
   };
 }
 
@@ -772,18 +859,19 @@ function renderOptic(){
     <div class="row"><span>HOB</span><span>${s.hobDisplay}</span></div>
     <div class="row"><span>Nulpunt</span><span>${s.zeroDist} m</span></div>
     <div class="row"><span>Controle-afstand</span><span>${s.workDist} m</span></div>
-    <div class="row"><span>Mech. offset</span><span>${s.off>0.03? fmtLen(s.off,'cm') : '≈ 0 (zelfde punt)'}</span></div>
+    <div class="row"><span>POI op controle-afstand</span><span>${Math.abs(s.off)>0.03 && s.workDist < s.zeroDist ? s.offText : '≈ op POA'}</span></div>
+    ${s.workDist < s.zeroDist && !s.offBallistic ? `<p class="hint">Zonder munitiegegevens is dit alleen de geometrische HOB-offset, zónder kogelval — bij 5.56 ligt de echte POI op 25 m zo'n 1,5 cm hoger. Kies een wapenplatform (of gebruik "Zero target" vanuit een wapenprofiel) voor de exacte POI.</p>` : ''}
     ${s.trajectory ? `
-    <div class="row"><span>1e kruispunt (inschiet)</span><span>${s.trajectory.nearZeroM} m</span></div>
-    <div class="row"><span>2e kruispunt</span><span>${s.trajectory.farZeroM.toFixed(0)} m</span></div>
+    <div class="row"><span>1e kruispunt</span><span>${Math.round(s.trajectory.nearZeroM)} m${s.trajectory.zeroIsFar ? '' : ' (nulpunt)'}</span></div>
+    <div class="row"><span>2e kruispunt</span><span>${Math.round(s.trajectory.farZeroM)} m${s.trajectory.zeroIsFar ? ' (nulpunt)' : ''}</span></div>
     <div class="row"><span>Drop @ +100 m na 2e kruispunt</span><span>${s.trajectory.dropCm.toFixed(0)} cm</span></div>
     <div class="row"><span>Energie op die afstand</span><span>${s.trajectory.energyJAtTarget.toFixed(0)} J (${s.trajectory.energyFtLbsAtTarget.toFixed(0)} ft-lbs)</span></div>
     ` : (s.trajectoryNote ? `<p class="hint">${s.trajectoryNote}</p>` : '')}
   `;
 
   const warn = el('fitWarningO');
-  if(s.workDist < s.zeroDist && s.off>0.03 && !result.fitsOnPage){
-    warn.innerHTML = `<p class="warn">De berekende offset (${fmtLen(s.off,'cm')}) past niet meer binnen ${s.paper.label} op deze indeling. Kies Letter, een grotere controleafstand, of verhoog de nulpunt-afstand.</p>`;
+  if(s.workDist < s.zeroDist && Math.abs(s.off)>0.03 && !result.fitsOnPage){
+    warn.innerHTML = `<p class="warn">De berekende offset (${fmtLen(Math.abs(s.off),'cm')}) past niet meer binnen ${s.paper.label} op deze indeling. Kies Letter, een grotere controleafstand, of verhoog de nulpunt-afstand.</p>`;
   } else {
     warn.innerHTML = '';
   }
@@ -907,6 +995,17 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v2.06', date:'09-10-2026', items:[
+      'Zero Optic Calculator — ballistiek: het POI op de controle-afstand rekent nu mét kogelval (zwaartekracht) zodra er een wapenplatform of wapenprofiel bekend is. Voorheen alleen de hoogte over de loop (HOB), wat op 25 m 1,3–2,9 cm te laag uitkwam. Zonder platform/profiel blijft het de HOB-benadering, en dat staat er dan ook bij. Via "Zero target" uit een wapenprofiel worden de munitiegegevens van dat profiel gebruikt.',
+      'Zero Optic Calculator — kogelbaan: bij 1e/2e kruispunt staat nu correct welke van de twee je nulpunt is (met een hoge HOB, zoals een LPVO, is dat het 1e).',
+      'Gemiddelde 5.56 (M855A1) data gecorrigeerd: kogellengte 1,00" (was 0,91"), BC G1 0,291, mondingssnelheid per looplengte (HK416 11" 2720 fps · 14.5" 2950 fps · MCX Virtus 16" 3020 fps · MCX Rattler 5.5" 2100 fps).',
+      'Spindrift: de stabiliteitsfactor wordt nu gecorrigeerd voor de luchtdichtheid (Litz), dus ook op hoogte en bij kou klopt de spindrift.',
+      'Dope Card: uitleg bij luchtdruk — vul de stationsdruk in, niet de (naar zeeniveau omgerekende) luchtdruk uit een weer-app.',
+      'Printen — Train: alle uitlegteksten (in en onder de cirkels, en de alinea\'s bovenaan) stonden in de PDF verschoven, afgekapt ("STERKE HAN") of ontbraken helemaal. Ze worden nu als gewone tekst getekend en staan overal precies op hun plek, op laptop én telefoon.',
+      'Printen — Zero Optic: het raster loopt nu exact door het richtkruis (POA), dus je telt hele vakjes van POA naar POI. De aanwijslijn loopt alleen nog van POA naar het POI-vak (niet meer dwars door het vak), en POA/POI/uitleg staan op een wit vlakje, zodat ze leesbaar blijven over rasterlijnen en het zwarte kader.',
+      'Printen — Train: de cirkels van de Bipod Pressure-schijf raken elkaar niet meer, de nummers op de Consistency Check-schijf staan zwart naast de cirkel (waren onleesbaar), en het richtmerk past in de kleinste (0,4 MOA) cirkel van de NPA-schijf.',
+      'Printen — Dope Card: kolomkoppen (M · ELEV · WIND · SPIN) en een regel met de omstandigheden waarmee het kaartje is berekend (wind, temperatuur, hoogte/luchtdruk).',
+    ]},
     { version:'v2.05', date:'02-10-2026', items:[
       'Wapenprofielen: kies je een carbine-platform (HK416, HK416 14.5", MCX Virtus/Rattler), dan worden kaliber 5.56x45mm, twist rate (1:7), kogelgewicht (62 gr), kogeldiameter, kogellengte (~0,91"), drag model, BC en mondingssnelheid direct ingevuld met gemiddelde NATO-waarden voor dat platform (V0 per loopLengte) — de meeste operators kennen die data niet. Daarbij kies je je richtmiddel en montage/riser: de sight height wordt dan automatisch ingevuld (zelfde waarden als Zero Optic, aan te passen). De Zero target-knop neemt je richtmiddel en riser mee naar Zero Optic.',
     ]},
