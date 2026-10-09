@@ -1048,6 +1048,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v2.09', date:'09-10-2026', items:[
+      'MOVER: de spraak herhaalt de afstand niet meer en zegt eerst de richting ("Rechts"), dan 0,4 seconde pauze, dan de lead ("3,6") en de elevatie ("Omhoog 3,9").',
+    ]},
     { version:'v2.08', date:'09-10-2026', items:[
       'Dope Card — MOVER: nieuwe knop linksboven (naast de wind). Tik erop, de microfoon gaat direct aan en je zegt bijvoorbeeld "600 naar rechts joggen" (afstand · richting · snelheid: rustig wandelen / snel wandelen / joggen / rennen). De telefoon zegt meteen de lead terug (via je Bluetooth-oortjes), inclusief wind, spindrift en Coriolis van de Dope Card, plus de elevatie. Doel naar rechts + wind van links = kleinere lead. Alles kan ook met de hand (afstand ±25 m, richting, snelheid); HERHAAL zegt het nog eens; DOORSCHIETEN brengt je terug op de Dope Card. Geluidsknop (aan/uit) en ELEV (elevatie meespreken) staan in beeld. Doelsnelheden: 1,2 · 1,9 · 3,0 · 5,0 m/s. Spraakherkenning gebruikt Apple (internet nodig); zonder werkt de handmatige invoer.',
     ]},

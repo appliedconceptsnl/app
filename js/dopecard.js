@@ -862,15 +862,36 @@ function dcSpeak(text){
     window.speechSynthesis.speak(u);
   } catch(e){}
 }
-function dcMoverSpeechText(r){
-  const leadTxt = dcFmt1(r.total) === '0.0' ? 'lead nul' : `lead ${dcFmt1(r.total).replace('.', ',')} ${r.total > 0 ? 'rechts' : 'links'}`;
-  let txt = `${r.d}. ${leadTxt}.`;
-  if(dcSettings.moverElev !== false) txt += ` ${r.elev >= 0 ? 'Omhoog' : 'Omlaag'} ${dcFmt1(r.elev).replace('.', ',')}.`;
-  return txt;
+// Eerst de richting, dan 0,4 s pauze (zodat je alvast naar die kant kunt
+// bewegen), dan het getal; daarna de elevatie. De afstand wordt niet herhaald.
+function dcMoverSpeechParts(r){
+  const num = dcFmt1(r.total);
+  const first = num === '0.0' ? 'Lead nul' : (r.total > 0 ? 'Rechts' : 'Links');
+  let second = num === '0.0' ? '' : num.replace('.', ',') + '.';
+  if(dcSettings.moverElev !== false) second += ` ${r.elev >= 0 ? 'Omhoog' : 'Omlaag'} ${dcFmt1(r.elev).replace('.', ',')}.`;
+  return [first, second.trim()];
+}
+let dcSpeakGapTimer = null;
+function dcSpeakParts(first, second, gapMs){
+  if(dcSettings.moverSound === false || !('speechSynthesis' in window)) return;
+  clearTimeout(dcSpeakGapTimer);
+  const mk = (t, rate) => { const u = new SpeechSynthesisUtterance(t); u.lang = 'nl-NL'; u.rate = rate;
+    const v = window.speechSynthesis.getVoices().find(x => /^nl/i.test(x.lang)); if(v) u.voice = v; return u; };
+  try {
+    window.speechSynthesis.cancel();
+    const u1 = mk(first, 1.15);
+    let went = false;
+    const next = () => { if(went) return; went = true; if(second) dcSpeakGapTimer = setTimeout(() => { try { window.speechSynthesis.speak(mk(second, 1.15)); } catch(e){} }, gapMs); };
+    u1.onend = next;
+    setTimeout(next, 1500); // vangnet als 'end' niet afgaat
+    window.speechSynthesis.speak(u1);
+  } catch(e){}
 }
 function dcMoverSpeakResult(){
   const r = dcMoverCompute();
-  dcSpeak(r ? dcMoverSpeechText(r) : 'Afstand niet verstaan');
+  if(!r){ dcSpeak('Afstand niet verstaan'); return; }
+  const [first, second] = dcMoverSpeechParts(r);
+  dcSpeakParts(first, second, 400);
 }
 
 /* ---- Spraak in ---- */
