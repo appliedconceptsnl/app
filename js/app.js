@@ -1048,6 +1048,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v2.08', date:'09-10-2026', items:[
+      'Dope Card — MOVER: nieuwe knop linksboven (naast de wind). Tik erop, de microfoon gaat direct aan en je zegt bijvoorbeeld "600 naar rechts joggen" (afstand · richting · snelheid: rustig wandelen / snel wandelen / joggen / rennen). De telefoon zegt meteen de lead terug (via je Bluetooth-oortjes), inclusief wind, spindrift en Coriolis van de Dope Card, plus de elevatie. Doel naar rechts + wind van links = kleinere lead. Alles kan ook met de hand (afstand ±25 m, richting, snelheid); HERHAAL zegt het nog eens; DOORSCHIETEN brengt je terug op de Dope Card. Geluidsknop (aan/uit) en ELEV (elevatie meespreken) staan in beeld. Doelsnelheden: 1,2 · 1,9 · 3,0 · 5,0 m/s. Spraakherkenning gebruikt Apple (internet nodig); zonder werkt de handmatige invoer.',
+    ]},
     { version:'v2.07', date:'09-10-2026', items:[
       'Printen op iPhone/iPad: het iOS-printvenster drukte webpagina\'s ~6,7 % te groot af, met eigen marges — de schijf werd rechts afgeknipt en over 2 bladen verdeeld, en de vakjes waren geen 1 cm meer. De app maakt daar nu zelf een PDF op exacte papiermaat (300 dpi, 1 blad = 1 pagina), die je via het deelmenu naar je printer-app, Bestanden of Afdrukken stuurt. Geldt voor Zero Optic, Train, Turret Tape en Dope Card. Op de laptop verandert er niets.',
       'Zero Optic Calculator: "Print schijf" vraagt eerst A4 of A3. De schijf wordt voor dat formaat opgebouwd (vakje blijft exact 1 cm = dezelfde klikwaarde; op A3 zijn kader en stip groter) en op ware grootte naar het printvenster/de PDF gestuurd — niet meer zelf vergroten in het printmenu. Letter is weggehaald.',

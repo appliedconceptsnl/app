@@ -127,7 +127,7 @@ function dcAdjustedMvFps(profile, input){
 }
 function dcRecomputeTable(){
   const profile = dcGetActiveProfile();
-  dcInclinedCache.clear();
+  dcInclinedCache.clear(); dcMoverCache.clear();
   if(!profile){ dcTable = null; dcCalc = null; return false; }
   // Richtmiddelhoogte komt rechtstreeks uit het wapenprofiel zelf
   // (toBallisticsInput's sightHeightCm) — geen aparte Dope Card-instelling.
@@ -143,7 +143,7 @@ function dcRecomputeTable(){
       ? { latitudeDeg: dcNum(dcSettings.latitudeDeg), azimuthDeg: dcNum(dcSettings.azimuthDeg) } : null,
   };
   dcTable = window.AppliedConceptsBallistics.computeDopeCardTable(input, atmosphere, dcDistances(), spinParams, opts);
-  dcCalc = { input, atmosphere, opts };
+  dcCalc = { input, atmosphere, opts, spinParams };
   return true;
 }
 // Elevatie zonder wind bij een schuin schot: exact doorgerekend (zwaartekracht
@@ -607,6 +607,7 @@ function dcEnterFullscreen(){
 }
 function dcTeardownFullscreen(){
   if(!dcOverlayEl) return;
+  dcStopRecog();
   dcReleaseWakeLock();
   window.removeEventListener('resize', dcOnResize);
   document.removeEventListener('visibilitychange', dcOnVisibility);
@@ -629,7 +630,7 @@ function dcExitFullscreen(returnTo){
     dcRenderSetupScreenIfActive();
   }
 }
-function dcGoScreen(s){ dcScreen = s; dcNotesEditing = null; dcRenderFullscreen(); }
+function dcGoScreen(s){ if(s !== 'mover') dcStopRecog(); dcScreen = s; dcNotesEditing = null; dcRenderFullscreen(); }
 
 /* ---- Strip (rechterstrook: TGT / thema / instellingen / sluiten) ---- */
 function dcStripHtml(){
@@ -677,6 +678,7 @@ function dcDopeScreenHtml(){
           <span class="dc-wind-label">EFF WIND ${dcSpeedUnitLabel()}</span>
           <span class="dc-wind-sub">${dcFmtSpeedMps(dcWind.speedMps)} @ ${dcClockLabel()}</span>
         </div>
+        <button type="button" class="dc-mover-btn" data-role="moverbtn">MOVER</button>
         <div class="dc-wind-mode-toggle" data-role="windmodetoggle">
           <button type="button" class="dc-wind-mode-btn${(!dcSettings.windCellMode||dcSettings.windCellMode==='wind')?' active':''}" data-mode="wind">WIND</button>
           <button type="button" class="dc-wind-mode-btn${dcSettings.windCellMode==='spindrift'?' active':''}" data-mode="spindrift">SPIN</button>
@@ -712,6 +714,12 @@ function dcWireDopeScreen(){
     onTap: () => dcGoScreen('wind'),
     onSwipe: (logical) => dcAdjustWindSpeed(logical.dy < 0 ? dcSettings.windStep : -dcSettings.windStep),
   });
+  const moverBtn = dcOverlayEl.querySelector('[data-role="moverbtn"]');
+  if(moverBtn){
+    moverBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+    moverBtn.addEventListener('pointerup', (e) => e.stopPropagation());
+    moverBtn.addEventListener('click', (e) => { e.stopPropagation(); dcOpenMover(); });
+  }
   const modeToggle = dcOverlayEl.querySelector('[data-role="windmodetoggle"]');
   if(modeToggle){
     // Los van de swipe/tap-gesture op de rest van het windvak — anders zou
@@ -730,6 +738,302 @@ function dcWireDopeScreen(){
   dcOverlayEl.querySelectorAll('.dc-row').forEach(row => {
     row.addEventListener('click', () => dcToggleTarget(parseInt(row.dataset.dist,10)));
   });
+}
+
+/* ======================= MOVER (bewegend doel, spraak) =======================
+   Tik op MOVER -> microfoon aan -> je zegt "600 naar rechts joggen" -> de
+   telefoon zegt direct de lead terug (via de oortjes). Lead = doelsnelheid ×
+   vluchttijd, opgeteld met de volledige windhold (wind + spindrift +
+   Coriolis) van de Dope Card — met teken: een doel dat naar rechts loopt
+   en wind van links (kogel gaat naar rechts) geven een kleinere lead.
+   Spraakherkenning: Web Speech API (iOS: audio gaat naar Apple, internet
+   nodig); niet continu — een tik per mover, zodat de microfoon niet blijft
+   hangen en valse treffers door schoten/wind uitblijven. */
+const DC_MOVER_SPEEDS = [
+  { key:'slow', label:'RUSTIG WANDELEN', mps:1.2 },
+  { key:'fast', label:'SNEL WANDELEN',   mps:1.9 },
+  { key:'jog',  label:'JOGGEN',          mps:3.0 },
+  { key:'run',  label:'RENNEN',          mps:5.0 },
+];
+const DC_MOVER_MIN_M = 50, DC_MOVER_MAX_M = 2500;
+const DC_MOVER_DEFAULT = { dist:600, dir:'R', speed:'fast' };
+let dcMover = Object.assign({}, DC_MOVER_DEFAULT, dcSettings.mover || {});
+let dcMoverStatus = 'idle'; // idle | listening | heard | error
+let dcMoverMsg = '';
+let dcMoverHeard = '';
+let dcRecog = null;
+let dcMoverAutoStopTimer = null;
+const dcMoverCache = new Map();
+
+function dcMoverSave(){ dcSettings.mover = dcMover; dcSave(DC_SETTINGS_KEY, dcSettings); }
+
+/* ---- Nederlandse getallen ("zeshonderd vijftig", "600") ---- */
+const DC_NL_UNITS = { nul:0, een:1, twee:2, drie:3, vier:4, vijf:5, zes:6, zeven:7, acht:8, negen:9, tien:10, elf:11, twaalf:12, dertien:13, veertien:14, vijftien:15, zestien:16, zeventien:17, achttien:18, negentien:19 };
+const DC_NL_TENS = { twintig:20, dertig:30, veertig:40, vijftig:50, zestig:60, zeventig:70, tachtig:80, negentig:90 };
+const DC_NL_PIECES = Object.keys(DC_NL_UNITS).concat(Object.keys(DC_NL_TENS), ['honderd','duizend','en']).sort((a,b) => b.length - a.length);
+// Splitst één woord ("zeshonderdvijftig") in getalstukken; null = geen getal.
+function dcNlSplit(word){
+  const out = [];
+  let rest = word;
+  while(rest){
+    const piece = DC_NL_PIECES.find(pc => rest.startsWith(pc));
+    if(!piece) return null;
+    out.push(piece); rest = rest.slice(piece.length);
+  }
+  return out.length && out.some(pc => pc !== 'en') ? out : null;
+}
+function dcNlValue(pieces){
+  let total = 0, cur = 0;
+  pieces.forEach(pc => {
+    if(pc === 'en') return;
+    if(pc === 'honderd') cur = (cur || 1) * 100;
+    else if(pc === 'duizend'){ total += (cur || 1) * 1000; cur = 0; }
+    else cur += (DC_NL_UNITS[pc] != null ? DC_NL_UNITS[pc] : DC_NL_TENS[pc]);
+  });
+  return total + cur;
+}
+function dcNormalizeSpeech(t){
+  return String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[.,;:!?]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+// Alle getallen in de zin: cijfers ("600") of woorden, in volgorde.
+function dcExtractNumbers(text){
+  const nums = [];
+  let run = [];
+  const flush = () => { if(run.length){ nums.push(dcNlValue(run)); run = []; } };
+  text.split(' ').forEach(w => {
+    if(/^\d+$/.test(w)){ flush(); nums.push(parseInt(w, 10)); return; }
+    const pcs = dcNlSplit(w);
+    if(pcs) run = run.concat(pcs); else flush();
+  });
+  flush();
+  return nums;
+}
+// Zin -> { dist, dir, speed } (alleen wat verstaan is; rest undefined).
+function dcParseMoverSpeech(raw){
+  const t = dcNormalizeSpeech(raw);
+  const res = {};
+  const nums = dcExtractNumbers(t).filter(n => n >= DC_MOVER_MIN_M && n <= DC_MOVER_MAX_M);
+  if(nums.length) res.dist = nums[0];
+  // Laatst genoemde kant = bestemming ("van links naar rechts", "links rechts", "naar links").
+  const re = /\b(links|rechts)\b/g; let m, last = null;
+  while((m = re.exec(t))) last = m[1];
+  if(last) res.dir = last === 'rechts' ? 'R' : 'L';
+  if(/\bren/.test(t) || /\bsprint/.test(t)) res.speed = 'run';
+  else if(/\bjog/.test(t) || /\bdraf/.test(t)) res.speed = 'jog';
+  else if(/\bsnel|flink|vlot/.test(t)) res.speed = 'fast';
+  else if(/\brustig|langzaam|wandel|loopt|lopend|slenter/.test(t)) res.speed = 'slow';
+  return res;
+}
+
+/* ---- Rekenen ---- */
+function dcMoverSpeedMps(){ return (DC_MOVER_SPEEDS.find(x => x.key === dcMover.speed) || DC_MOVER_SPEEDS[1]).mps; }
+function dcMoverRow(d){
+  if(!dcCalc) return null;
+  if(!dcMoverCache.has(d)){
+    const tbl = window.AppliedConceptsBallistics.computeDopeCardTable(dcCalc.input, dcCalc.atmosphere, [d], dcCalc.spinParams, dcCalc.opts);
+    dcMoverCache.set(d, tbl.get(Math.round(d)));
+  }
+  return dcMoverCache.get(d);
+}
+// Alles in mil; + = rechts. total = wat je boven/naast het doel moet houden.
+function dcMoverCompute(){
+  const d = dcMover.dist;
+  if(!(d >= DC_MOVER_MIN_M && d <= DC_MOVER_MAX_M)) return null;
+  const row = dcMoverRow(d);
+  if(!row) return null;
+  const sign = dcMover.dir === 'R' ? 1 : -1;
+  const lead = sign * dcMoverSpeedMps() * row.tofSec / d * 1000;
+  const wind = dcWindHoldSigned(row);
+  const spin = dcSpinHoldSigned(row) || 0;
+  const cor = dcCoriolisHoldSigned(row);
+  return { d, lead, wind, spin, cor, total: lead + wind + spin + cor, elev: dcTotalElevMil(d, row, null), tof: row.tofSec };
+}
+function dcFmt1(v){ return Math.abs(v).toFixed(1); }
+
+/* ---- Terugpraten ---- */
+function dcSpeak(text){
+  if(dcSettings.moverSound === false || !('speechSynthesis' in window)) return;
+  try {
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'nl-NL'; u.rate = 1.15;
+    const v = window.speechSynthesis.getVoices().find(x => /^nl/i.test(x.lang));
+    if(v) u.voice = v;
+    window.speechSynthesis.speak(u);
+  } catch(e){}
+}
+function dcMoverSpeechText(r){
+  const leadTxt = dcFmt1(r.total) === '0.0' ? 'lead nul' : `lead ${dcFmt1(r.total).replace('.', ',')} ${r.total > 0 ? 'rechts' : 'links'}`;
+  let txt = `${r.d}. ${leadTxt}.`;
+  if(dcSettings.moverElev !== false) txt += ` ${r.elev >= 0 ? 'Omhoog' : 'Omlaag'} ${dcFmt1(r.elev).replace('.', ',')}.`;
+  return txt;
+}
+function dcMoverSpeakResult(){
+  const r = dcMoverCompute();
+  dcSpeak(r ? dcMoverSpeechText(r) : 'Afstand niet verstaan');
+}
+
+/* ---- Spraak in ---- */
+function dcStopRecog(){
+  clearTimeout(dcMoverAutoStopTimer);
+  if(dcRecog){ try { dcRecog.onresult = dcRecog.onerror = dcRecog.onend = null; dcRecog.abort(); } catch(e){} dcRecog = null; }
+  if(dcMoverStatus === 'listening') dcMoverStatus = 'idle';
+}
+function dcStartRecog(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ dcMoverStatus = 'error'; dcMoverMsg = 'Spraakherkenning niet beschikbaar op dit toestel — vul handmatig in.'; dcMoverRefresh(); return; }
+  dcStopRecog();
+  // Stil "ontgrendelen" van de stem: iOS laat tekst-naar-spraak alleen toe na een tik.
+  try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; window.speechSynthesis.speak(u); } catch(e){}
+  const rec = new SR();
+  rec.lang = 'nl-NL'; rec.continuous = false; rec.interimResults = true; rec.maxAlternatives = 3;
+  dcRecog = rec;
+  dcMoverStatus = 'listening'; dcMoverMsg = ''; dcMoverHeard = '';
+  if(navigator.vibrate) navigator.vibrate(15);
+  let handled = false;
+  const apply = (transcript, final) => {
+    dcMoverHeard = transcript;
+    const parsed = dcParseMoverSpeech(transcript);
+    if(parsed.dist != null) dcMover.dist = parsed.dist;
+    if(parsed.dir) dcMover.dir = parsed.dir;
+    if(parsed.speed) dcMover.speed = parsed.speed;
+    if(!final){
+      // Alles genoemd (afstand, richting én snelheid)? Even kort wachten of er niets meer bijkomt en dan afronden — sneller dan op de stilte-detectie wachten.
+      clearTimeout(dcMoverAutoStopTimer);
+      if(parsed.dist != null && parsed.dir && parsed.speed) dcMoverAutoStopTimer = setTimeout(() => { try { rec.stop(); } catch(e){} }, 450);
+      dcMoverRefresh();
+      return;
+    }
+    if(handled) return;
+    handled = true;
+    dcMoverSave();
+    if(parsed.dist == null){ dcMoverStatus = 'error'; dcMoverMsg = 'Afstand niet verstaan'; dcSpeak('Afstand niet verstaan'); }
+    else if(!parsed.dir){ dcMoverStatus = 'error'; dcMoverMsg = 'Richting niet verstaan'; dcSpeak('Richting niet verstaan'); }
+    else { dcMoverStatus = 'heard'; dcMoverSpeakResult(); }
+    dcMoverRefresh();
+  };
+  rec.onresult = (e) => {
+    let best = '', final = false;
+    for(let i = e.resultIndex; i < e.results.length; i++){
+      const r = e.results[i];
+      // Van de alternatieven de eerste kiezen die een afstand bevat.
+      let pick = r[0].transcript;
+      for(let k = 0; k < r.length; k++){ if(dcParseMoverSpeech(r[k].transcript).dist != null){ pick = r[k].transcript; break; } }
+      best = pick; if(r.isFinal) final = true;
+    }
+    apply(best, final);
+  };
+  rec.onerror = (e) => {
+    if(handled) return;
+    handled = true;
+    dcMoverStatus = 'error';
+    dcMoverMsg = (e.error === 'not-allowed' || e.error === 'service-not-allowed') ? 'Microfoon geweigerd — sta de microfoon toe in de instellingen van je toestel, of vul handmatig in.'
+      : e.error === 'no-speech' ? 'Niets gehoord — tik OPNIEUW SPREKEN.'
+      : e.error === 'network' ? 'Geen internet — spraakherkenning werkt niet. Vul handmatig in.'
+      : 'Spraak mislukt (' + e.error + ') — tik OPNIEUW SPREKEN of vul handmatig in.';
+    dcMoverRefresh();
+  };
+  rec.onend = () => {
+    if(dcRecog === rec) dcRecog = null;
+    if(!handled && dcMoverStatus === 'listening'){
+      // Einde zonder eindresultaat: wat er tot nu toe stond alsnog gebruiken.
+      if(dcMoverHeard) apply(dcMoverHeard, true);
+      else { dcMoverStatus = 'error'; dcMoverMsg = 'Niets gehoord — tik OPNIEUW SPREKEN.'; dcMoverRefresh(); }
+    }
+  };
+  try { rec.start(); } catch(e){ dcMoverStatus = 'error'; dcMoverMsg = 'Microfoon kon niet starten — tik OPNIEUW SPREKEN.'; }
+  dcMoverRefresh();
+}
+
+/* ---- Scherm ---- */
+function dcMoverResultHtml(){
+  const r = dcMoverCompute();
+  if(!r) return `<div class="dc-mover-result dc-dim">Vul een afstand in (${DC_MOVER_MIN_M}–${DC_MOVER_MAX_M} m).</div>`;
+  const side = v => dcFmt1(v) === '0.0' ? '0.0' : (v > 0 ? 'R' : 'L') + dcFmt1(v);
+  const { eff } = dcEffWind();
+  return `<div class="dc-mover-result">
+      <div class="dc-mover-lead"><span class="dc-mover-k">LEAD</span> ${side(r.total)}</div>
+      <div class="dc-mover-lead"><span class="dc-mover-k">ELEV</span> ${r.elev >= 0 ? '↑' : '↓'}${dcFmt1(r.elev)}</div>
+    </div>
+    <div class="dc-mover-detail">doel ${side(r.lead)} · wind ${side(r.wind)}${r.spin ? ' · spin ' + side(r.spin) : ''}${r.cor ? ' · cor ' + side(r.cor) : ''} · vlucht ${r.tof.toFixed(2)} s · wind ${dcFmtSpeedMps(dcWind.speedMps)} ${dcSpeedUnitLabel()} @ ${dcClockLabel()}${eff === 0 ? ' <strong>(wind staat op 0)</strong>' : ''}</div>`;
+}
+function dcMoverScreenHtml(){
+  const listening = dcMoverStatus === 'listening';
+  const speedBtns = DC_MOVER_SPEEDS.map(sp => `<button type="button" class="dc-mover-opt${dcMover.speed === sp.key ? ' active' : ''}" data-speed="${sp.key}">${sp.label}</button>`).join('');
+  const status = listening ? 'LUISTERT…' : dcMoverStatus === 'error' ? dcEscapeHtml(dcMoverMsg) : dcMoverHeard ? '“' + dcEscapeHtml(dcMoverHeard) + '”' : 'Tik op de microfoon en spreek';
+  return `<div class="dc-main"><div class="dc-mover-screen">
+    <div class="dc-mover-head">
+      <button class="dc-wind-back" data-act="back">&larr; DOPE</button>
+      <div class="dc-mover-tools">
+        <button type="button" class="dc-mover-tool${dcSettings.moverElev !== false ? ' active' : ''}" data-act="moverelev" title="Elevatie meespreken">ELEV</button>
+        <button type="button" class="dc-mover-tool" data-act="movermute" title="Spraak aan/uit">${dcSettings.moverSound === false ? '🔇' : '🔊'}</button>
+      </div>
+    </div>
+    <div class="dc-mover-hint">Zeg: <strong>afstand · richting · snelheid</strong> — bijv. “600 naar rechts joggen” (rustig wandelen / snel wandelen / joggen / rennen)</div>
+    <div class="dc-mover-body">
+      <button type="button" class="dc-mover-mic${listening ? ' listening' : ''}" data-act="mic" aria-label="Spreek">${listening ? '●' : '🎤'}<span>${listening ? 'LUISTERT' : 'SPREEK'}</span></button>
+      <div class="dc-mover-fields">
+        <div class="dc-mover-status${dcMoverStatus === 'error' ? ' err' : ''}" data-role="status">${status}</div>
+        <div class="dc-mover-row">
+          <button type="button" class="dc-mover-step" data-act="dminus">&minus;</button>
+          <input type="number" inputmode="numeric" class="dc-mover-dist" data-role="dist" value="${dcMover.dist}" min="${DC_MOVER_MIN_M}" max="${DC_MOVER_MAX_M}" step="25"><span class="dc-mover-unit">m</span>
+          <button type="button" class="dc-mover-step" data-act="dplus">+</button>
+          <button type="button" class="dc-mover-dir${dcMover.dir === 'L' ? ' active' : ''}" data-dir="L">&larr; NAAR LINKS</button>
+          <button type="button" class="dc-mover-dir${dcMover.dir === 'R' ? ' active' : ''}" data-dir="R">NAAR RECHTS &rarr;</button>
+        </div>
+        <div class="dc-mover-row">${speedBtns}</div>
+      </div>
+    </div>
+    <div data-role="result">${dcMoverResultHtml()}</div>
+    <div class="dc-mover-actions">
+      <button type="button" class="dc-mover-act" data-act="repeat">HERHAAL</button>
+      <button type="button" class="dc-mover-act" data-act="back">DOORSCHIETEN &rarr; DOPE</button>
+    </div>
+  </div></div>${dcStripHtml()}`;
+}
+// Alleen tekst/knopstanden verversen terwijl er gepraat wordt (geen volledige
+// her-render: dat zou de microfoon-knop en het getypte veld verstoren).
+function dcMoverRefresh(){
+  if(!dcOverlayEl || dcScreen !== 'mover') return;
+  const q = sel => dcOverlayEl.querySelector(sel);
+  const listening = dcMoverStatus === 'listening';
+  const mic = q('[data-act="mic"]');
+  if(mic){ mic.classList.toggle('listening', listening); mic.innerHTML = `${listening ? '●' : '🎤'}<span>${listening ? 'LUISTERT' : 'SPREEK'}</span>`; }
+  const st = q('[data-role="status"]');
+  if(st){
+    st.classList.toggle('err', dcMoverStatus === 'error');
+    st.innerHTML = listening ? (dcMoverHeard ? '“' + dcEscapeHtml(dcMoverHeard) + '”' : 'LUISTERT…') : dcMoverStatus === 'error' ? dcEscapeHtml(dcMoverMsg) : dcMoverHeard ? '“' + dcEscapeHtml(dcMoverHeard) + '”' : 'Tik op de microfoon en spreek';
+  }
+  const di = q('[data-role="dist"]'); if(di && document.activeElement !== di) di.value = dcMover.dist;
+  dcOverlayEl.querySelectorAll('[data-dir]').forEach(b => b.classList.toggle('active', b.dataset.dir === dcMover.dir));
+  dcOverlayEl.querySelectorAll('[data-speed]').forEach(b => b.classList.toggle('active', b.dataset.speed === dcMover.speed));
+  const res = q('[data-role="result"]'); if(res) res.innerHTML = dcMoverResultHtml();
+}
+function dcWireMoverScreen(){
+  dcWireStrip();
+  const on = (sel, fn) => dcOverlayEl.querySelectorAll(sel).forEach(b => b.addEventListener('click', fn));
+  on('[data-act="back"]', () => { dcStopRecog(); try { window.speechSynthesis.cancel(); } catch(e){} dcGoScreen('dope'); });
+  on('[data-act="mic"]', () => { if(dcMoverStatus === 'listening') dcStopRecog(); else dcStartRecog(); dcMoverRefresh(); });
+  on('[data-act="repeat"]', () => dcMoverSpeakResult());
+  on('[data-act="movermute"]', (e) => { dcSettings.moverSound = dcSettings.moverSound === false; dcSave(DC_SETTINGS_KEY, dcSettings); if(dcSettings.moverSound === false){ try { window.speechSynthesis.cancel(); } catch(x){} } e.currentTarget.textContent = dcSettings.moverSound === false ? '🔇' : '🔊'; });
+  on('[data-act="moverelev"]', (e) => { dcSettings.moverElev = dcSettings.moverElev === false; dcSave(DC_SETTINGS_KEY, dcSettings); e.currentTarget.classList.toggle('active', dcSettings.moverElev !== false); });
+  const setDist = v => { dcMover.dist = Math.max(DC_MOVER_MIN_M, Math.min(DC_MOVER_MAX_M, Math.round(v))); dcMoverSave(); dcMoverRefresh(); };
+  on('[data-act="dminus"]', () => setDist(dcMover.dist - 25));
+  on('[data-act="dplus"]', () => setDist(dcMover.dist + 25));
+  on('[data-dir]', (e) => { dcMover.dir = e.currentTarget.dataset.dir; dcMoverSave(); dcMoverRefresh(); });
+  on('[data-speed]', (e) => { dcMover.speed = e.currentTarget.dataset.speed; dcMoverSave(); dcMoverRefresh(); });
+  const di = dcOverlayEl.querySelector('[data-role="dist"]');
+  if(di){
+    di.addEventListener('input', () => { const v = parseFloat(di.value); if(v >= DC_MOVER_MIN_M && v <= DC_MOVER_MAX_M){ dcMover.dist = Math.round(v); dcMoverSave(); dcMoverRefresh(); } });
+    di.addEventListener('change', () => setDist(parseFloat(di.value) || dcMover.dist));
+  }
+}
+// Vanaf de Dope Card: scherm openen en de microfoon in dezelfde tik starten
+// (iOS staat dat alleen direct vanuit een tik toe).
+function dcOpenMover(){
+  dcMoverStatus = 'idle'; dcMoverMsg = ''; dcMoverHeard = '';
+  dcGoScreen('mover');
+  dcStartRecog();
 }
 
 /* ---- Scherm B: Windscherm ---- */
@@ -920,11 +1224,12 @@ function dcRenderFullscreen(){
   if(!dcOverlayEl) return;
   dcOverlayEl.classList.remove('dc-theme-day','dc-theme-night','dc-theme-nv');
   dcOverlayEl.classList.add(dcSettings.theme === 'night' ? 'dc-theme-night' : dcSettings.theme === 'nv' ? 'dc-theme-nv' : 'dc-theme-day');
-  const inner = dcScreen === 'dope' ? dcDopeScreenHtml() : dcScreen === 'wind' ? dcWindScreenHtml() : dcScreen === 'angle' ? dcAngleScreenHtml() : dcTargetScreenHtml();
+  const inner = dcScreen === 'dope' ? dcDopeScreenHtml() : dcScreen === 'wind' ? dcWindScreenHtml() : dcScreen === 'angle' ? dcAngleScreenHtml() : dcScreen === 'mover' ? dcMoverScreenHtml() : dcTargetScreenHtml();
   dcOverlayEl.innerHTML = `<div class="dc-rotor">${inner}</div>`;
   if(dcScreen === 'dope') dcWireDopeScreen();
   else if(dcScreen === 'wind') dcWireWindScreen();
   else if(dcScreen === 'angle') dcWireAngleScreen();
+  else if(dcScreen === 'mover') dcWireMoverScreen();
   else dcWireTargetScreen();
 }
 
