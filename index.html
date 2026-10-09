@@ -51,7 +51,7 @@
 <div class="mobile-watermark" aria-hidden="true"></div>
 <div class="appshell" id="appshell">
   <header class="masthead">
-    <button class="versionlink" id="versionLink">v2.06</button>
+    <button class="versionlink" id="versionLink">v2.07</button>
     <button class="versionlink refreshlink" type="button" title="Haal de nieuwste versie op">refresh</button>
     <div class="mh-brand">
       <img src="icons/logo.svg" alt="Applied Concepts logo">
@@ -225,7 +225,6 @@
         <select id="paperSizeO">
           <option value="a4">A4 (210 × 297 mm)</option>
           <option value="a3">A3 (297 × 420 mm)</option>
-          <option value="letter">Letter (8.5 × 11")</option>
         </select>
         <p class="hint" id="paperAdviceO"></p>
       </fieldset>
@@ -234,7 +233,7 @@
       <div id="fitWarningO"></div>
 
       <button class="printbtn" id="printBtnO">Print schijf</button>
-      <p class="printnote">Zet in het printvenster de schaal op "100%" / "actual size" (niet "fit to page"), anders klopt het raster niet meer.</p>
+      <p class="printnote">Na "Print schijf" kies je A4 of A3 — de schijf wordt dan voor dat formaat opgebouwd. Kies in het printvenster hetzelfde papier en zet de schaal op "100%" / "werkelijke grootte" (niet "passend maken"), anders klopt het raster niet meer. Op iPhone/iPad maakt de app zelf een PDF op ware grootte, die je via het deelmenu naar je printer-app stuurt.</p>
 
       <p class="disclaimer">HOB-waarden zijn gangbare fabrieks-/community-cijfers (Aimpoint, GBRS Group, Sig Sauer, Scalarworks e.a.) — controleer altijd zelf de exacte hoogte van jouw eigen montage. Met een gekozen wapenplatform (of via "Zero target" vanuit een wapenprofiel) berekent de schijf de POI op de controle-afstand met echte ballistiek, inclusief kogelval — met gemiddelde NATO-standaardmunitie per looplengte, of de gegevens uit je wapenprofiel. Zonder platform is de POA/POI-offset alleen geometrisch (HOB), zónder kogelval; bij 5.56 ligt de echte POI op 25 m dan ±1,5 cm hoger. Geen wind of gemeten data voor jouw eigen exemplaar: een hulpmiddel, geen vervanging voor daadwerkelijk inschieten en controleren op de nulpunt-afstand.</p>
     </aside>
@@ -595,6 +594,7 @@
 <script src="js/shottimer.js"></script>
 <script src="js/dopecard.js"></script>
 <script src="js/turret.js"></script>
+<script src="js/pdfexport.js"></script>
 <script src="js/app.js"></script>
 <script>
 // Service worker (offline caching) is only registered on a real deployed host.

@@ -126,8 +126,13 @@ const AC_PAGE_SIZE_CSS = { a4:'A4', a3:'A3', letter:'Letter' };
 // on-screen preview keeps using the full PAGE_DIMS.a4/letter size everywhere.
 const AC_IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 const PRINT_MARGIN_SAFETY_IN = 0.5;
+// Sinds v2.07 gaat printen op iPhone/iPad via een zelfgemaakte PDF op ware
+// grootte (js/pdfexport.js) — dan geldt het volle papierformaat, net als op
+// de laptop. Deze kleinere "veilige" maat is alleen nog de terugval als die
+// PDF-export niet beschikbaar is.
 function printSafePaper(paper){
   if(!AC_IS_IOS) return paper;
+  if(window.AppliedConceptsPdf && window.AppliedConceptsPdf.shouldUse()) return paper;
   return { w: paper.w - 2*PRINT_MARGIN_SAFETY_IN, h: paper.h - 2*PRINT_MARGIN_SAFETY_IN, label: paper.label };
 }
 
@@ -280,6 +285,11 @@ function buildTable(clickVal, adjUnit, gridIn, distOptions, distUnit, x, y, w){
   let g = `<g font-family="IBM Plex Mono, monospace" fill="#171510">`;
   g += `<line x1="${x}" y1="${(y-0.14).toFixed(4)}" x2="${x+w}" y2="${(y-0.14).toFixed(4)}" stroke="#171510" stroke-width="0.012"/>`;
   g += `<text x="${x}" y="${y.toFixed(4)}" font-size="0.13" font-family="Oswald, sans-serif" font-weight="600">KLIKTABEL — ${clickVal} ${adjUnit} PER KLIK</text>`;
+  // Schaalcontrole: een printer(-app) die "passend maakt" verkleint/vergroot
+  // ongemerkt — dan klopt de klikwaarde per vakje niet meer. Meet na het
+  // printen 10 vakjes na met een liniaal.
+  const squareCm = Math.round(gridIn/CM_IN*10)/10;
+  g += `<text x="${(x+w).toFixed(4)}" y="${y.toFixed(4)}" text-anchor="end" font-size="0.10" fill="#6e6e6a">1 vakje = ${String(squareCm).replace('.', ',')} cm · controle na printen: 10 vakjes = ${String(Math.round(squareCm*100)/10).replace('.', ',')} cm</text>`;
   const headerY = y+0.24;
   g += `<text x="${x}" y="${headerY.toFixed(4)}" font-size="0.12">Afstand</text>`;
   dists.forEach((d,i)=>{
@@ -343,7 +353,6 @@ function buildTargetSVG(cfg){
   const gridTop = HEADER_H, gridBottom = H - FOOTER_H;
   const gridLeft = MARGIN, gridRight = W - MARGIN;
   const cx = W/2;
-  const targetCy = gridTop + (gridBottom-gridTop)*0.40;
 
   // Op A3 blijft de rastermaat (cfg.gridIn) gelijk — dus ook de klikwaardes —
   // en worden alleen het zwarte vierkant, de kaderdikte en de stip groter, zodat
@@ -353,6 +362,10 @@ function buildTargetSVG(cfg){
   const FT = cfg.gridIn*(isA3 ? 3 : 2);
   const dot = cfg.gridIn*(isA3 ? 1.1 : 0.8);
   const pad = cfg.gridIn*3;
+  // POA op 40 % van het raster, maar nooit zo hoog dat het zwarte kader
+  // de kop in schuift (gebeurde bij veel kopregels — de kop groeit, het
+  // raster krimpt mee, het kader heeft een vaste maat).
+  const targetCy = Math.max(gridTop + (gridBottom-gridTop)*0.40, gridTop + S/2 + 0.15);
 
   let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}in" height="${H}in" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">`;
   svg += `<rect x="0" y="0" width="${W}" height="${H}" fill="var(--paper)"/>`;
@@ -555,6 +568,12 @@ function requestPrint(source, paperKey){
   const evt = new CustomEvent('ac:print-request', { cancelable: true, detail: { source } });
   const handledByNativeShell = !window.dispatchEvent(evt);
   if(handledByNativeShell) return;
+  // iPhone/iPad: het iOS-printvenster drukt niet op ware grootte af (zie
+  // js/pdfexport.js) — maak daar zelf een PDF op exacte papiermaat.
+  if(window.AppliedConceptsPdf && window.AppliedConceptsPdf.shouldUse()){
+    window.AppliedConceptsPdf.exportSource(source, paperKey);
+    return;
+  }
   if(typeof window.print === 'function'){
     window.print();
   } else {
@@ -636,16 +655,7 @@ function initOptic(){
   });
   el('zeroDistO').addEventListener('change', ()=>{ refreshWorkDistOptions(OPTIC_DIST,'zeroDistO','workDistO'); renderOptic(); });
   el('adjUnitO').addEventListener('change', ()=>{ refreshClickOptions('adjUnitO','clickValO'); renderOptic(); });
-  el('printBtnO').addEventListener('click', ()=>{
-    const batch = el('opticPrintBatch');
-    if(batch){
-      const s = getStateOptic();
-      s.paper = printSafePaper(s.paper);
-      const result = buildTargetSVG(s);
-      batch.innerHTML = `<div class="page" style="width:${s.paper.w}in;height:${s.paper.h}in;">${result.svg}</div>`;
-    }
-    requestPrint('zero-optic-calculator', el('paperSizeO').value);
-  });
+  el('printBtnO').addEventListener('click', opticChoosePaperThenPrint);
   window.addEventListener('resize', ()=>{ if(el('panel-optic').classList.contains('active')) fitPreview('pageO','pageShellO','scaleLabelO'); });
 
   el('platformO').addEventListener('change', ()=>{
@@ -822,8 +832,10 @@ function getStateOptic(){
   if(platformAmmo && !(hobIn > 0.03)) trajectoryNote = 'Vul de HOB in om de kogelbaan te berekenen.';
   else if(platformAmmo && !trajectory) trajectoryNote = 'Het 2e kruispunt ligt verder dan 800 m voor deze combinatie van nulpunt en HOB.';
   return {
-    paper: PAGE_DIMS[el('paperSizeO').value],
-    paperKey: el('paperSizeO').value,
+    // Alleen A4/A3 in de keuzelijst; een onbekende waarde (bv. Letter uit een
+    // oudere versie) valt terug op A4 in plaats van de schijf te breken.
+    paper: PAGE_DIMS[opticPaperKey()],
+    paperKey: opticPaperKey(),
     titleMain: 'ZERO OPTIC CALCULATOR',
     weaponLabel: el('weaponLabelO').value.trim(),
     metaRows: [
@@ -846,6 +858,49 @@ function getStateOptic(){
     trajectory, trajectoryCaliber: platformAmmo ? platformAmmo.caliber : null, trajectoryNote,
     trajectorySource: platformAmmo ? platformAmmo.source : null,
   };
+}
+
+function opticPaperKey(){ return el('paperSizeO').value === 'a3' ? 'a3' : 'a4'; }
+
+// "Print schijf" vraagt eerst het papierformaat. Het formaat in het
+// printvenster zelf vergroten (A4-schijf op A3 "passend maken") rekt de
+// vakjes op — dan klopt de klikwaarde per vakje niet meer. Daarom bouwt de
+// app de schijf voor het gekozen formaat (vakje blijft exact 1 cm, op A3
+// worden kader en stip groter), toont dat in het voorbeeld en stuurt hem
+// op ware grootte naar het printvenster (laptop) of de PDF (iPhone/iPad).
+function opticChoosePaperThenPrint(){
+  const cur = el('paperSizeO').value === 'a3' ? 'a3' : 'a4';
+  const ov = document.createElement('div');
+  ov.className = 'ac-pdf-overlay';
+  ov.innerHTML = `<div class="ac-pdf-box">
+    <div class="ac-pdf-title">Op welk papier print je?</div>
+    <p class="hint">Op beide formaten is elk vakje exact 1 cm, dus dezelfde klikwaarde. Op A3 zijn alleen het zwarte kader en de stip groter. De schijf wordt voor dit formaat opgebouwd: kies bij het printen hetzelfde papierformaat en print op 100% / werkelijke grootte.</p>
+    <div class="ac-paper-choice">
+      <button type="button" class="printbtn${cur==='a4' ? '' : ' st-btn-secondary'}" data-paper="a4">A4<span>210 × 297 mm</span></button>
+      <button type="button" class="printbtn${cur==='a3' ? '' : ' st-btn-secondary'}" data-paper="a3">A3<span>297 × 420 mm</span></button>
+    </div>
+    <button type="button" class="printbtn st-btn-secondary" data-paper="" style="width:100%;padding:12px;margin-top:10px;">Annuleren</button>
+  </div>`;
+  ov.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-paper]');
+    if(!btn && e.target !== ov) return; // tik in het kader zelf
+    ov.remove();
+    if(!btn || !btn.dataset.paper) return;
+    el('paperSizeO').value = btn.dataset.paper;
+    renderOptic();
+    printOptic();
+  });
+  document.body.appendChild(ov);
+}
+function printOptic(){
+  const batch = el('opticPrintBatch');
+  if(batch){
+    const s = getStateOptic();
+    s.paper = printSafePaper(s.paper);
+    const result = buildTargetSVG(s);
+    batch.innerHTML = `<div class="page" style="width:${s.paper.w}in;height:${s.paper.h}in;">${result.svg}</div>`;
+  }
+  requestPrint('zero-optic-calculator', opticPaperKey());
 }
 
 function renderOptic(){
@@ -871,17 +926,15 @@ function renderOptic(){
 
   const warn = el('fitWarningO');
   if(s.workDist < s.zeroDist && Math.abs(s.off)>0.03 && !result.fitsOnPage){
-    warn.innerHTML = `<p class="warn">De berekende offset (${fmtLen(Math.abs(s.off),'cm')}) past niet meer binnen ${s.paper.label} op deze indeling. Kies Letter, een grotere controleafstand, of verhoog de nulpunt-afstand.</p>`;
+    warn.innerHTML = `<p class="warn">De berekende offset (${fmtLen(Math.abs(s.off),'cm')}) past niet meer binnen ${s.paper.label} op deze indeling. Kies A3, een grotere controleafstand, of verhoog de nulpunt-afstand.</p>`;
   } else {
     warn.innerHTML = '';
   }
 
   const advice = el('paperAdviceO');
-  advice.textContent = s.paperKey==='a4'
-    ? 'A4 is 6% smaller dan Letter. Bij grote HOB (bv. GBRS Hydra) met een korte controleafstand kan de referentie-box krap komen — check de waarschuwing hierboven.'
-    : s.paperKey==='a3'
+  advice.textContent = s.paperKey==='a3'
     ? 'A3: de vakjes (en dus de klikwaardes) blijven exact even groot als op A4 — alleen het zwarte vierkant is groter en er passen meer vakjes en ruimte voor grote offsets op.'
-    : 'Letter is gangbaar bij Amerikaanse optiek-fabrikanten en geeft iets meer ruimte voor grote offsets.';
+    : 'A4: bij een grote HOB (bv. GBRS Hydra) met een korte controleafstand kan de referentie-box krap komen — check de waarschuwing hierboven, of kies A3.';
 
   fitPreview('pageO','pageShellO','scaleLabelO');
 }
@@ -995,6 +1048,14 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v2.07', date:'09-10-2026', items:[
+      'Printen op iPhone/iPad: het iOS-printvenster drukte webpagina\'s ~6,7 % te groot af, met eigen marges — de schijf werd rechts afgeknipt en over 2 bladen verdeeld, en de vakjes waren geen 1 cm meer. De app maakt daar nu zelf een PDF op exacte papiermaat (300 dpi, 1 blad = 1 pagina), die je via het deelmenu naar je printer-app, Bestanden of Afdrukken stuurt. Geldt voor Zero Optic, Train, Turret Tape en Dope Card. Op de laptop verandert er niets.',
+      'Zero Optic Calculator: "Print schijf" vraagt eerst A4 of A3. De schijf wordt voor dat formaat opgebouwd (vakje blijft exact 1 cm = dezelfde klikwaarde; op A3 zijn kader en stip groter) en op ware grootte naar het printvenster/de PDF gestuurd — niet meer zelf vergroten in het printmenu. Letter is weggehaald.',
+      'Zero Optic Calculator: schaalcontrole op het blad ("1 vakje = 1 cm · controle na printen: 10 vakjes = 10 cm"), en het zwarte kader schuift niet meer de kop in als er veel regels in de kop staan.',
+      'Dope Card op Kestrel/Applied Ballistics-niveau: aerodynamic jump (verticale sprong door zijwind, formule van Litz), Coriolis (horizontaal via de breedtegraad, verticaal/Eötvös via de schietrichting — met knoppen voor locatie en kompas), kop- en meewind, luchtvochtigheid, en de V0 die met de kruittemperatuur meegaat. Een doel met een hoek wordt nu exact doorgerekend in plaats van met de cosinusregel. Alles gecontroleerd met een onafhankelijke berekening (verschil < 0,001 mil).',
+      'Dope Card: de elevatie bevat nu kop-/meewind en aerodynamic jump van de actuele wind; de stand TOTAAL is wind + spindrift + Coriolis (wat een Kestrel als windage toont). Het geprinte kaartje vermeldt welke correcties erin zitten.',
+      'Wapenprofielen: nieuw — draairichting van de loop (rechts/links) en "V0 gemeten bij (°C)" + "V0-verandering per °C" voor de kruittemperatuur-correctie.',
+    ]},
     { version:'v2.06', date:'09-10-2026', items:[
       'Zero Optic Calculator — ballistiek: het POI op de controle-afstand rekent nu mét kogelval (zwaartekracht) zodra er een wapenplatform of wapenprofiel bekend is. Voorheen alleen de hoogte over de loop (HOB), wat op 25 m 1,3–2,9 cm te laag uitkwam. Zonder platform/profiel blijft het de HOB-benadering, en dat staat er dan ook bij. Via "Zero target" uit een wapenprofiel worden de munitiegegevens van dat profiel gebruikt.',
       'Zero Optic Calculator — kogelbaan: bij 1e/2e kruispunt staat nu correct welke van de twee je nulpunt is (met een hoge HOB, zoals een LPVO, is dat het 1e).',

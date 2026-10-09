@@ -137,6 +137,19 @@ function acProfileSpinDriftParams(profile){
   return { bulletWeightGr, bulletDiameterIn, bulletLengthIn, twistIn, muzzleVelocityFps };
 }
 
+// Extra's voor de Dope Card op Kestrel-niveau: draairichting van de loop
+// (spin drift + aerodynamic jump) en de temperatuurgevoeligheid van de V0.
+// Ontbrekende velden (oudere profielen) = rechtsdraaiend, geen V0-correctie.
+function acProfileDopeParams(profile){
+  const mvRefTempC = parseFloat(profile.mvTempC);
+  const mvSensMsPerC = parseFloat(profile.mvTempSens);
+  return {
+    twistDir: profile.twistDir === 'L' ? 'L' : 'R',
+    mvRefTempC: isNaN(mvRefTempC) ? null : mvRefTempC,
+    mvSensMsPerC: isNaN(mvSensMsPerC) || mvSensMsPerC <= 0 ? null : mvSensMsPerC,
+  };
+}
+
 function acProfileHoldTable(profile){
   const input = acProfileToBallisticsInput(profile);
   if(!input) return null;
@@ -226,8 +239,8 @@ function acBlankProfile(){
   return {
     id: null, label: '', caliber: '', bulletWeightGr: '', bulletLengthIn: '', bulletDiameterIn: '',
     dragModel: 'G7', bc: '', customDragFactor: '', muzzleVelocity: '', muzzleVelocityUnit: 'ms',
-    zeroDistanceM: 100, sightHeight: 5, sightHeightUnit: 'cm', twistRateIn: '', dope: {},
-    roundLog: [], platform: '', sightId: '', mountId: '',
+    zeroDistanceM: 100, sightHeight: 5, sightHeightUnit: 'cm', twistRateIn: '', twistDir: 'R', dope: {},
+    roundLog: [], platform: '', sightId: '', mountId: '', mvTempC: '', mvTempSens: '',
   };
 }
 
@@ -351,9 +364,20 @@ function acRenderProfileEditor(root){
           </select>
           <p class="hint">Kies je een carbine, dan krijgt dit profiel in de lijst een "Zero target"-knop die de Zero Optic Calculator meteen met dit wapen invult (naam, hoogte over loop, nulpunt).</p>
 
-          <label for="pfTwist">Twist rate</label>
-          <input type="text" id="pfTwist" placeholder="bv. 1:10" value="${acEscapeHtml(p.twistRateIn)}">
-          <p class="hint">Rechtsdraaiend aangenomen (verreweg de meeste moderne geweren) — samen met kogeldiameter, -lengte en -gewicht gebruikt voor de spin drift-berekening in Dope Card.</p>
+          <div class="row2">
+            <div>
+              <label for="pfTwist">Twist rate</label>
+              <input type="text" id="pfTwist" placeholder="bv. 1:10" value="${acEscapeHtml(p.twistRateIn)}">
+            </div>
+            <div>
+              <label for="pfTwistDir">Draairichting</label>
+              <select id="pfTwistDir">
+                <option value="R" ${p.twistDir!=='L'?'selected':''}>Rechtsdraaiend</option>
+                <option value="L" ${p.twistDir==='L'?'selected':''}>Linksdraaiend</option>
+              </select>
+            </div>
+          </div>
+          <p class="hint">Vrijwel alle moderne geweren zijn rechtsdraaiend. Samen met kogeldiameter, -lengte en -gewicht gebruikt voor spin drift en aerodynamic jump in de Dope Card.</p>
         </fieldset>
 
         <fieldset>
@@ -401,6 +425,17 @@ function acRenderProfileEditor(root){
               <option value="fps" ${p.muzzleVelocityUnit==='fps'?'selected':''}>fps</option>
             </select>
           </div>
+          <div class="row2">
+            <div>
+              <label for="pfMvTemp">V0 gemeten bij (°C)</label>
+              <input type="number" id="pfMvTemp" step="1" placeholder="bv. 15" value="${acEscapeHtml(p.mvTempC)}">
+            </div>
+            <div>
+              <label for="pfMvSens">V0-verandering (m/s per °C)</label>
+              <input type="number" id="pfMvSens" step="0.01" min="0" placeholder="bv. 0.5" value="${acEscapeHtml(p.mvTempSens)}">
+            </div>
+          </div>
+          <p class="hint">Optioneel, voor de Dope Card (zoals de MV-temp-tabel van een Kestrel): bij warm kruit is de V0 hoger, bij koud lager. Vul de temperatuur in waarbij je de V0 hebt gemeten en hoeveel de V0 per °C verandert — typisch 0,1–1,5 m/s per °C, afhankelijk van het kruit; het nauwkeurigst bepaal je het met een chrono bij twee temperaturen. Leeg = geen correctie.</p>
         </fieldset>
 
         <fieldset>
@@ -447,7 +482,8 @@ function acRenderProfileEditor(root){
 
   const form = root.querySelector('#profileForm');
   const fieldIds = {
-    label:'pfLabel', platform:'pfPlatform', caliber:'pfCaliber', twistRateIn:'pfTwist',
+    label:'pfLabel', platform:'pfPlatform', caliber:'pfCaliber', twistRateIn:'pfTwist', twistDir:'pfTwistDir',
+    mvTempC:'pfMvTemp', mvTempSens:'pfMvSens',
     bulletWeightGr:'pfBulletWeight', bulletLengthIn:'pfBulletLength', bulletDiameterIn:'pfBulletDiameter', dragModel:'pfDragModel',
     bc:'pfBc', customDragFactor:'pfDragFactor', muzzleVelocity:'pfMv', muzzleVelocityUnit:'pfMvUnit',
     sightHeight:'pfSightHeight', sightHeightUnit:'pfSightHeightUnit', sightId:'pfSightId', mountId:'pfMountId', zeroDistanceM:'pfZero',
@@ -710,4 +746,5 @@ window.AppliedConceptsProfiles = {
   escapeHtml: acEscapeHtml,
   toBallisticsInput: acProfileToBallisticsInput,
   spinDriftParams: acProfileSpinDriftParams,
+  dopeParams: acProfileDopeParams,
 };

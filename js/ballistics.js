@@ -17,14 +17,21 @@
    temperature/altitude/pressure, and computeDopeCardTable() for a wind
    hold per distance — via the standard "lag time" approximation
    (drift = crosswind_mps × (actual time of flight − no-drag time of
-   flight)), not a separate lateral 3DOF integration. This is the same
-   simplification McCoy/Applied Ballistics/JBM use for flat-fire wind
-   drift and is exact for the "compute once per 1 m/s, then scale
-   linearly" approach the spec asks for, since both sides of the lag-time
-   formula are already produced by the existing vertical-only simulation.
-   Spin drift was added later (Miller stability + Litz' formula, see below);
-   still out of scope: Coriolis, aerodynamic jump and the effect of
-   head/tailwind.
+   flight)), the same simplification McCoy/JBM use for flat-fire wind
+   drift; it lets the UI compute once per 1 m/s and scale linearly.
+   Spin drift was added later (Miller stability + Litz' formula, see below).
+
+   v3 (09-10-2026, Dope Card op Kestrel/Applied Ballistics-niveau):
+   - Aerodynamic jump (Litz): verticale sprong door zijwind, als vaste hoek.
+   - Coriolis: horizontaal (afhankelijk van breedtegraad) en verticaal
+     (Eötvös, afhankelijk van de schietrichting), mee-geïntegreerd in de
+     baanberekening i.p.v. een constante-snelheid-vuistregel.
+   - Kop-/meewind: drag rekent met de snelheid t.o.v. de lucht; de UI krijgt
+     een lineaire coëfficiënt (mil elevatie per m/s kopwind).
+   - Schuin schieten: exacte berekening met de zwaartekracht ontbonden langs
+     en loodrecht op de zichtlijn (i.p.v. de cosinusregel).
+   - Luchtvochtigheid in de luchtdichtheid; kruittemperatuur -> V0.
+   - Links- of rechtsdraaiende loop (spin drift en aerodynamic jump).
 --------------------------------------------------------------------- */
 
 const BALLISTICS_GRAVITY_FPS2 = 32.17405;
@@ -108,23 +115,58 @@ function getCalculationStepFt(stepFt){
   return step;
 }
 
+// Earth's rotation rate (sidereal), rad/s.
+const BALLISTICS_EARTH_OMEGA = 7.292115e-5;
+
 /**
- * Simulates the flat-fire trajectory for one barrel elevation and returns the
- * bullet height relative to the line of sight (ft) at each requested distance (ft).
- * targetDistancesFt must be sorted ascending. densityFactor/machFps default to
- * the fixed ICAO sea-level standard used by the Optic Calculator/Dry Fire;
- * Dope Card passes computeAtmosphere()'s values instead.
+ * Coriolis setup for simulateDropAtDistances: latitude (deg, + = north) and
+ * the azimuth of fire (deg from true north, clockwise). azimuthDeg null =
+ * unknown direction: only the horizontal part that doesn't depend on it.
  */
-function simulateDropAtDistances({ effectiveBC, dragTable, muzzleVelocityFps, sightHeightFt, barrelElevationRad, targetDistancesFt, calcStepFt, densityFactor, machFps }){
+function coriolisParams(latitudeDeg, azimuthDeg){
+  if(latitudeDeg == null || isNaN(latitudeDeg)) return null;
+  const lat = latitudeDeg * Math.PI/180;
+  const hasAz = azimuthDeg != null && !isNaN(azimuthDeg);
+  const az = hasAz ? azimuthDeg * Math.PI/180 : 0;
+  return {
+    // Coriolis acceleration -2Ω×v in the (downrange, up, right) frame:
+    //   up    = 2Ω·cos(lat)·sin(az)·vx            (Eötvös: east = high)
+    //   right = 2Ω·sin(lat)·vx − 2Ω·cos(lat)·cos(az)·vy
+    upPerVx: hasAz ? 2*BALLISTICS_EARTH_OMEGA*Math.cos(lat)*Math.sin(az) : 0,
+    rightPerVx: 2*BALLISTICS_EARTH_OMEGA*Math.sin(lat),
+    rightPerVy: hasAz ? -2*BALLISTICS_EARTH_OMEGA*Math.cos(lat)*Math.cos(az) : 0,
+  };
+}
+
+/**
+ * Simulates the trajectory for one barrel elevation and returns the bullet
+ * height relative to the line of sight (ft) at each requested distance (ft).
+ * targetDistancesFt must be sorted ascending. densityFactor/machFps default
+ * to the fixed ICAO sea-level standard used by the Optic Calculator/Dry
+ * Fire; Dope Card passes computeAtmosphere()'s values instead.
+ *
+ * Optional (all default to "off", which reproduces the original flat-fire
+ * loop exactly):
+ * - lookAngleRad: shot angle (+ = uphill). x runs along the line of sight,
+ *   gravity is split into a component along it and one perpendicular to it.
+ * - headwindFps: range wind (+ = blowing towards the shooter); drag uses the
+ *   bullet's speed relative to the air.
+ * - coriolis: coriolisParams(); adds z (ft, + = right) to each result.
+ */
+function simulateDropAtDistances({ effectiveBC, dragTable, muzzleVelocityFps, sightHeightFt, barrelElevationRad, targetDistancesFt, calcStepFt, densityFactor, machFps, lookAngleRad, headwindFps, coriolis }){
   const ballisticFactor = 1 / effectiveBC;
-  const gravityY = -BALLISTICS_GRAVITY_FPS2;
+  const look = lookAngleRad || 0;
+  const gravityX = -BALLISTICS_GRAVITY_FPS2 * Math.sin(look);
+  const gravityY = -BALLISTICS_GRAVITY_FPS2 * Math.cos(look);
+  const headwind = headwindFps || 0;
   const rho = densityFactor != null ? densityFactor : BALLISTICS_DENSITY_FACTOR;
   const mach1 = machFps || BALLISTICS_MACH1_FPS;
 
   let velocity = muzzleVelocityFps;
   let vx = Math.cos(barrelElevationRad) * velocity;
   let vy = Math.sin(barrelElevationRad) * velocity;
-  let x = 0, y = -sightHeightFt, time = 0;
+  let vz = 0;
+  let x = 0, y = -sightHeightFt, z = 0, time = 0;
 
   const results = [];
   let nextIdx = 0;
@@ -134,21 +176,30 @@ function simulateDropAtDistances({ effectiveBC, dragTable, muzzleVelocityFps, si
     if(velocity < 50 || y < -15000) break;
 
     while(nextIdx < targetDistancesFt.length && x >= targetDistancesFt[nextIdx]){
-      results.push({ distanceFt: targetDistancesFt[nextIdx], x, y, velocity, time });
+      results.push({ distanceFt: targetDistancesFt[nextIdx], x, y, z, velocity, time });
       nextIdx++;
     }
     if(nextIdx >= targetDistancesFt.length) break;
 
     const deltaTime = calcStepFt / vx;
     velocity = Math.hypot(vx, vy);
-    const mach = velocity / mach1;
-    const drag = ballisticFactor * rho * velocity * dragCd(dragTable, mach) * BALLISTICS_PIR;
+    const airVx = vx + headwind;
+    const airSpeed = headwind ? Math.hypot(airVx, vy) : velocity;
+    const mach = airSpeed / mach1;
+    const drag = ballisticFactor * rho * airSpeed * dragCd(dragTable, mach) * BALLISTICS_PIR;
 
-    vx = vx - deltaTime*(drag*vx - 0);
-    vy = vy - deltaTime*(drag*vy - gravityY);
+    let ay = 0, az = 0;
+    if(coriolis){
+      ay = coriolis.upPerVx * vx;
+      az = coriolis.rightPerVx * vx + coriolis.rightPerVy * vy;
+    }
+    vx = vx - deltaTime*(drag*airVx - gravityX);
+    vy = vy - deltaTime*(drag*vy - gravityY) + deltaTime*ay;
+    vz = vz - deltaTime*(drag*vz) + deltaTime*az;
 
     x = x + vx*deltaTime;
     y = y + vy*deltaTime;
+    z = z + vz*deltaTime;
     time = time + deltaTime;
   }
   return results;
@@ -350,18 +401,28 @@ function computeTrajectoryProfile({ dragModel, bc, customDragFactor, muzzleVeloc
  * same ICAO standard, so it's a drop-in multiplier for densityFactor
  * above) and the speed of sound in fps for the given temperature.
  * altitudeM is ignored when pressureHpa is given directly.
+ *
+ * humidityPct (optional, 0–100): water vapour is lighter than dry air, so
+ * humid air is slightly thinner — density × (1 − 0.378·e/P), with e the
+ * vapour pressure (Magnus formula). ~0.3–1 % at everyday temperatures. Its
+ * effect on the speed of sound (< 0.2 %) is left out.
  */
-function computeAtmosphere({ tempC, altitudeM, pressureHpa }){
+function computeAtmosphere({ tempC, altitudeM, pressureHpa, humidityPct }){
   const T_C = tempC != null ? tempC : 15;
   const T_K = T_C + 273.15;
   const P_hPa = pressureHpa != null ? pressureHpa
     : 1013.25 * Math.pow(1 - 2.25577e-5 * (altitudeM || 0), 5.25588);
   // Ratio form cancels the gas constant R, so only P/T relative to the
   // ICAO standard (1013.25 hPa / 288.15 K) is needed.
-  const densityFactor = (P_hPa * 288.15) / (1013.25 * T_K);
+  let densityFactor = (P_hPa * 288.15) / (1013.25 * T_K);
+  const rh = Math.max(0, Math.min(100, humidityPct || 0));
+  if(rh > 0){
+    const vapourHpa = (rh/100) * 6.1078 * Math.pow(10, 7.5*T_C/(T_C + 237.3));
+    densityFactor *= 1 - 0.378 * vapourHpa / P_hPa;
+  }
   const speedOfSoundMs = 331.3 * Math.sqrt(1 + T_C / 273.15);
   const machFps = speedOfSoundMs * BALLISTICS_FT_PER_M;
-  return { densityFactor, machFps, tempC: T_C, pressureHpa: P_hPa };
+  return { densityFactor, machFps, tempC: T_C, pressureHpa: P_hPa, humidityPct: rh };
 }
 
 // Standard ICAO lapse rate (troposphere): 6.5°C per 1000 m.
@@ -397,40 +458,86 @@ function densityAltitudeFromFactor(densityFactor){
   return (lo + hi) / 2;
 }
 
-/**
- * Dope Card table: elevation hold (MIL) and wind hold per 1 m/s of full
- * crosswind ("driftMilPerMps" — multiply by the effective wind on screen
- * to get the live windhold) for each requested distance, under a given
- * profile + atmosphere. Recompute only when the profile or atmosphere
- * changes; the UI then just multiplies driftMilPerMps by the current
- * effective wind, which is why wind itself feels instant.
- */
-function computeDopeCardTable(profile, atmosphere, distancesM, spinParams){
+// Aerodynamic jump (Bryan Litz, Applied Ballistics): a crosswind tilts the
+// airflow the bullet meets as it leaves the muzzle; gyroscopic precession
+// turns that into a small *vertical* deflection, a fixed angle from the
+// muzzle onward:
+//   Y [MOA per mph crosswind] = 0.01·SG − 0.0024·L + 0.032  (L = length in calibers)
+// Right-hand twist: wind from the right lifts the impact, from the left it
+// drops it (left-hand twist: the other way round). Returned here as mil of
+// POI rise per m/s of crosswind from the right.
+const BALLISTICS_MOA_PER_MIL = 3.437747;
+const BALLISTICS_MPH_PER_MPS = 2.236936;
+function aeroJumpMilPerMps(sg, bulletLengthIn, bulletDiameterIn, twistDir){
+  const lCal = bulletLengthIn / bulletDiameterIn;
+  const moaPerMph = 0.01*sg - 0.0024*lCal + 0.032;
+  return moaPerMph * BALLISTICS_MPH_PER_MPS / BALLISTICS_MOA_PER_MIL * (twistDir === 'L' ? -1 : 1);
+}
+
+// Shared set-up for the Dope Card solvers below. The bore angle is solved
+// once with the profile's own (reference) muzzle velocity: that's the rifle
+// as it was zeroed. A different powder temperature then changes the MV the
+// trajectory itself is flown with — so, as on the range, it can move the
+// impact a little even at the zero distance.
+function dopeCardSetup(profile, atmosphere, opts){
   const dragTable = dragTableFor(profile.dragModel);
   const customFactor = (profile.customDragFactor && profile.customDragFactor > 0) ? profile.customDragFactor : 1;
   const effectiveBC = profile.bc * customFactor;
-  const muzzleVelocityFps = profile.muzzleVelocityFps;
   const sightHeightFt = (profile.sightHeightCm || 0) / 30.48;
-  const zeroDistanceFt = profile.zeroDistanceM * BALLISTICS_FT_PER_M;
   const { densityFactor, machFps } = atmosphere || {};
-
   const barrelElevationRad = solveSightAngleRad({
-    effectiveBC, dragTable, muzzleVelocityFps, sightHeightFt, zeroDistanceFt, densityFactor, machFps,
+    effectiveBC, dragTable, muzzleVelocityFps: profile.muzzleVelocityFps, sightHeightFt,
+    zeroDistanceFt: profile.zeroDistanceM * BALLISTICS_FT_PER_M, densityFactor, machFps,
   });
+  const muzzleVelocityFps = (opts && opts.muzzleVelocityFps > 0) ? opts.muzzleVelocityFps : profile.muzzleVelocityFps;
+  const coriolis = opts && opts.coriolis ? coriolisParams(opts.coriolis.latitudeDeg, opts.coriolis.azimuthDeg) : null;
+  return {
+    effectiveBC, dragTable, sightHeightFt, barrelElevationRad, muzzleVelocityFps, coriolis,
+    densityFactor, machFps, calcStepFt: getCalculationStepFt(10 * BALLISTICS_FT_PER_M),
+  };
+}
 
+/**
+ * Dope Card table, per requested distance:
+ * - elevMil: elevation hold (MIL) in no wind — includes the vertical
+ *   Coriolis (Eötvös) part when a direction of fire is known.
+ * - driftMilPerMps: wind hold per 1 m/s of full-value crosswind (lag time) —
+ *   the UI multiplies it by the current effective wind.
+ * - elevMilPerMpsHeadwind / elevMilPerMpsTailwind: extra elevation per
+ *   1 m/s of head- resp. tailwind (the latter negative) — from two extra
+ *   runs at 5 m/s, since the effect isn't quite symmetric.
+ * - ajMilPerMps: aerodynamic jump, POI rise per 1 m/s of crosswind from the
+ *   right (only with spinParams and opts.aeroJump !== false).
+ * - spinDriftMil: spin drift, POI to the right (+) / left (−).
+ * - coriolisMil: horizontal Coriolis, POI to the right (+) / left (−).
+ * - tofSec, velocityMs.
+ *
+ * opts: { muzzleVelocityFps (powder-temperature corrected),
+ *         coriolis: { latitudeDeg, azimuthDeg|null } | null,
+ *         twistDir: 'R'|'L', aeroJump: bool }
+ */
+function computeDopeCardTable(profile, atmosphere, distancesM, spinParams, opts){
+  opts = opts || {};
+  const S = dopeCardSetup(profile, atmosphere, opts);
   const sortedM = [...distancesM].sort((a,b)=>a-b);
   const targetDistancesFt = sortedM.map(d => d * BALLISTICS_FT_PER_M);
-  const calcStepFt = getCalculationStepFt(10 * BALLISTICS_FT_PER_M);
-
-  const results = simulateDropAtDistances({
-    effectiveBC, dragTable, muzzleVelocityFps, sightHeightFt, barrelElevationRad,
-    targetDistancesFt, calcStepFt, densityFactor, machFps,
-  });
+  const base = {
+    effectiveBC: S.effectiveBC, dragTable: S.dragTable, muzzleVelocityFps: S.muzzleVelocityFps,
+    sightHeightFt: S.sightHeightFt, barrelElevationRad: S.barrelElevationRad, targetDistancesFt,
+    calcStepFt: S.calcStepFt, densityFactor: S.densityFactor, machFps: S.machFps, coriolis: S.coriolis,
+  };
+  const results = simulateDropAtDistances(base);
+  const RANGE_WIND_MPS = 5;
+  const byFt = rs => new Map(rs.map(r => [r.distanceFt, r]));
+  const headByFt = byFt(simulateDropAtDistances(Object.assign({}, base, { headwindFps: RANGE_WIND_MPS * BALLISTICS_FT_PER_M })));
+  const tailByFt = byFt(simulateDropAtDistances(Object.assign({}, base, { headwindFps: -RANGE_WIND_MPS * BALLISTICS_FT_PER_M })));
 
   // Miller's SG is for standard air (59°F, 29.92 inHg); stability scales with
   // 1/air density (Litz' temperature/pressure correction), so thinner air at
   // altitude/heat gives a slightly higher SG and thus a bit more spin drift.
-  const sg = spinParams ? millerStability(spinParams) / (densityFactor || 1) : null;
+  const twistDir = opts.twistDir === 'L' ? 'L' : 'R';
+  const sg = spinParams ? millerStability(Object.assign({}, spinParams, { muzzleVelocityFps: S.muzzleVelocityFps })) / (S.densityFactor || 1) : null;
+  const aj = (sg != null && opts.aeroJump !== false) ? aeroJumpMilPerMps(sg, spinParams.bulletLengthIn, spinParams.bulletDiameterIn, twistDir) : null;
 
   const table = new Map();
   results.forEach(r => {
@@ -439,18 +546,46 @@ function computeDopeCardTable(profile, atmosphere, distancesM, spinParams){
     // Lag-time wind drift: a bullet slowed by drag takes longer to reach a
     // distance than a no-drag bullet at muzzle velocity would — a full-value
     // crosswind carries it sideways for exactly that extra time.
-    const noDragTime = r.x / muzzleVelocityFps;
+    const noDragTime = r.x / S.muzzleVelocityFps;
     const driftFtPerMps = (r.time - noDragTime) * BALLISTICS_FT_PER_M; // 1 m/s wind → ft of drift
     const driftMilPerMps = (driftFtPerMps / r.x) * 1000;
-    const entry = { elevMil, driftMilPerMps };
+    const entry = { elevMil, driftMilPerMps, tofSec: r.time, velocityMs: r.velocity / BALLISTICS_FT_PER_M };
+    const h = headByFt.get(r.distanceFt), t = tailByFt.get(r.distanceFt);
+    if(h) entry.elevMilPerMpsHeadwind = ((-Math.atan(h.y / h.x) * 1000) - elevMil) / RANGE_WIND_MPS;
+    if(t) entry.elevMilPerMpsTailwind = ((-Math.atan(t.y / t.x) * 1000) - elevMil) / RANGE_WIND_MPS;
+    if(S.coriolis) entry.coriolisMil = Math.atan(r.z / r.x) * 1000;
     if(sg != null){
       const driftM = spinDriftIn(sg, r.time) * 0.0254;
-      entry.spinDriftMil = Math.atan(driftM / distanceM) * 1000;
+      entry.spinDriftMil = Math.atan(driftM / distanceM) * 1000 * (twistDir === 'L' ? -1 : 1);
     }
+    if(aj != null) entry.ajMilPerMps = aj;
     table.set(distanceM, entry);
   });
   sortedM.forEach(d => { if(!table.has(d)) table.set(d, null); });
+  table.sg = sg;
+  table.muzzleVelocityFps = S.muzzleVelocityFps;
   return table;
+}
+
+/**
+ * Exact elevation hold (MIL) for an inclined shot (angleDeg, + = uphill,
+ * − = downhill) at slant distance distanceM — same rifle/zero/atmosphere/
+ * options as computeDopeCardTable. Gravity is split into a component along
+ * the line of sight and one perpendicular to it, instead of the
+ * (Improved) Rifleman's Rule approximation.
+ */
+function computeInclinedElevMil(profile, atmosphere, distanceM, angleDeg, opts){
+  const S = dopeCardSetup(profile, atmosphere, opts || {});
+  const results = simulateDropAtDistances({
+    effectiveBC: S.effectiveBC, dragTable: S.dragTable, muzzleVelocityFps: S.muzzleVelocityFps,
+    sightHeightFt: S.sightHeightFt, barrelElevationRad: S.barrelElevationRad,
+    targetDistancesFt: [distanceM * BALLISTICS_FT_PER_M], calcStepFt: S.calcStepFt,
+    densityFactor: S.densityFactor, machFps: S.machFps, coriolis: S.coriolis,
+    lookAngleRad: (angleDeg || 0) * Math.PI/180,
+  });
+  if(!results.length) return null;
+  const r = results[0];
+  return -Math.atan(r.y / r.x) * 1000;
 }
 
 /**
@@ -468,9 +603,8 @@ function millerStability({ bulletWeightGr, bulletDiameterIn, bulletLengthIn, twi
 
 /**
  * Litz spin drift approximation (inches): 1.25 * (SG + 1.2) * TOF(s)^1.83.
- * Direction: assumes a right-hand (clockwise) twist — the standard for
- * almost all modern rifles — which drifts the same direction it spins:
- * right. Out of scope: a left-hand-twist option (would just flip the sign).
+ * Always the direction of the twist: right with a right-hand twist (the
+ * caller flips the sign for a left-hand twist).
  */
 function spinDriftIn(sg, tofSec){
   return 1.25 * (sg + 1.2) * Math.pow(tofSec, 1.83);
@@ -521,7 +655,7 @@ function runSelfTest(){
 
 window.AppliedConceptsBallistics = {
   computeHoldTableMil, computeTrajectoryProfile, computeHeightAtDistanceCm, computeAtmosphere, computeDopeCardTable,
-  computeAtmosphereFromDensityAltitude, densityAltitudeFromFactor,
-  millerStability, spinDriftIn,
+  computeInclinedElevMil, computeAtmosphereFromDensityAltitude, densityAltitudeFromFactor,
+  millerStability, spinDriftIn, aeroJumpMilPerMps,
   runSelfTest, G1_DRAG_TABLE, G7_DRAG_TABLE,
 };

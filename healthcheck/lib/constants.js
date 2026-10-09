@@ -19,7 +19,7 @@ module.exports = {
   ],
   PAGE_DIMS_IN: {
     a4: { w: 8.2677, h: 11.6929 },
-    letter: { w: 8.5, h: 11 },
+    a3: { w: 11.6929, h: 16.5354 },
   },
   // Realistic HOB range in inches (~1" to ~8") — generous enough to cover
   // everything from a low-mount red dot to a GBRS Hydra riser, tight enough

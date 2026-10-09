@@ -190,7 +190,8 @@ async function checkPrintOutput(page, report) {
   await page.evaluate(() => switchTab('optic'));
   await page.waitForTimeout(200);
 
-  for (const paperKey of ['a4', 'letter']) {
+  // A4 en A3 — sinds v2.07 de enige formaten van de Zero Optic Calculator.
+  for (const paperKey of ['a4', 'a3']) {
     const expected = PAGE_DIMS_IN[paperKey];
     const result = await page.evaluate((key) => {
       const sel = document.getElementById('paperSizeO');

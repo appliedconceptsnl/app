@@ -30,6 +30,13 @@ const DC_DEFAULT_SETTINGS = {
   windUnit: 'ms', // 'ms' | 'mph' — puur weergave; intern blijft alles m/s (fysica/clamp ongewijzigd)
   windCellMode: 'wind', // 'wind' | 'spindrift' | 'combined' — welke waarde de kolommen tonen
   printMode: 'wind', // 'wind' | 'spindrift' | 'both' | 'combined' — welke kolom(men) op de geprinte kaart
+  // Kestrel/Applied Ballistics-niveau (v2.07):
+  envHumidityPct: 50,      // relatieve luchtvochtigheid (%), niet gebruikt in DA-modus (DA bevat die al)
+  powderTempC: '',         // '' = gelijk aan de luchttemperatuur
+  aeroJump: true,          // aerodynamic jump (verticale sprong door zijwind)
+  coriolis: true,
+  latitudeDeg: 52.1,       // Nederland
+  azimuthDeg: '',          // schietrichting t.o.v. het noorden; '' = onbekend (alleen horizontale Coriolis)
 };
 const DC_MPH_PER_MS = 2.236936;
 const BALLISTICS_FT_PER_M_DC = 3.280839895;
@@ -89,25 +96,65 @@ function dcGetActiveProfile(){
   const profiles = window.AppliedConceptsProfiles.load();
   return profiles.find(p => p.id === dcSettings.activeProfileId) || null;
 }
+// Laatst gebruikte rekeninvoer — nodig voor de exacte schuin-schieten-
+// berekening per doel (dcInclinedBaseElev), die los van de tabel draait.
+let dcCalc = null;
+const dcInclinedCache = new Map();
+
+function dcAtmosphere(){
+  const B = window.AppliedConceptsBallistics;
+  if(dcSettings.envMode === 'da') return B.computeAtmosphereFromDensityAltitude(dcSettings.envDaFt / BALLISTICS_FT_PER_M_DC);
+  const atmInput = { tempC: dcSettings.envTempC, humidityPct: dcSettings.envHumidityPct };
+  if(dcSettings.envMode === 'pressure') atmInput.pressureHpa = dcSettings.envPressureHpa;
+  else atmInput.altitudeM = dcSettings.envAltitudeM;
+  return B.computeAtmosphere(atmInput);
+}
+function dcNum(v){ const n = parseFloat(v); return (v === '' || v == null || isNaN(n)) ? null : n; }
+// Kruittemperatuur: eigen invoer, anders de luchttemperatuur (in DA-modus
+// is die er niet — dan alleen met eigen invoer).
+function dcPowderTempC(){
+  const own = dcNum(dcSettings.powderTempC);
+  if(own != null) return own;
+  return dcSettings.envMode === 'da' ? null : dcSettings.envTempC;
+}
+// V0 bij de huidige kruittemperatuur (fps), of null = geen correctie
+// (profiel heeft geen temperatuurgevoeligheid/referentietemperatuur).
+function dcAdjustedMvFps(profile, input){
+  const dp = window.AppliedConceptsProfiles.dopeParams(profile);
+  const tp = dcPowderTempC();
+  if(dp.mvSensMsPerC == null || dp.mvRefTempC == null || tp == null) return null;
+  return input.muzzleVelocityFps + dp.mvSensMsPerC * (tp - dp.mvRefTempC) * BALLISTICS_FT_PER_M_DC;
+}
 function dcRecomputeTable(){
   const profile = dcGetActiveProfile();
-  if(!profile){ dcTable = null; return false; }
+  dcInclinedCache.clear();
+  if(!profile){ dcTable = null; dcCalc = null; return false; }
   // Richtmiddelhoogte komt rechtstreeks uit het wapenprofiel zelf
   // (toBallisticsInput's sightHeightCm) — geen aparte Dope Card-instelling.
   const input = window.AppliedConceptsProfiles.toBallisticsInput(profile);
-  if(!input){ dcTable = null; return false; }
-  let atmosphere;
-  if(dcSettings.envMode === 'da'){
-    atmosphere = window.AppliedConceptsBallistics.computeAtmosphereFromDensityAltitude(dcSettings.envDaFt / BALLISTICS_FT_PER_M_DC);
-  } else {
-    const atmInput = { tempC: dcSettings.envTempC };
-    if(dcSettings.envMode === 'pressure') atmInput.pressureHpa = dcSettings.envPressureHpa;
-    else atmInput.altitudeM = dcSettings.envAltitudeM;
-    atmosphere = window.AppliedConceptsBallistics.computeAtmosphere(atmInput);
-  }
-  const spinParams = window.AppliedConceptsProfiles.spinDriftParams(profile); // null als het profiel geen (volledige) twist/afmetingen heeft — spindrift dan simpelweg niet beschikbaar
-  dcTable = window.AppliedConceptsBallistics.computeDopeCardTable(input, atmosphere, dcDistances(), spinParams);
+  if(!input){ dcTable = null; dcCalc = null; return false; }
+  const atmosphere = dcAtmosphere();
+  const spinParams = window.AppliedConceptsProfiles.spinDriftParams(profile); // null als het profiel geen (volledige) twist/afmetingen heeft — spindrift/aerodynamic jump dan simpelweg niet beschikbaar
+  const opts = {
+    muzzleVelocityFps: dcAdjustedMvFps(profile, input),
+    twistDir: window.AppliedConceptsProfiles.dopeParams(profile).twistDir,
+    aeroJump: dcSettings.aeroJump !== false,
+    coriolis: (dcSettings.coriolis !== false && dcNum(dcSettings.latitudeDeg) != null)
+      ? { latitudeDeg: dcNum(dcSettings.latitudeDeg), azimuthDeg: dcNum(dcSettings.azimuthDeg) } : null,
+  };
+  dcTable = window.AppliedConceptsBallistics.computeDopeCardTable(input, atmosphere, dcDistances(), spinParams, opts);
+  dcCalc = { input, atmosphere, opts };
   return true;
+}
+// Elevatie zonder wind bij een schuin schot: exact doorgerekend (zwaartekracht
+// ontbonden langs/loodrecht op de zichtlijn), per afstand+hoek gecachet.
+function dcInclinedBaseElev(d, angleDeg){
+  if(!dcCalc) return null;
+  const key = d + '|' + angleDeg;
+  if(!dcInclinedCache.has(key)){
+    dcInclinedCache.set(key, window.AppliedConceptsBallistics.computeInclinedElevMil(dcCalc.input, dcCalc.atmosphere, d, angleDeg, dcCalc.opts));
+  }
+  return dcInclinedCache.get(key);
 }
 
 /* ---- Afstanden / blokken / kolommen ---- */
@@ -204,42 +251,65 @@ function dcFlashWindValue(){
   setTimeout(() => { if(el2) el2.classList.remove('dc-flash'); }, 150);
 }
 
+// Windcomponenten uit de klok: zijwind (+ = van rechts) en langswind
+// (+ = kopwind, van 12 uur; − = meewind).
+function dcWindComponents(){
+  const rad = dcWind.angleDeg * Math.PI/180;
+  return { crossFromRight: dcWind.speedMps * Math.sin(rad), headwind: dcWind.speedMps * Math.cos(rad) };
+}
+
+/* ---- Holds (alles in mil) ----
+   Elevatie zoals een Kestrel/Applied Ballistics hem geeft: valhoek op deze
+   afstand (incl. kruittemperatuur, luchtvochtigheid, verticale Coriolis),
+   plus het effect van kop-/meewind en de aerodynamic jump van de
+   huidige zijwind. angleDeg (doel met hoek) -> exacte schuin-schieten-elevatie. */
+function dcTotalElevMil(d, row, angleDeg){
+  if(!row || row.elevMil == null) return null;
+  let elev = row.elevMil;
+  if(angleDeg != null && angleDeg !== 0){
+    const inclined = dcInclinedBaseElev(d, angleDeg);
+    if(inclined != null) elev = inclined;
+  }
+  const { crossFromRight, headwind } = dcWindComponents();
+  if(headwind > 0 && row.elevMilPerMpsHeadwind != null) elev += row.elevMilPerMpsHeadwind * headwind;
+  if(headwind < 0 && row.elevMilPerMpsTailwind != null) elev += row.elevMilPerMpsTailwind * -headwind;
+  // Aerodynamic jump tilt het treffpunt omhoog/omlaag -> hold de andere kant op.
+  if(row.ajMilPerMps != null) elev -= row.ajMilPerMps * crossFromRight;
+  return elev;
+}
+// Windage-holds, ondertekend: + = R(echts) aanhouden/draaien, − = L(inks).
+function dcWindHoldSigned(row){ return row.driftMilPerMps * dcWindComponents().crossFromRight; }
+function dcSpinHoldSigned(row){ return row.spinDriftMil != null ? -row.spinDriftMil : null; }
+function dcCoriolisHoldSigned(row){ return row.coriolisMil != null ? -row.coriolisMil : 0; }
+function dcFmtSignedHold(v){
+  if(v == null) return '—';
+  const s = Math.abs(v).toFixed(1);
+  return s === '0.0' ? '0.0' : (v > 0 ? 'R' : 'L') + s;
+}
+
 /* ---- Waarde-opmaak ---- */
-function dcFmtElev(mil){ return mil.toFixed(1); }
-function dcFmtWindHold(driftMilPerMps){
-  const { eff, dir } = dcEffWind();
-  const val = driftMilPerMps * eff;
-  const s = val.toFixed(1);
-  return (dir == null || s === '0.0') ? '0.0' : dir + s;
+function dcFmtElev(mil){ return mil == null ? '—' : mil.toFixed(1); }
+function dcFmtWindHold(row){
+  return dcFmtSignedHold(dcWindHoldSigned(row));
 }
-// Rechterwaarde per rij — wind-, spindrift- of gecombineerde hold,
-// afhankelijk van de schakelaar in het windvak.
+// Rechterwaarde per rij — wind-, spindrift- of totale hold, afhankelijk van
+// de schakelaar in het windvak.
 //
-// Spindrift heeft geen "effectieve" component (hangt niet van de wind af).
-// Bij een rechtsdraaiende loop (vrijwel elk modern geweer) drift de kogel
-// naar RECHTS — de correctie om dat te compenseren is dus altijd naar
-// LINKS (25-09-2026: dit stond eerder verkeerd om als R, gefixt).
+// Spindrift hangt niet van de wind af. Rechtsdraaiende loop (vrijwel elk
+// modern geweer): de kogel drift naar RECHTS, de correctie is dus naar
+// LINKS (linksdraaiend: andersom).
 function dcFmtRowRight(row){
-  if(dcSettings.windCellMode === 'spindrift'){
-    return (row && row.spinDriftMil != null) ? 'L' + row.spinDriftMil.toFixed(1) : '—';
-  }
-  if(dcSettings.windCellMode === 'combined'){
-    return dcFmtCombinedHold(row);
-  }
-  return (row && row.driftMilPerMps != null) ? dcFmtWindHold(row.driftMilPerMps) : '—';
+  if(!row || row.driftMilPerMps == null) return '—';
+  if(dcSettings.windCellMode === 'spindrift') return dcFmtSignedHold(dcSpinHoldSigned(row));
+  if(dcSettings.windCellMode === 'combined') return dcFmtCombinedHold(row);
+  return dcFmtWindHold(row);
 }
-// Wind en spindrift natuurkundig correct samengevoegd tot één ondertekende
-// waarde — het teken (dus of ze optellen of van elkaar afgaan) volgt puur
-// uit de actuele windrichting: R + L (tegengesteld) trekken af, L + L
-// (dezelfde kant als de spindrift) tellen op. Geen aparte instelling nodig.
+// TOTAAL = wat een Kestrel als windage geeft: wind + spindrift + horizontale
+// Coriolis, ondertekend opgeteld — of ze elkaar versterken of opheffen volgt
+// puur uit de actuele windrichting, geen aparte instelling nodig.
 function dcFmtCombinedHold(row){
   if(!row || row.driftMilPerMps == null) return '—';
-  const { eff, dir } = dcEffWind();
-  const windSigned = dir === 'R' ? row.driftMilPerMps * eff : dir === 'L' ? -(row.driftMilPerMps * eff) : 0;
-  const spinSigned = row.spinDriftMil != null ? -row.spinDriftMil : 0; // rechtsdraaiend -> altijd L-correctie
-  const total = windSigned + spinSigned;
-  const s = Math.abs(total).toFixed(1);
-  return s === '0.0' ? '0.0' : (total > 0 ? 'R' : 'L') + s;
+  return dcFmtSignedHold(dcWindHoldSigned(row) + (dcSpinHoldSigned(row) || 0) + dcCoriolisHoldSigned(row));
 }
 
 /* ---- Rotatie: fysieke aanraakcoördinaten -> logische (voor-rotatie) delta.
@@ -315,16 +385,6 @@ function dcNoteAngle(n){
   if(!n || n.angle === '' || n.angle == null) return null;
   const a = parseFloat(n.angle);
   return isNaN(a) ? null : a;
-}
-// Improved Rifleman's Rule: reken de hold uit op de daadwerkelijke
-// (slant-)afstand — zoals de rest van de Dope Card al doet — en
-// vermenigvuldig die met cos(hoek). Dat is nauwkeuriger dan de klassieke
-// Rifleman's Rule (die de hold op de horizontale afstand D·cosθ opzoekt),
-// vooral bij grotere hoeken/afstanden. Windhold/spindrift blijven
-// ongemoeid: die hangen niet wezenlijk af van de schothoek.
-function dcInclinedElevMil(elevMil, angleDeg){
-  if(elevMil == null || angleDeg == null) return elevMil;
-  return elevMil * Math.cos(angleDeg * Math.PI / 180);
 }
 function dcSaveNotes(){ dcSave(DC_NOTES_KEY, dcNotes); }
 
@@ -626,7 +686,7 @@ function dcDopeScreenHtml(){
     const blocksHtml = colBlocks.map(block => {
       const rowsHtml = block.distances.map((d,i) => {
         const row = dcTable ? dcTable.get(d) : null;
-        const elevStr = row && row.elevMil != null ? dcFmtElev(row.elevMil) : '—';
+        const elevStr = dcFmtElev(dcTotalElevMil(d, row, null));
         const windStr = dcFmtRowRight(row);
         const selIdx = dcTargets.indexOf(d);
         const selected = selIdx >= 0;
@@ -741,8 +801,8 @@ function dcTargetScreenHtml(){
     const row = dcTable ? dcTable.get(d) : null;
     const n = dcNoteFor(d);
     const angle = dcNoteAngle(n);
-    const adjElev = row && row.elevMil != null ? dcInclinedElevMil(row.elevMil, angle) : null;
-    const elevStr = adjElev != null ? dcFmtElev(adjElev) : '—';
+    // Hoek: exact doorgerekend (niet meer de cosinusregel), zie dcInclinedBaseElev.
+    const elevStr = dcFmtElev(dcTotalElevMil(d, row, angle));
     const windStr = dcFmtRowRight(row);
     const active = dcActiveTargetIdx === i;
     const has = dcNoteHasContent(n);
@@ -911,13 +971,19 @@ function dcBuildPrintPages(){
 // A printed card freezes the wind and atmosphere it was computed with —
 // unlike the live screen, nothing on paper says which, so print it.
 function dcPrintConditionsText(mode){
-  const parts = ['MIL'];
-  if(mode !== 'spindrift'){
-    parts.push(`wind ${dcFmtSpeedMps(dcWind.speedMps)} ${dcSpeedUnitLabel()} @ ${dcClockLabel()} (eff. ${dcEffWindStr()})`);
-  }
+  // Wind staat er altijd bij: ook de elevatie hangt ervan af (kop-/meewind,
+  // aerodynamic jump).
+  const parts = ['MIL', `wind ${dcFmtSpeedMps(dcWind.speedMps)} ${dcSpeedUnitLabel()} @ ${dcClockLabel()}`];
   if(dcSettings.envMode === 'da') parts.push(`DA ${Math.round(dcSettings.envDaFt)} ft`);
-  else if(dcSettings.envMode === 'pressure') parts.push(`${dcSettings.envTempC} °C · ${dcSettings.envPressureHpa} hPa`);
-  else parts.push(`${dcSettings.envTempC} °C · ${dcSettings.envAltitudeM} m`);
+  else {
+    parts.push(dcSettings.envMode === 'pressure' ? `${dcSettings.envTempC} °C · ${dcSettings.envPressureHpa} hPa` : `${dcSettings.envTempC} °C · ${dcSettings.envAltitudeM} m`);
+    parts.push(`RV ${Math.round(dcSettings.envHumidityPct || 0)}%`);
+  }
+  if(dcTable && dcTable.muzzleVelocityFps && dcCalc && Math.abs(dcTable.muzzleVelocityFps - dcCalc.input.muzzleVelocityFps) > 0.5){
+    parts.push(`V0 ${Math.round(dcTable.muzzleVelocityFps / BALLISTICS_FT_PER_M_DC)} m/s`);
+  }
+  if(dcCalc && dcCalc.opts.aeroJump && dcTable && dcTable.sg != null) parts.push('AJ');
+  if(dcCalc && dcCalc.opts.coriolis) parts.push(`Coriolis ${dcCalc.opts.coriolis.latitudeDeg}°${dcCalc.opts.coriolis.azimuthDeg != null ? ' / ' + dcCalc.opts.coriolis.azimuthDeg + '°' : ''}`);
   return parts.join(' · ');
 }
 
@@ -961,20 +1027,20 @@ function dcPrintCardSvg(cardDistances, mode, label, pageNum, totalPages, rowsPer
 
 function dcPrintRowSvg(x, y, w, dist, row, mode){
   const distW = w*0.22, elevW = w*0.3;
-  const elevStr = row && row.elevMil != null ? dcFmtElev(row.elevMil) : '—';
+  const elevStr = dcFmtElev(dcTotalElevMil(dist, row, null));
   let s = `<text x="${x.toFixed(3)}" y="${y.toFixed(3)}" font-size="${DC_PRINT_FONT}" font-family="'IBM Plex Mono',monospace" fill="${DC_PRINT_DIM}">${dist}</text>`;
   s += `<text x="${(x+distW+elevW).toFixed(3)}" y="${y.toFixed(3)}" text-anchor="end" font-size="${DC_PRINT_FONT}" font-family="'IBM Plex Mono',monospace" font-weight="700" fill="${DC_PRINT_INK}">${elevStr}</text>`;
   if(mode === 'both'){
-    const windStr = row && row.driftMilPerMps != null ? dcFmtWindHold(row.driftMilPerMps) : '—';
-    const spinStr = row && row.spinDriftMil != null ? 'L' + row.spinDriftMil.toFixed(1) : '—';
+    const windStr = row && row.driftMilPerMps != null ? dcFmtWindHold(row) : '—';
+    const spinStr = row ? dcFmtSignedHold(dcSpinHoldSigned(row)) : '—';
     const halfW = (w - distW - elevW) / 2;
     s += `<text x="${(x+distW+elevW+halfW-0.03).toFixed(3)}" y="${y.toFixed(3)}" text-anchor="end" font-size="${DC_PRINT_FONT}" font-family="'IBM Plex Mono',monospace" fill="${DC_PRINT_INK}">${windStr}</text>`;
     s += `<text x="${(x+w).toFixed(3)}" y="${y.toFixed(3)}" text-anchor="end" font-size="${DC_PRINT_FONT}" font-family="'IBM Plex Mono',monospace" fill="${DC_PRINT_INK}">${spinStr}</text>`;
   } else {
     let valStr;
-    if(mode === 'spindrift') valStr = row && row.spinDriftMil != null ? 'L' + row.spinDriftMil.toFixed(1) : '—';
+    if(mode === 'spindrift') valStr = row ? dcFmtSignedHold(dcSpinHoldSigned(row)) : '—';
     else if(mode === 'combined') valStr = dcFmtCombinedHold(row);
-    else valStr = row && row.driftMilPerMps != null ? dcFmtWindHold(row.driftMilPerMps) : '—';
+    else valStr = row && row.driftMilPerMps != null ? dcFmtWindHold(row) : '—';
     s += `<text x="${(x+w).toFixed(3)}" y="${y.toFixed(3)}" text-anchor="end" font-size="${DC_PRINT_FONT}" font-family="'IBM Plex Mono',monospace" fill="${DC_PRINT_INK}">${valStr}</text>`;
   }
   return s;
@@ -1063,6 +1129,38 @@ function dcRenderSetup(root){
     </fieldset>
 
     <fieldset class="dryfire-mode-fieldset">
+      <legend>Correcties (zoals Kestrel / Applied Ballistics)</legend>
+      <div id="dcHumWrap" ${dcSettings.envMode==='da'?'hidden':''}>
+        <label for="dcHumidity">Luchtvochtigheid (%)</label>
+        <input type="number" id="dcHumidity" step="5" min="0" max="100" value="${dcSettings.envHumidityPct}">
+      </div>
+      <p class="hint" ${dcSettings.envMode!=='da'?'hidden':''}>In density altitude zit de luchtvochtigheid al verwerkt.</p>
+
+      <label for="dcPowderTemp">Kruittemperatuur (°C)</label>
+      <input type="number" id="dcPowderTemp" step="1" placeholder="${dcSettings.envMode==='da'?'invullen voor V0-correctie':'leeg = luchttemperatuur'}" value="${dcSettings.powderTempC}">
+      <p class="hint" id="dcMvHint"></p>
+
+      <div class="dryfire-mode-toggle" style="flex-wrap:wrap;">
+        <label><input type="checkbox" id="dcAeroJump" ${dcSettings.aeroJump!==false?'checked':''}> Aerodynamic jump</label>
+        <label><input type="checkbox" id="dcCoriolis" ${dcSettings.coriolis!==false?'checked':''}> Coriolis</label>
+      </div>
+      <p class="hint" id="dcAjHint"></p>
+
+      <div id="dcCoriolisWrap" ${dcSettings.coriolis===false?'hidden':''}>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div><label for="dcLatitude">Breedtegraad (°)</label><input type="number" id="dcLatitude" step="0.1" min="-90" max="90" value="${dcSettings.latitudeDeg}"></div>
+          <div><label for="dcAzimuth">Schietrichting (°)</label><input type="number" id="dcAzimuth" step="1" min="0" max="359" placeholder="onbekend" value="${dcSettings.azimuthDeg}"></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+          <button type="button" class="printbtn st-btn-secondary" id="dcLatBtn" style="width:auto;padding:9px 16px;">Breedtegraad via locatie</button>
+          <button type="button" class="printbtn st-btn-secondary" id="dcCompassBtn" style="width:auto;padding:9px 16px;">Richting via kompas</button>
+        </div>
+        <p class="hint" id="dcCoriolisHint">Schietrichting = kompasrichting van jou naar het doel (0 = noord, 90 = oost). Op het noordelijk halfrond wijkt de kogel iets naar rechts af; naar het oosten schiet je iets hoger, naar het westen iets lager. Leeg = richting onbekend: dan alleen het horizontale deel. Kompas: houd de telefoon plat, met de bovenkant naar het doel.</p>
+      </div>
+      <p class="hint">Deze correcties zitten in de elevatie (aerodynamic jump, kop-/meewind, verticale Coriolis) en in de windage-stand <strong>TOTAAL</strong> (wind + spindrift + horizontale Coriolis) — dat is wat een Kestrel als windage toont. Een doel met een hoek wordt exact doorgerekend.</p>
+    </fieldset>
+
+    <fieldset class="dryfire-mode-fieldset">
       <legend>Kaart</legend>
       <div class="row2">
         <div><label for="dcRangeStart">Start (m)</label><input type="number" id="dcRangeStart" step="10" value="${dcSettings.rangeStart}"></div>
@@ -1110,7 +1208,7 @@ function dcRenderSetup(root){
         <label><input type="radio" name="dcPrintMode" value="both" ${dcSettings.printMode==='both'?'checked':''}> Wind + spindrift apart</label>
         <label><input type="radio" name="dcPrintMode" value="combined" ${dcSettings.printMode==='combined'?'checked':''}> Gecombineerd</label>
       </div>
-      <p class="hint">Bij "Gecombineerd" wordt de spindrift automatisch bij de wind opgeteld of ervan afgehaald, afhankelijk van de windrichting op het moment van printen — geen aparte keuze nodig. Past het volledige afstandsbereik niet op één kaartje, dan worden er automatisch meerdere geprint.</p>
+      <p class="hint">Bij "Gecombineerd" worden spindrift en (indien aan) Coriolis automatisch bij de wind opgeteld of ervan afgehaald, afhankelijk van de windrichting op het moment van printen — geen aparte keuze nodig. De elevatie op het kaartje geldt voor de wind die erop staat (kop-/meewind en aerodynamic jump zitten erin). Past het volledige afstandsbereik niet op één kaartje, dan worden er automatisch meerdere geprint.</p>
       <button type="button" class="printbtn st-btn-secondary" id="dcPrintBtn" style="width:100%;padding:14px;">Print Dope Card</button>
     </fieldset>
 
@@ -1134,6 +1232,47 @@ function dcRenderSetup(root){
     dcSettings.printMode = root.querySelector('input[name="dcPrintMode"]:checked').value;
     dcSettings.wristMode = root.querySelector('input[name="dcWrist"]:checked').value;
     dcSettings.theme = root.querySelector('input[name="dcTheme"]:checked').value;
+    const num = (id, fallback) => { const v = parseFloat(root.querySelector(id).value); return isNaN(v) ? fallback : v; };
+    dcSettings.envHumidityPct = Math.max(0, Math.min(100, num('#dcHumidity', 50)));
+    const pt = root.querySelector('#dcPowderTemp').value.trim();
+    dcSettings.powderTempC = pt === '' || isNaN(parseFloat(pt)) ? '' : parseFloat(pt);
+    dcSettings.aeroJump = root.querySelector('#dcAeroJump').checked;
+    dcSettings.coriolis = root.querySelector('#dcCoriolis').checked;
+    dcSettings.latitudeDeg = Math.max(-90, Math.min(90, num('#dcLatitude', 52.1)));
+    const az = root.querySelector('#dcAzimuth').value.trim();
+    dcSettings.azimuthDeg = az === '' || isNaN(parseFloat(az)) ? '' : ((parseFloat(az) % 360) + 360) % 360;
+  }
+  // Wat de geavanceerde correcties met het actieve profiel doen — direct
+  // zichtbaar, zodat duidelijk is of er iets ontbreekt (bv. twist/lengte).
+  function renderAdvancedHints(){
+    const profile = dcGetActiveProfile();
+    const P = window.AppliedConceptsProfiles;
+    const input = profile ? P.toBallisticsInput(profile) : null;
+    const mvHint = root.querySelector('#dcMvHint');
+    const ajHint = root.querySelector('#dcAjHint');
+    root.querySelector('#dcCoriolisWrap').hidden = !dcSettings.coriolis;
+    if(!profile || !input){ mvHint.textContent = ''; ajHint.textContent = ''; return; }
+    const dp = P.dopeParams(profile);
+    const refMs = input.muzzleVelocityFps / BALLISTICS_FT_PER_M_DC;
+    const adj = dcAdjustedMvFps(profile, input);
+    if(dp.mvSensMsPerC == null || dp.mvRefTempC == null){
+      mvHint.textContent = 'Dit profiel heeft geen V0-temperatuurgegevens (V0 gemeten bij °C + V0-verandering per °C) — de V0 blijft ' + refMs.toFixed(0) + ' m/s. Vul ze in bij Wapenprofielen om de V0 met de kruittemperatuur mee te laten gaan.';
+    } else if(adj == null){
+      mvHint.textContent = 'Vul de kruittemperatuur in om de V0 te corrigeren (in density altitude-modus is de luchttemperatuur onbekend).';
+    } else {
+      const tp = dcPowderTempC();
+      mvHint.textContent = `V0 bij ${tp} °C kruit: ${(adj / BALLISTICS_FT_PER_M_DC).toFixed(0)} m/s (gemeten: ${refMs.toFixed(0)} m/s bij ${dp.mvRefTempC} °C, ${dp.mvSensMsPerC} m/s per °C).`;
+    }
+    const spin = P.spinDriftParams(profile);
+    if(!spin){
+      ajHint.textContent = 'Spindrift en aerodynamic jump hebben kogelgewicht, -diameter, -lengte en twist rate van het profiel nodig — die ontbreken nu, dus deze twee worden niet meegerekend.';
+    } else {
+      const atm = dcAtmosphere();
+      const B = window.AppliedConceptsBallistics;
+      const sg = B.millerStability(Object.assign({}, spin, adj ? { muzzleVelocityFps: adj } : {})) / (atm.densityFactor || 1);
+      const ajMil = B.aeroJumpMilPerMps(sg, spin.bulletLengthIn, spin.bulletDiameterIn, dp.twistDir);
+      ajHint.textContent = `Stabiliteit (SG) ${sg.toFixed(2)}${sg < 1.4 ? ' — let op: onder 1,4 is de kogel marginaal stabiel' : ''}. Aerodynamic jump: ${Math.abs(ajMil*5).toFixed(2)} mil per 5 m/s zijwind (${dp.twistDir === 'L' ? 'linksdraaiend' : 'rechtsdraaiend'}: wind van rechts → treffer ${ajMil >= 0 ? 'hoger' : 'lager'}).`;
+    }
   }
   function renderPreview(){
     const f = dcFitCheck();
@@ -1150,11 +1289,8 @@ function dcRenderSetup(root){
   function renderDaReadout(){
     const readout = root.querySelector('#dcDaReadout');
     if(!readout || dcSettings.envMode === 'da') return;
-    const atmInput = { tempC: dcSettings.envTempC };
-    if(dcSettings.envMode === 'pressure') atmInput.pressureHpa = dcSettings.envPressureHpa;
-    else atmInput.altitudeM = dcSettings.envAltitudeM;
     const B = window.AppliedConceptsBallistics;
-    const densityFactor = B.computeAtmosphere(atmInput).densityFactor;
+    const densityFactor = dcAtmosphere().densityFactor; // incl. luchtvochtigheid, net als een Kestrel
     const daFt = B.densityAltitudeFromFactor(densityFactor) * BALLISTICS_FT_PER_M_DC;
     readout.innerHTML = `<strong>≈ Density altitude: ${daFt.toFixed(0)} ft</strong> — ter controle tegen je eigen meter.`;
   }
@@ -1183,6 +1319,7 @@ function dcRenderSetup(root){
     syncFromForm();
     renderPreview();
     renderDaReadout();
+    renderAdvancedHints();
   });
 
   root.querySelector('#dcUseLocationBtn').addEventListener('click', () => {
@@ -1237,8 +1374,58 @@ function dcRenderSetup(root){
     dcPrintDopeCard();
   });
 
+  root.querySelector('#dcLatBtn').addEventListener('click', () => {
+    const hint = root.querySelector('#dcCoriolisHint');
+    if(!navigator.geolocation){ hint.textContent = 'Locatievoorziening niet beschikbaar op dit toestel — vul de breedtegraad handmatig in (Nederland ≈ 51–53°).'; return; }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = Math.round(pos.coords.latitude * 10) / 10;
+        root.querySelector('#dcLatitude').value = lat;
+        dcSettings.latitudeDeg = lat;
+        hint.textContent = `Breedtegraad ingevuld via locatie: ${lat}°.`;
+      },
+      () => { hint.textContent = 'Locatie niet beschikbaar (toegang geweigerd of mislukt) — vul de breedtegraad handmatig in (Nederland ≈ 51–53°).'; },
+      { enableHighAccuracy: false, timeout: 10000 }
+    );
+  });
+
+  // Eén kompasmeting: iOS geeft webkitCompassHeading (graden t.o.v. het
+  // magnetische noorden, ~2° naast het ware noorden in NL — verwaarloosbaar
+  // voor Coriolis); elders deviceorientationabsolute (alpha, tegen de klok in).
+  root.querySelector('#dcCompassBtn').addEventListener('click', async () => {
+    const hint = root.querySelector('#dcCoriolisHint');
+    try {
+      if(typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'){
+        const res = await DeviceOrientationEvent.requestPermission();
+        if(res !== 'granted'){ hint.textContent = 'Geen toegang tot het kompas — vul de schietrichting handmatig in.'; return; }
+      }
+    } catch(e){ hint.textContent = 'Geen toegang tot het kompas — vul de schietrichting handmatig in.'; return; }
+    hint.textContent = 'Kompas lezen… houd de telefoon plat, bovenkant naar het doel.';
+    const evName = ('ondeviceorientationabsolute' in window) ? 'deviceorientationabsolute' : 'deviceorientation';
+    let done = false;
+    const onOrient = (e) => {
+      let heading = null;
+      if(typeof e.webkitCompassHeading === 'number') heading = e.webkitCompassHeading;
+      else if(e.absolute && typeof e.alpha === 'number') heading = (360 - e.alpha) % 360;
+      if(heading == null || done) return;
+      done = true;
+      window.removeEventListener(evName, onOrient);
+      const az = Math.round(heading);
+      root.querySelector('#dcAzimuth').value = az;
+      dcSettings.azimuthDeg = az;
+      hint.textContent = `Schietrichting ingevuld via kompas: ${az}°.`;
+    };
+    window.addEventListener(evName, onOrient);
+    setTimeout(() => {
+      if(done) return;
+      window.removeEventListener(evName, onOrient);
+      hint.textContent = 'Geen kompas beschikbaar op dit toestel — vul de schietrichting handmatig in.';
+    }, 4000);
+  });
+
   renderPreview();
   renderDaReadout();
+  renderAdvancedHints();
 }
 
 /* ======================= INIT ======================= */

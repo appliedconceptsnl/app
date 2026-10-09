@@ -928,6 +928,14 @@
   /* ---- Dope Card: setup screen (normal app layout) ---- */
   .dc-hob-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
   .dc-preview-box{background:#0c0c0a;border:1px solid var(--line);border-radius:var(--radius-sm);padding:12px 14px;margin:14px 0;font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--cream-dim);}
+  /* PDF-export (iPhone/iPad, js/pdfexport.js): "PDF maken…" -> "Delen / opslaan". */
+  .ac-pdf-overlay{position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:16px;}
+  .ac-pdf-box{width:100%;max-width:420px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:20px;color:var(--cream);}
+  .ac-pdf-title{font-family:'Oswald',sans-serif;font-size:18px;letter-spacing:.03em;text-transform:uppercase;margin-bottom:8px;}
+  .ac-pdf-box .hint{margin:0 0 14px;}
+  .ac-paper-choice{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .ac-paper-choice .printbtn{padding:16px 10px;font-size:20px;display:flex;flex-direction:column;align-items:center;gap:4px;}
+  .ac-paper-choice .printbtn span{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0;text-transform:none;opacity:.75;}
   .dc-preview-box.dc-preview-warn{border-color:var(--danger);color:#f0b39e;}
   .dc-preview-box strong{color:var(--cream);}
   .dc-noprofile{background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius);padding:16px;text-align:center;}
