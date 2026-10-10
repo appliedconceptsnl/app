@@ -1177,9 +1177,11 @@ function dcVoiceBegin(){
     for(let i = e.resultIndex; i < e.results.length; i++){
       const r = e.results[i];
       // Eerste alternatief; bij cue/hold het eerste dat een afstand bevat.
-      let text = r[0].transcript;
-      if(dcVoice.mode !== 'idle'){ for(let k = 0; k < r.length; k++){ if(dcParseMoverSpeech(r[k].transcript).dist != null){ text = r[k].transcript; break; } } }
-      dcVoiceHandle(i, text, r.isFinal);
+      const alts = []; for(let k = 0; k < r.length; k++) alts.push(r[k].transcript);
+      let text = alts[0];
+      if(dcVoice.mode !== 'idle'){ for(let k = 0; k < alts.length; k++){ if(dcParseMoverSpeech(alts[k]).dist != null){ text = alts[k]; break; } } }
+      dcVoiceHeard(text, r.isFinal);
+      dcVoiceHandle(i, text, r.isFinal, alts);
     }
   };
   rec.onerror = (e) => {
@@ -1194,11 +1196,13 @@ function dcVoiceBegin(){
     if(dcVoice.rec === rec) dcVoice.rec = null;
     if(!dcVoice.active || dcVoice.suspended) return;
     // Snel herhalende korte sessies (iets mis) -> rustiger herstarten.
+    // iOS beëindigt een sessie na elke zin: dan zo snel mogelijk opnieuw (anders mis je het begin
+    // van de volgende zin); alleen bij echt razendsnelle herhaling (<250 ms) wat rustiger.
     const lived = Date.now() - dcVoice.startedAt;
-    dcVoice.backoff = lived < 700 ? Math.min(dcVoice.backoff * 2, 3000) : 150;
+    dcVoice.backoff = lived < 250 ? Math.min(dcVoice.backoff * 2 + 100, 2000) : 40;
     setTimeout(dcVoiceBegin, dcVoice.backoff);
   };
-  try { rec.start(); } catch(e){ dcVoice.rec = null; }
+  try { rec.start(); } catch(e){ dcVoice.rec = null; setTimeout(dcVoiceBegin, 300); } // niet voorgoed stoppen als start() even weigert
   dcVoiceUpdateUi();
 }
 function dcVoiceRestart(){
@@ -1232,7 +1236,32 @@ function dcVoiceToggle(){
 
 /* ---- Zinnen -> acties ---- */
 function dcVoiceNorm(raw){ return dcNormalizeSpeech(String(raw || '').replace(/(\d)[.,](\d)/g, '$1 komma $2').replace(/(^|\s)[.,](\d)/g, '$1 komma $2')); }
-const DC_MOVER_WORD = /\bm(?:oe|ou|oo|o|u)v(?:er|ers|ar|a)s?\b/g;
+// "mover" wordt door de Nederlandse herkenner op iOS vaak anders geschreven
+// (movers, moeder, mouwer, move over, ...): losse vergelijking op afstand.
+const DC_MOVER_ALIASES = new Set(['movers','moeder','mouwer','mauwer','muver','moover','moffer','movar','mover','mowver','moeverr','mooier','mouver']);
+// Gewone woorden die op "mover" lijken maar het niet zijn ("meter" komt in elk commando voor).
+const DC_MOVER_NOT = new Set(['over','moer','meer','maar','meter','meters','motor','mooi','moeten','meten','weer','mijn','noem','noemen','lever','mover'.slice(0,0)||'lever','nover','rover','boven','dover','hoever','zover']);
+function dcLev(a, b){
+  const d = []; for(let i = 0; i <= a.length; i++){ d[i] = [i]; } for(let j = 1; j <= b.length; j++) d[0][j] = j;
+  for(let i = 1; i <= a.length; i++) for(let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i-1][j] + 1, d[i][j-1] + 1, d[i-1][j-1] + (a[i-1] === b[j-1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+function dcIsMoverWord(w){
+  if(DC_MOVER_ALIASES.has(w)) return true;
+  if(w.length < 4 || w.length > 8 || DC_MOVER_NOT.has(w)) return false;
+  const d = dcLev(w, 'mover');
+  return d <= 1 || (d <= 2 && w[0] === 'm' && w.length >= 5);
+}
+function dcMoverHitCount(t){
+  const w = t.split(' ');
+  let n = 0;
+  for(let i = 0; i < w.length; i++){
+    if(w[i] === 'move' && w[i + 1] === 'over'){ n += 2; i++; continue; }
+    if(dcIsMoverWord(w[i])) n++;
+  }
+  return n;
+}
+const DC_WIND_TRIGGER = /\bwi?n?d? ?corr?e?c?t\w*|\bwindcorr\w*|\bcorrecti\w*|\bcorrigeer\w*|\bwind (?:correct|corrigeren)\w*/;
 function dcSetMode(mode, timeoutMs){
   dcVoice.mode = mode;
   clearTimeout(dcVoice.modeTimer);
@@ -1241,9 +1270,10 @@ function dcSetMode(mode, timeoutMs){
   }, timeoutMs);
   dcVoiceUpdateUi();
 }
-function dcVoiceHandle(idx, raw, final){
+function dcVoiceHandle(idx, raw, final, alts){
   const t = dcVoiceNorm(raw);
   if(!t) return;
+  const allT = (alts && alts.length ? alts : [raw]).map(dcVoiceNorm);
   // 1) korte commando's: de hele zin is dat ene woord
   if(idx !== dcVoice.execIdx && /^(?:ok(?:e|ay)? )?klaar$/.test(t) && dcScreen === 'mover'){
     dcVoice.execIdx = idx; dcBeep('done'); dcVoiceLeaveMover(); return;
@@ -1251,24 +1281,42 @@ function dcVoiceHandle(idx, raw, final){
   if(idx !== dcVoice.execIdx && /^terug$/.test(t) && dcVoice.windUndo){
     dcVoice.execIdx = idx; dcUndoWind(); return;
   }
-  // 2) triggers
-  const moverHits = (t.match(DC_MOVER_WORD) || []).length;
-  if(moverHits >= 2 && idx !== dcVoice.trigIdx){
-    dcVoice.trigIdx = idx;
+  // 2) triggers — over alle alternatieven, en "mover" + "mover" mag ook over twee
+  // opeenvolgende resultaten (iOS knipt soms midden in de zin) binnen 3 s.
+  const now = Date.now();
+  const moverHits = Math.max(...allT.map(dcMoverHitCount));
+  let moverTrig = moverHits >= 2;
+  if(!moverTrig && moverHits === 1 && idx !== dcVoice.trigIdx && t.split(' ').length <= 2){ // los "mover" telt alleen mee als het resultaat heel kort is
+    if(dcVoice.lastMoverAt && now - dcVoice.lastMoverAt < 3000 && idx !== dcVoice.lastMoverIdx) moverTrig = true;
+    else { dcVoice.lastMoverAt = now; dcVoice.lastMoverIdx = idx; }
+  }
+  if(moverTrig && idx !== dcVoice.trigIdx){
+    dcVoice.trigIdx = idx; dcVoice.lastMoverAt = 0;
     dcVoiceStartMover();
-  } else if(/\bwind\b.*\bcorrecti?e?s?\b|\bwindcorrecti?e?s?\b/.test(t) && idx !== dcVoice.trigIdx){
+  } else if(allT.some(x => DC_WIND_TRIGGER.test(x)) && idx !== dcVoice.trigIdx){
     dcVoice.trigIdx = idx;
     dcVoiceStartWind();
   }
   if(idx === dcVoice.execIdx) return;
   // 3) inhoud van de cue / de hold (alles ná het triggerwoord)
   if(dcVoice.mode === 'mover'){
-    const afterTrig = t.replace(/^.*\bm(?:oe|ou|oo|o|u)v(?:er|ers|ar|a)s?\b/, '');
+    const afterTrig = t.split(' ').filter(w => !dcIsMoverWord(w) && w !== 'move').join(' ');
     dcVoiceMoverCue(idx, afterTrig, final);
   } else if(dcVoice.mode === 'wind'){
-    const afterTrig = t.replace(/^.*\bcorrecti?e?s?\b/, '').replace(/^.*\bwindcorrecti?e?s?\b/, '');
+    const afterTrig = t.replace(/^.*?\b\w*corr\w*/, '').replace(/^.*?\bwind\b/, '').trim();
     dcVoiceWindCue(idx, afterTrig, final);
   }
+}
+// Klein regeltje onderaan: wat de app net verstond — zichtbaar maken helpt bij het bijstellen.
+function dcVoiceHeard(text, final){
+  if(!dcOverlayEl) return;
+  const rotor = dcOverlayEl.querySelector('.dc-rotor') || dcOverlayEl;
+  let el = rotor.querySelector('.dc-voice-heard');
+  if(!el){ el = document.createElement('div'); el.className = 'dc-voice-heard'; rotor.appendChild(el); }
+  el.textContent = '🎤 ' + text;
+  el.classList.toggle('final', !!final);
+  clearTimeout(dcVoice.heardTimer);
+  dcVoice.heardTimer = setTimeout(() => { const e = rotor.querySelector('.dc-voice-heard'); if(e) e.remove(); }, 4000);
 }
 function dcVoiceStartMover(){
   dcBeep('ack');
@@ -1316,6 +1364,7 @@ function dcParseHoldSpeech(t){
   let run = [], runDigits = '';
   const flush = () => { if(run.length){ toks.push({ t:'n', v:dcNlValue(run.filter(x => x.p).map(x => x.p)), d:runDigits }); run = []; runDigits = ''; } };
   t.split(' ').forEach(w => {
+    if(/^0\d+$/.test(w)){ flush(); toks.push({ t:'n', v:parseFloat('0.' + w.slice(1)), d:w }); return; } // "08" = 0,8
     if(/^\d+$/.test(w)){ flush(); toks.push({ t:'n', v:parseInt(w, 10), d:w }); return; }
     if(w === 'komma' || w === 'punt'){ flush(); toks.push({ t:'k' }); return; }
     if(w === 'links' || w === 'rechts'){ flush(); toks.push({ t:'dir', v:w === 'rechts' ? 'R' : 'L' }); return; }
@@ -1353,14 +1402,16 @@ function dcParseHoldSpeech(t){
 }
 function dcVoiceWindCue(idx, text, final){
   const p = dcParseHoldSpeech(text);
-  const ok = p.dist != null && p.dir && p.hold != null && p.hold > 0 && p.hold <= 15 && p.holdComplete;
+  const ok = p.dist != null && p.dir && p.hold != null && p.hold > 0 && p.hold <= 6 && p.holdComplete; // meer dan 6 mil wind-hold is vrijwel zeker verkeerd verstaan
   clearTimeout(dcVoice.autoTimer);
   const run = () => {
     clearTimeout(dcVoice.autoTimer);
     if(idx === dcVoice.execIdx) return;
     dcVoice.execIdx = idx;
     if(!ok || !dcApplyWindCorrection(p.dist, p.dir, p.hold)){
-      dcBeep('err'); dcVoiceBanner('Wind correctie niet verstaan — zeg bv. "500 meter links 1 punt 2"', 3000);
+      dcBeep('err');
+      dcVoiceBanner(dcVoice.windErr || (p.hold > 6 ? `Hold ${p.hold} te groot — verstaan als "${text.trim()}". Herhaal.` : `Niet verstaan ("${text.trim()}") — zeg bv. "500 meter links punt acht"`), 4500);
+      dcVoice.windErr = '';
     }
     dcSetMode(dcScreen === 'mover' ? 'mover' : 'idle');
   };
@@ -1376,6 +1427,7 @@ function dcApplyWindCorrection(dist, dir, hold){
   // Spindrift en Coriolis zijn al in de totaalhold verwerkt; de rest is wind.
   const windHold = signed - (dcSpinHoldSigned(row) || 0) - dcCoriolisHoldSigned(row);
   const cross = windHold / row.driftMilPerMps; // m/s, + = van rechts
+  if(Math.abs(cross) > 12){ dcVoice.windErr = `Wind ${Math.round(Math.abs(cross) * DC_MPH_PER_MS)} mph is onwaarschijnlijk — verstaan: ${dir === 'R' ? 'R' : 'L'}${hold}. Herhaal.`; return false; }
   const prev = { speedMps: dcWind.speedMps, angleDeg: dcWind.angleDeg };
   let angle = dcWind.angleDeg;
   const sin = Math.sin(angle * Math.PI / 180);

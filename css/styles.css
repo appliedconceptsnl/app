@@ -1003,6 +1003,8 @@
   .dc-strip-mic span{display:block;font-size:8px;letter-spacing:.04em;margin-top:2px;opacity:.7;}
   .dc-strip-mic.on{color:#2e8b4a;}
   .dc-strip-mic.arm{color:#c9332a;animation:dcPulse 1s infinite;}
+  .dc-voice-heard{position:absolute;left:8px;bottom:4px;right:64px;font-size:11px;color:var(--dcdim);background:var(--dcbg);padding:2px 6px;z-index:4;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .dc-voice-heard.final{color:var(--dcfg);}
   .dc-voice-banner{position:absolute;left:50%;top:6px;transform:translateX(-50%);max-width:80%;background:var(--dcfg);color:var(--dcbg);font-size:12px;font-weight:700;padding:6px 12px;z-index:5;text-align:center;pointer-events:none;}
   .dc-help-screen{flex:1 1 auto;display:flex;flex-direction:column;min-height:0;padding:6px 14px;}
   .dc-help-head{display:flex;align-items:center;gap:14px;flex:0 0 auto;}
