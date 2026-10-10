@@ -1048,6 +1048,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v2.16', date:'10-10-2026', items:[
+      'Spraakbesturing op Android (Samsung/Chrome): Chrome knipt één zin in losse stukjes ("300", "300 meter", "300 meter links punt 2") en meldt elk stukje als klaar; de app gaf daardoor meteen "niet verstaan" op het eerste stukje ("300"). Nu worden de stukjes samengevoegd en wordt pas uitgevoerd als afstand, richting en hold compleet zijn; blijft het onvolledig, dan volgt na 3,5 seconde de foutpiep. Ook worden herhalingen van dezelfde zin niet meer als nieuwe commando\'s gezien, en "links.2" (zonder spatie) wordt 0,2.',
+    ]},
     { version:'v2.15', date:'10-10-2026', items:[
       'MOVER: de lead wordt nu ook handsfree uitgesproken op iPhone. iOS laat een stem alleen toe na een tik en is stil zolang de microfoon luistert: de stem wordt nu bij het openen van de Dope Card (en bij elke tik) ontgrendeld, en de herkenning stopt tijdens het praten en start daarna schoon opnieuw. Start de stem toch niet, dan staat de lead in beeld en herhaalt één tik op het scherm hem hardop.',
       'Spraaklog: in de Dope Card-instellingen staat "Kopieer spraaklog" — wat de app hoorde en deed, om gericht te kunnen verbeteren.',

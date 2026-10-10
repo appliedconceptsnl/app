@@ -1111,7 +1111,7 @@ function dcOpenMover(){
    Piepen: 1 hoge = herkend/ga praten · 2 korte = niet verstaan · 1 lage = klaar.
    Tijdens piepen en terugpraten wordt de herkenning genegeerd en daarna
    schoon herstart, zodat de app zichzelf niet "hoort". */
-const dcVoice = { active:false, suspended:false, rec:null, mode:'idle', ignore:false, execIdx:-1, trigIdx:-1,
+const dcVoice = { quietUntil:0, lastTrigAt:0, cue:{}, failTimer:null, active:false, suspended:false, rec:null, mode:'idle', ignore:false, execIdx:-1, trigIdx:-1,
   startedAt:0, backoff:150, autoTimer:null, modeTimer:null, ignoreTimer:null, bannerText:'', bannerTimer:null, windUndo:null, netWarned:false };
 
 /* ---- Piepjes (WebAudio) ---- */
@@ -1270,7 +1270,7 @@ function dcVoiceToggle(){
 function dcVoiceNorm(raw){
   let r = String(raw || '');
   r = r.replace(/(\d)[.,](\d)/g, '$1 komma $2').replace(/(^|\s)[.,](\d)/g, '$1 komma $2');
-  r = r.replace(/[.,;:!?]+\s+(?=[\p{L}\d])/gu, ' punt ');
+  r = r.replace(/([a-zA-Z])[.,](?=\d)/g, '$1 punt ').replace(/[.,;:!?]+\s+(?=[\p{L}\d])/gu, ' punt ');
   r = r.replace(/(\d)(?=[a-zA-Z])/g, '$1 ').replace(/([a-zA-Z])(?=\d)/g, '$1 ');
   return dcNormalizeSpeech(r);
 }
@@ -1327,17 +1327,19 @@ function dcVoiceHandle(idx, raw, final, alts){
   // 2) triggers — over alle alternatieven, en "mover" + "mover" mag ook over twee
   // opeenvolgende resultaten (iOS knipt soms midden in de zin) binnen 3 s.
   const now = Date.now();
+  const quiet = now < dcVoice.quietUntil || now - (dcVoice.lastTrigAt || 0) < 2500; // cumulatieve herhalingen van dezelfde zin niet opnieuw laten triggeren
   const moverHits = Math.max(...allT.map(dcMoverHitCount));
   let moverTrig = moverHits >= 2;
   if(!moverTrig && moverHits === 1 && idx !== dcVoice.trigIdx && t.split(' ').length <= 2){ // los "mover" telt alleen mee als het resultaat heel kort is
     if(dcVoice.lastMoverAt && now - dcVoice.lastMoverAt < 3000 && idx !== dcVoice.lastMoverIdx) moverTrig = true;
     else { dcVoice.lastMoverAt = now; dcVoice.lastMoverIdx = idx; }
   }
-  if(moverTrig && idx !== dcVoice.trigIdx){
-    dcVoice.trigIdx = idx; dcVoice.lastMoverAt = 0;
+  if(quiet){ /* nog bezig met dezelfde zin */ }
+  else if(moverTrig && idx !== dcVoice.trigIdx){
+    dcVoice.trigIdx = idx; dcVoice.lastMoverAt = 0; dcVoice.lastTrigAt = now;
     dcVoiceStartMover();
   } else if(allT.some(x => DC_WIND_TRIGGER.test(x)) && idx !== dcVoice.trigIdx){
-    dcVoice.trigIdx = idx;
+    dcVoice.trigIdx = idx; dcVoice.lastTrigAt = now;
     dcVoiceStartWind();
   }
   if(idx === dcVoice.execIdx) return;
@@ -1362,7 +1364,7 @@ function dcVoiceHeard(text, final){
   dcVoice.heardTimer = setTimeout(() => { const e = rotor.querySelector('.dc-voice-heard'); if(e) e.remove(); }, 4000);
 }
 function dcVoiceStartMover(){
-  dcVoiceLogPush('TRIGGER', 'mover'); dcBeep('ack');
+  dcCueReset(); dcVoiceLogPush('TRIGGER', 'mover'); dcBeep('ack');
   if(dcScreen !== 'mover'){ dcMoverStatus = 'listening'; dcMoverMsg = ''; dcMoverHeard = ''; dcGoScreen('mover'); }
   else { dcMoverStatus = 'listening'; dcMoverHeard = ''; dcMoverRefresh(); }
   dcSetMode('mover');
@@ -1374,33 +1376,42 @@ function dcVoiceLeaveMover(){
   dcGoScreen('dope');
 }
 function dcVoiceStartWind(){
-  dcVoiceLogPush('TRIGGER', 'wind correctie'); dcBeep('ack');
+  dcCueReset(); dcVoiceLogPush('TRIGGER', 'wind correctie'); dcBeep('ack');
   dcSetMode('wind', 9000);
   dcVoiceBanner('WIND CORRECTIE — zeg afstand, richting en hold', 9000);
 }
 // Mover-cue binnen de doorlopende sessie.
+// Android-Chrome knipt één zin in losse stukjes en meldt elk stukje als "klaar" ("300", dan
+// "300 meter", dan "300 meter links punt 2"), soms ook nog cumulatief herhaald. Dus: wat in
+// de laatste seconden is verstaan wordt samengevoegd (dcVoice.cue) en pas uitgevoerd als het
+// compleet is; blijft het onvolledig, dan volgt na 3,5 s de foutpiep — nooit meteen op het eerste stukje.
+function dcCueReset(){ dcVoice.cue = {}; clearTimeout(dcVoice.autoTimer); clearTimeout(dcVoice.failTimer); }
+function dcCueHasContent(c){ return c.dist != null || c.dir || c.speed || c.hold != null; }
 function dcVoiceMoverCue(idx, text, final){
+  if(Date.now() < dcVoice.quietUntil) return;
   const parsed = dcParseMoverSpeech(text);
-  if(final) dcVoiceLogPush('CUE', text + ' => ' + JSON.stringify(parsed));
-  if(parsed.dist != null) dcMover.dist = parsed.dist;
-  if(parsed.dir) dcMover.dir = parsed.dir;
-  if(parsed.speed) dcMover.speed = parsed.speed;
+  const c = dcVoice.cue || (dcVoice.cue = {});
+  ['dist', 'dir', 'speed'].forEach(k => { if(parsed[k] != null) c[k] = parsed[k]; });
+  if(final) dcVoiceLogPush('CUE', text + ' => ' + JSON.stringify(c));
+  if(c.dist != null) dcMover.dist = c.dist;
+  if(c.dir) dcMover.dir = c.dir;
+  if(c.speed) dcMover.speed = c.speed;
   dcMoverHeard = text.trim();
-  const run = () => {
-    clearTimeout(dcVoice.autoTimer);
-    if(idx === dcVoice.execIdx) return;
-    dcVoice.execIdx = idx;
-    dcMoverSave();
-    if(dcMover.dist == null || !(dcMover.dist >= DC_MOVER_MIN_M && dcMover.dist <= DC_MOVER_MAX_M) || !parsed.dir){
-      dcBeep('err'); dcMoverStatus = 'error'; dcMoverMsg = parsed.dist == null ? 'Afstand niet verstaan' : 'Richting niet verstaan';
-    } else { dcMoverStatus = 'heard'; dcMoverSpeakResult(); }
-    dcMoverRefresh();
-  };
   dcMoverRefresh();
-  clearTimeout(dcVoice.autoTimer);
-  const complete = parsed.dist != null && parsed.dir && parsed.speed;
-  if(final && (parsed.dist != null || parsed.dir || parsed.speed)) run();
-  else if(complete) dcVoice.autoTimer = setTimeout(run, 450);
+  clearTimeout(dcVoice.autoTimer); clearTimeout(dcVoice.failTimer);
+  const run = () => {
+    dcVoiceLogPush('RUN', 'mover ' + JSON.stringify(c));
+    dcVoice.quietUntil = Date.now() + 2500;
+    dcMoverSave(); dcCueReset();
+    dcMoverStatus = 'heard'; dcMoverSpeakResult(); dcMoverRefresh();
+  };
+  const fail = () => {
+    dcVoiceLogPush('FAIL', 'mover ' + JSON.stringify(c));
+    dcBeep('err'); dcMoverStatus = 'error'; dcMoverMsg = c.dist == null ? 'Afstand niet verstaan' : 'Richting niet verstaan';
+    dcCueReset(); dcMoverRefresh();
+  };
+  if(c.dist != null && c.dir) dcVoice.autoTimer = setTimeout(run, c.speed ? (final ? 150 : 450) : 1200); // zonder snelheidswoord: even wachten of die nog komt
+  else if(dcCueHasContent(c)) dcVoice.failTimer = setTimeout(fail, 3500);
 }
 /* ---- "wind correctie": hold -> werkelijke wind ---- */
 function dcParseHoldSpeech(t){
@@ -1446,24 +1457,38 @@ function dcParseHoldSpeech(t){
   return res;
 }
 function dcVoiceWindCue(idx, text, final){
+  if(Date.now() < dcVoice.quietUntil) return;
   const p = dcParseHoldSpeech(text);
-  if(final) dcVoiceLogPush('HOLD', text + ' => ' + JSON.stringify(p));
-  const ok = p.dist != null && p.dir && p.hold != null && p.hold > 0 && p.hold <= 6 && p.holdComplete; // meer dan 6 mil wind-hold is vrijwel zeker verkeerd verstaan
-  clearTimeout(dcVoice.autoTimer);
+  const c = dcVoice.cue || (dcVoice.cue = {});
+  if(p.dist != null) c.dist = p.dist;
+  if(p.dir) c.dir = p.dir;
+  if('holdComplete' in p){ c.hold = p.hold; c.holdComplete = p.holdComplete; }
+  if(final) dcVoiceLogPush('HOLD', text + ' => ' + JSON.stringify(c));
+  const ok = c.dist != null && c.dir && c.hold != null && c.hold > 0 && c.hold <= 6 && c.holdComplete; // meer dan 6 mil wind-hold is vrijwel zeker verkeerd verstaan
+  clearTimeout(dcVoice.autoTimer); clearTimeout(dcVoice.failTimer);
+  const finish = () => {
+    clearTimeout(dcVoice.modeTimer);
+    dcVoice.quietUntil = Date.now() + 2500;
+    dcSetMode(dcScreen === 'mover' ? 'mover' : 'idle');
+    dcCueReset();
+  };
   const run = () => {
-    clearTimeout(dcVoice.autoTimer);
-    if(idx === dcVoice.execIdx) return;
-    dcVoice.execIdx = idx;
-    if(!ok || !dcApplyWindCorrection(p.dist, p.dir, p.hold)){
+    dcVoiceLogPush('RUN', 'wind ' + JSON.stringify(c));
+    if(!dcApplyWindCorrection(c.dist, c.dir, c.hold)){
       dcBeep('err');
-      dcVoiceBanner(dcVoice.windErr || (p.hold > 6 ? `Hold ${p.hold} te groot — verstaan als "${text.trim()}". Herhaal.` : `Niet verstaan ("${text.trim()}") — zeg bv. "500 meter links punt acht"`), 4500);
+      dcVoiceBanner(dcVoice.windErr || 'Wind correctie niet toegepast', 4500);
       dcVoice.windErr = '';
     }
-    dcSetMode(dcScreen === 'mover' ? 'mover' : 'idle');
+    finish();
   };
-  // Een afgeronde zin zonder bruikbare inhoud (anders dan alleen het triggerwoord) = direct foutpiep.
-  if(final && text.trim()) run();
-  else if(ok) dcVoice.autoTimer = setTimeout(run, 800); // wacht even: "1" kan nog "1 punt 2" worden
+  const fail = () => {
+    dcVoiceLogPush('FAIL', 'wind ' + JSON.stringify(c));
+    dcBeep('err');
+    dcVoiceBanner(c.hold > 6 ? `Hold ${c.hold} te groot — herhaal.` : c.dist == null ? 'Afstand niet verstaan — zeg bv. "500 meter links punt acht"' : !c.dir ? 'Richting niet verstaan' : 'Hold niet verstaan — zeg bv. "links punt acht"', 4500);
+    finish();
+  };
+  if(ok) dcVoice.autoTimer = setTimeout(run, final ? 250 : 800); // wacht even: "1" kan nog "1 punt 2" worden
+  else if(dcCueHasContent(c)) dcVoice.failTimer = setTimeout(fail, 3500);
 }
 // Totaalhold (zoals de kaart hem toont) op één afstand -> werkelijke zijwind.
 function dcApplyWindCorrection(dist, dir, hold){
