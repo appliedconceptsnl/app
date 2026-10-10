@@ -643,6 +643,7 @@ function dcStripHtml(){
     <button class="dc-strip-btn dc-strip-tgt${n===0?' dc-dim':''}" data-act="tgt">TGT<span>${n||''}</span></button>
     <button class="dc-strip-btn dc-strip-mic${dcVoice.active && !dcVoice.suspended ? ' on' : ''}" data-act="voice">MIC<span>${dcVoice.active ? 'AAN' : 'UIT'}</span></button>
     <button class="dc-strip-btn" data-act="theme">${dcSettings.theme==='day'?'☾':dcSettings.theme==='night'?'NV':'☀'}</button>
+    <button class="dc-strip-btn" data-act="help" aria-label="Gebruiksaanwijzing">?</button>
     <button class="dc-strip-btn" data-act="settings">⚙</button>
     <button class="dc-strip-btn" data-act="close">✕</button>
   </div>`;
@@ -662,6 +663,7 @@ function dcWireStrip(){
         dcSave(DC_SETTINGS_KEY, dcSettings); dcRenderFullscreen();
       }
       else if(act === 'voice') dcVoiceToggle();
+      else if(act === 'help') dcGoScreen(dcScreen === 'help' ? 'dope' : 'help');
       else if(act === 'settings') dcExitFullscreen('setup');
       else if(act === 'close') dcExitFullscreen('app');
     });
@@ -1403,6 +1405,40 @@ function dcUndoWind(){
   dcVoiceSpeakWind('Wind terug');
 }
 
+/* ======================= GEBRUIKSAANWIJZING ======================= */
+function dcHelpScreenHtml(){
+  return `<div class="dc-main"><div class="dc-help-screen">
+    <div class="dc-help-head"><button class="dc-wind-back" data-act="back">&larr; DOPE</button><span class="dc-help-title">GEBRUIKSAANWIJZING</span></div>
+    <div class="dc-help-body">
+      <div class="dc-help-col">
+        <h4>De kaart</h4>
+        <p>Per afstand: <b>elevatie</b> (mil, omhoog) en <b>windhold</b>. <b>R/L</b> = houd rechts/links van het doel. Alle waarden zijn in mil.</p>
+        <p><b>Tik op een afstand</b> = doel kiezen (max. 6). Ze staan onder <b>TGT</b>.</p>
+        <h4>Wind</h4>
+        <p><b>Tik op het windvak</b> = windscherm: sleep de wijzer naar de windrichting (klok, 12 = van voren), <b>swipe omhoog/omlaag</b> of &plusmn; voor snelheid.</p>
+        <p><b>WIND</b> = alleen wind &middot; <b>SPIN</b> = alleen spindrift &middot; <b>TOTAAL</b> = wind + spindrift + Coriolis (gebruik dit).</p>
+        <h4>Doelenkaart (TGT)</h4>
+        <p><b>NOTES</b>: sector/omschrijving. <b>HOEK</b>: schuin schot (+ omhoog, &minus; omlaag) &mdash; de elevatie wordt dan exact herberekend.</p>
+      </div>
+      <div class="dc-help-col">
+        <h4>Mover (bewegend doel)</h4>
+        <p>Tik <b>MOVER</b> of zeg <b>"mover mover"</b> (piep). Zeg dan: <b>afstand &middot; richting &middot; snelheid</b>, bv. <i>"600 naar rechts joggen"</i> (rustig wandelen / snel wandelen / joggen / rennen). Je hoort <b>richting, dan lead</b>, dan elevatie. Lead is inclusief wind. <b>"Klaar"</b> = terug naar de kaart.</p>
+        <h4>Wind correctie</h4>
+        <p>Zeg <b>"wind correctie"</b> (piep), dan bv. <i>"vijfhonderd meter links 1 punt 2"</i> = de totaalhold waarmee je <b>trof</b>. De app past de wind aan zodat de hele kaart klopt. <b>"Terug"</b> = vorige wind.</p>
+        <h4>Piepen</h4>
+        <p><b>1 hoge</b> = begrepen, praat nu &middot; <b>2 korte</b> = niet verstaan, zeg het opnieuw &middot; <b>1 lage</b> = verwerkt. Komt de piep niet, herhaal dan.</p>
+        <h4>Knoppen rechts</h4>
+        <p><b>MIC</b> spraak aan/uit &middot; <b>&#9790;/NV/&#9728;</b> dag-, nacht-, nachtzichtstand &middot; <b>&#9881;</b> instellingen &middot; <b>&times;</b> sluiten.</p>
+        <p class="dc-help-warn">Trainingshulp op basis van gemiddelde data: controleer altijd met echte schoten. Spraak heeft internet nodig.</p>
+      </div>
+    </div>
+  </div></div>${dcStripHtml()}`;
+}
+function dcWireHelpScreen(){
+  dcWireStrip();
+  dcOverlayEl.querySelectorAll('[data-act="back"]').forEach(b => b.addEventListener('click', () => dcGoScreen('dope')));
+}
+
 /* ---- Scherm B: Windscherm ---- */
 function dcDialSvg(){
   const cx=50, cy=50;
@@ -1591,12 +1627,13 @@ function dcRenderFullscreen(){
   if(!dcOverlayEl) return;
   dcOverlayEl.classList.remove('dc-theme-day','dc-theme-night','dc-theme-nv');
   dcOverlayEl.classList.add(dcSettings.theme === 'night' ? 'dc-theme-night' : dcSettings.theme === 'nv' ? 'dc-theme-nv' : 'dc-theme-day');
-  const inner = dcScreen === 'dope' ? dcDopeScreenHtml() : dcScreen === 'wind' ? dcWindScreenHtml() : dcScreen === 'angle' ? dcAngleScreenHtml() : dcScreen === 'mover' ? dcMoverScreenHtml() : dcTargetScreenHtml();
+  const inner = dcScreen === 'dope' ? dcDopeScreenHtml() : dcScreen === 'wind' ? dcWindScreenHtml() : dcScreen === 'angle' ? dcAngleScreenHtml() : dcScreen === 'mover' ? dcMoverScreenHtml() : dcScreen === 'help' ? dcHelpScreenHtml() : dcTargetScreenHtml();
   dcOverlayEl.innerHTML = `<div class="dc-rotor">${inner}</div>`;
   if(dcScreen === 'dope') dcWireDopeScreen();
   else if(dcScreen === 'wind') dcWireWindScreen();
   else if(dcScreen === 'angle') dcWireAngleScreen();
   else if(dcScreen === 'mover') dcWireMoverScreen();
+  else if(dcScreen === 'help') dcWireHelpScreen();
   else dcWireTargetScreen();
   dcVoiceRenderBanner(); dcVoiceUpdateUi();
 }
