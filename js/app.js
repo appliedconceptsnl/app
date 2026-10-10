@@ -1048,6 +1048,10 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v2.15', date:'10-10-2026', items:[
+      'MOVER: de lead wordt nu ook handsfree uitgesproken op iPhone. iOS laat een stem alleen toe na een tik en is stil zolang de microfoon luistert: de stem wordt nu bij het openen van de Dope Card (en bij elke tik) ontgrendeld, en de herkenning stopt tijdens het praten en start daarna schoon opnieuw. Start de stem toch niet, dan staat de lead in beeld en herhaalt één tik op het scherm hem hardop.',
+      'Spraaklog: in de Dope Card-instellingen staat "Kopieer spraaklog" — wat de app hoorde en deed, om gericht te kunnen verbeteren.',
+    ]},
     { version:'v2.14', date:'10-10-2026', items:[
       'Spraakbesturing op iPhone: de iPhone schrijft het gesproken "punt" als een punt ("links. twee"), waardoor een hold van 0,2 als 2 werd gelezen (en een wind van 28 mph gaf). Nu wordt dat terug een komma: "links punt twee" / "links. twee" = 0,2, "links punt vier" = 0,4. Ook "400m" (zonder spatie) wordt als 400 meter gelezen.',
       'Verkeerd verstane woorden herkend: "moer moer" = mover mover, "jokken" = joggen, "klaag"/"klaas"/"klar" = klaar.',

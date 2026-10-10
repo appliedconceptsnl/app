@@ -601,13 +601,15 @@ function dcEnterFullscreen(){
   dcApplyRotation();
   dcRenderFullscreen();
   dcAcquireWakeLock();
-  dcAudioUnlock();
+  dcAudioUnlock(); dcTtsUnlock();
+  dcOverlayEl.addEventListener('pointerdown', dcOnAnyTap);
   dcVoiceStart();
   window.addEventListener('resize', dcOnResize);
   document.addEventListener('visibilitychange', dcOnVisibility);
   dcOrientationMq = window.matchMedia('(orientation: portrait)');
   dcOrientationMq.addEventListener('change', dcApplyRotation);
 }
+function dcOnAnyTap(){ dcAudioUnlock(); dcTtsUnlock(); }
 function dcTeardownFullscreen(){
   if(!dcOverlayEl) return;
   dcStopRecog();
@@ -859,18 +861,29 @@ function dcMoverCompute(){
 function dcFmt1(v){ return Math.abs(v).toFixed(1); }
 
 /* ---- Terugpraten ---- */
-function dcSpeak(text){
-  if(dcSettings.moverSound === false || !('speechSynthesis' in window)) return;
+// iOS-regels voor tekst-naar-spraak: (1) alleen toegestaan nadat er één keer binnen een tik
+// "gesproken" is — handsfree is er geen tik, dus ontgrendelen we bij het openen van de kaart en
+// bij elke tik op het scherm; (2) met de microfoon open is de stem stil of heel zacht — dus de
+// herkenning wordt tijdens het praten gestopt (dcVoiceMute) en daarna schoon herstart.
+const dcTts = { unlocked:false, started:false, pending:null, watch:null };
+function dcTtsUnlock(){
+  if(!('speechSynthesis' in window)) return;
   try {
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    dcVoiceMute(); u.onend = dcVoiceUnmute;
-    u.lang = 'nl-NL'; u.rate = 1.15;
-    const v = window.speechSynthesis.getVoices().find(x => /^nl/i.test(x.lang));
-    if(v) u.voice = v;
+    const u = new SpeechSynthesisUtterance('​'); u.volume = 0;
     window.speechSynthesis.speak(u);
+    dcTts.unlocked = true;
+  } catch(e){}
+  if(dcTts.pending){ const t = dcTts.pending; dcTts.pending = null; dcVoiceBanner('', 1); setTimeout(() => dcSpeakParts(t[0], t[1], 400), 150); }
+}
+function dcVoiceLogPush(kind, text){
+  try {
+    dcVoiceLog.push(new Date().toTimeString().slice(0, 8) + ' ' + kind + ': ' + text);
+    if(dcVoiceLog.length > 80) dcVoiceLog.shift();
+    localStorage.setItem('ac_dopecard_voicelog', JSON.stringify(dcVoiceLog));
   } catch(e){}
 }
+let dcVoiceLog = []; try { dcVoiceLog = JSON.parse(localStorage.getItem('ac_dopecard_voicelog')) || []; } catch(e){}
+function dcSpeak(text){ dcSpeakParts(text, '', 0); }
 // Eerst de richting, dan 0,4 s pauze (zodat je alvast naar die kant kunt
 // bewegen), dan het getal; daarna de elevatie. De afstand wordt niet herhaald.
 function dcMoverSpeechParts(r){
@@ -883,21 +896,34 @@ function dcMoverSpeechParts(r){
 let dcSpeakGapTimer = null;
 function dcSpeakParts(first, second, gapMs){
   if(dcSettings.moverSound === false || !('speechSynthesis' in window)) return;
-  clearTimeout(dcSpeakGapTimer);
-  const mk = (t, rate) => { const u = new SpeechSynthesisUtterance(t); u.lang = 'nl-NL'; u.rate = rate;
+  clearTimeout(dcSpeakGapTimer); clearTimeout(dcTts.watch);
+  dcVoiceLogPush('SPEAK', first + (second ? ' | ' + second : ''));
+  const mk = (t, rate) => { const u = new SpeechSynthesisUtterance(t); u.lang = 'nl-NL'; u.rate = rate; u.volume = 1;
     const v = window.speechSynthesis.getVoices().find(x => /^nl/i.test(x.lang)); if(v) u.voice = v; return u; };
-  try {
-    window.speechSynthesis.cancel();
-    const u1 = mk(first, 1.15);
-    let went = false;
-    dcVoiceMute();
-    const next = () => { if(went) return; went = true;
-      if(second) dcSpeakGapTimer = setTimeout(() => { try { const u2 = mk(second, 1.15); u2.onend = dcVoiceUnmute; window.speechSynthesis.speak(u2); } catch(e){ dcVoiceUnmute(); } }, gapMs);
-      else dcVoiceUnmute(); };
-    u1.onend = next;
-    setTimeout(next, 1500); // vangnet als 'end' niet afgaat
-    window.speechSynthesis.speak(u1);
-  } catch(e){}
+  dcVoiceMute(); // stopt de herkenning (stem is anders stil) en negeert alles tot het praten klaar is
+  dcTts.started = false;
+  setTimeout(() => {
+    try {
+      window.speechSynthesis.cancel();
+      const u1 = mk(first, 1.15);
+      let went = false;
+      const next = () => { if(went) return; went = true;
+        if(second) dcSpeakGapTimer = setTimeout(() => { try { const u2 = mk(second, 1.15); u2.onend = dcVoiceUnmute; window.speechSynthesis.speak(u2); } catch(e){ dcVoiceUnmute(); } }, gapMs);
+        else dcVoiceUnmute(); };
+      u1.onstart = () => { dcTts.started = true; clearTimeout(dcTts.watch); };
+      u1.onend = next;
+      setTimeout(next, 2500); // vangnet als 'end' niet afgaat
+      window.speechSynthesis.speak(u1);
+      // Begon de stem niet? Dan blokkeert iOS hem: tekst blijft op het scherm, één tik herhaalt het.
+      dcTts.watch = setTimeout(() => {
+        if(dcTts.started) return;
+        dcTts.pending = [first, second];
+        dcVoiceLogPush('TTS', 'niet gestart (geblokkeerd?)');
+        dcVoiceBanner('🔇 ' + first + ' ' + second + ' — tik op het scherm voor spraak', 6000);
+        dcVoiceUnmute();
+      }, 1500);
+    } catch(e){ dcVoiceUnmute(); }
+  }, 150);
 }
 function dcMoverSpeakResult(){
   const r = dcMoverCompute();
@@ -1125,7 +1151,10 @@ function dcVoiceMuteFor(ms){
   clearTimeout(dcVoice.ignoreTimer);
   dcVoice.ignoreTimer = setTimeout(() => { dcVoice.ignore = false; }, ms);
 }
-function dcVoiceMute(){ dcVoice.ignore = true; clearTimeout(dcVoice.ignoreTimer); dcVoice.ignoreTimer = setTimeout(dcVoiceUnmute, 7000); }
+function dcVoiceMute(){
+  dcVoice.ignore = true; clearTimeout(dcVoice.ignoreTimer); dcVoice.ignoreTimer = setTimeout(dcVoiceUnmute, 7000);
+  if(dcVoice.rec){ const r = dcVoice.rec; dcVoice.rec = null; r.onresult = r.onerror = r.onend = null; try { r.abort(); } catch(e){} }
+}
 function dcVoiceUnmute(){
   clearTimeout(dcVoice.ignoreTimer);
   dcVoice.ignoreTimer = setTimeout(() => { dcVoice.ignore = false; dcVoiceRestart(); }, 300); // schone sessie zonder wat de app zelf zei
@@ -1181,6 +1210,7 @@ function dcVoiceBegin(){
       let text = alts[0];
       if(dcVoice.mode !== 'idle'){ for(let k = 0; k < alts.length; k++){ if(dcParseMoverSpeech(alts[k]).dist != null){ text = alts[k]; break; } } }
       dcVoiceHeard(text, r.isFinal);
+      if(r.isFinal) dcVoiceLogPush('HOORT[' + dcVoice.mode + ']', alts.join(' / '));
       dcVoiceHandle(i, text, r.isFinal, alts);
     }
   };
@@ -1332,7 +1362,7 @@ function dcVoiceHeard(text, final){
   dcVoice.heardTimer = setTimeout(() => { const e = rotor.querySelector('.dc-voice-heard'); if(e) e.remove(); }, 4000);
 }
 function dcVoiceStartMover(){
-  dcBeep('ack');
+  dcVoiceLogPush('TRIGGER', 'mover'); dcBeep('ack');
   if(dcScreen !== 'mover'){ dcMoverStatus = 'listening'; dcMoverMsg = ''; dcMoverHeard = ''; dcGoScreen('mover'); }
   else { dcMoverStatus = 'listening'; dcMoverHeard = ''; dcMoverRefresh(); }
   dcSetMode('mover');
@@ -1344,13 +1374,14 @@ function dcVoiceLeaveMover(){
   dcGoScreen('dope');
 }
 function dcVoiceStartWind(){
-  dcBeep('ack');
+  dcVoiceLogPush('TRIGGER', 'wind correctie'); dcBeep('ack');
   dcSetMode('wind', 9000);
   dcVoiceBanner('WIND CORRECTIE — zeg afstand, richting en hold', 9000);
 }
 // Mover-cue binnen de doorlopende sessie.
 function dcVoiceMoverCue(idx, text, final){
   const parsed = dcParseMoverSpeech(text);
+  if(final) dcVoiceLogPush('CUE', text + ' => ' + JSON.stringify(parsed));
   if(parsed.dist != null) dcMover.dist = parsed.dist;
   if(parsed.dir) dcMover.dir = parsed.dir;
   if(parsed.speed) dcMover.speed = parsed.speed;
@@ -1416,6 +1447,7 @@ function dcParseHoldSpeech(t){
 }
 function dcVoiceWindCue(idx, text, final){
   const p = dcParseHoldSpeech(text);
+  if(final) dcVoiceLogPush('HOLD', text + ' => ' + JSON.stringify(p));
   const ok = p.dist != null && p.dir && p.hold != null && p.hold > 0 && p.hold <= 6 && p.holdComplete; // meer dan 6 mil wind-hold is vrijwel zeker verkeerd verstaan
   clearTimeout(dcVoice.autoTimer);
   const run = () => {
@@ -1931,6 +1963,8 @@ function dcRenderSetup(root){
       </div>
       <p class="hint">Spraakbesturing: de microfoon luistert zodra de Dope Card open is (internet nodig; knop MIC rechts zet hem uit). Zeg <strong>"mover mover"</strong> (piep) + bv. "600 naar rechts joggen", of <strong>"wind correctie"</strong> (piep) + "500 meter links 1 punt 2" — de totaalhold waarmee je trof; de wind op de hele kaart wordt dan bijgesteld. "Klaar" = terug naar de kaart, "terug" = vorige wind. Eén hoge piep = begrepen, twee korte = niet verstaan, één lage = verwerkt.</p>
       <p class="hint" id="dcAjHint"></p>
+      <button type="button" class="printbtn st-btn-secondary" id="dcLogBtn" style="width:auto;padding:9px 16px;margin-top:8px;">Kopieer spraaklog</button>
+      <p class="hint" id="dcLogHint">Wat de app de laatste keer hoorde en deed — plak het in het gesprek met Claude om de spraak gericht te verbeteren.</p>
 
       <div id="dcCoriolisWrap" ${dcSettings.coriolis===false?'hidden':''}>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
@@ -2161,6 +2195,12 @@ function dcRenderSetup(root){
     dcPrintDopeCard();
   });
 
+  root.querySelector('#dcLogBtn').addEventListener('click', async () => {
+    const txt = 'Applied Concepts spraaklog (' + (document.getElementById('versionLink') ? document.getElementById('versionLink').textContent : '') + ', ' + navigator.userAgent.slice(0, 60) + ')\n' + (dcVoiceLog.join('\n') || '(leeg)');
+    const hint = root.querySelector('#dcLogHint');
+    try { await navigator.clipboard.writeText(txt); hint.textContent = 'Gekopieerd (' + dcVoiceLog.length + ' regels) — plak het in het gesprek.'; }
+    catch(e){ hint.textContent = 'Kopiëren lukte niet.'; }
+  });
   root.querySelector('#dcLatBtn').addEventListener('click', () => {
     const hint = root.querySelector('#dcCoriolisHint');
     if(!navigator.geolocation){ hint.textContent = 'Locatievoorziening niet beschikbaar op dit toestel — vul de breedtegraad handmatig in (Nederland ≈ 51–53°).'; return; }
