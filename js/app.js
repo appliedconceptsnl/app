@@ -1048,6 +1048,10 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v2.10', date:'10-10-2026', items:[
+      'Dope Card — handsfree spraakbesturing (telefoon aan de pols, geen tik nodig): zodra de Dope Card open is luistert de microfoon (knop MIC rechts zet hem aan/uit; ook in de instellingen). Zeg "mover mover" -> één hoge piep -> MOVER-scherm klaar -> zeg de cue ("600 naar rechts joggen") -> de lead wordt teruggesproken; "klaar" brengt je terug naar de kaart.',
+      'Wind correctie: zeg "wind correctie" -> piep -> bv. "vijfhonderd meter links 1 punt 2" (de totaalhold waarmee je trof). De app rekent terug naar de werkelijke zijwind (spindrift en Coriolis eruit), past de wind aan en de hele Dope Card toont dan op die afstand precies die hold; de nieuwe wind wordt teruggesproken. "Terug" zet de vorige wind terug. Piepen: 1 hoge = begrepen, 2 korte = niet verstaan, 1 lage = verwerkt.',
+    ]},
     { version:'v2.09', date:'09-10-2026', items:[
       'MOVER: de spraak herhaalt de afstand niet meer en zegt eerst de richting ("Rechts"), dan 0,4 seconde pauze, dan de lead ("3,6") en de elevatie ("Omhoog 3,9").',
     ]},

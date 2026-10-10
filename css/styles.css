@@ -955,7 +955,7 @@
      donker-adaptatie niet aan. Vlakke, verzadigde vullingen i.p.v. transparant
      wit/cream houden dit ook bij minimale schermhelderheid nog leesbaar. */
   .dc-overlay.dc-theme-nv{--dcbg:#000;--dcfg:#a30000;--dcbadge-bg:#a30000;--dcbadge-fg:#000;--dcline:rgba(163,0,0,.35);--dcline-strong:rgba(163,0,0,.6);--dcdim:rgba(163,0,0,.55);--dcwatermark-filter:sepia(1) saturate(10) hue-rotate(-50deg) brightness(.35);}
-  .dc-rotor{width:100%;height:100%;display:flex;}
+  .dc-rotor{width:100%;height:100%;display:flex;position:relative;}
   /* position:fixed negeert de safe-area-padding van .dc-overlay, dus die
      wordt hier zelf afgetrokken: de geroteerde laag beslaat alleen het
      veilige gebied (onder de iOS-statusbalk/Dynamic Island, boven de
@@ -1000,6 +1000,10 @@
     font-size:10px;font-weight:700;letter-spacing:.03em;padding:8px 14px;min-height:32px;min-width:56px;cursor:pointer;
   }
   .dc-wind-mode-btn.active{background:var(--dcfg);color:var(--dcbg);border-color:var(--dcfg);}
+  .dc-strip-mic span{display:block;font-size:8px;letter-spacing:.04em;margin-top:2px;opacity:.7;}
+  .dc-strip-mic.on{color:#2e8b4a;}
+  .dc-strip-mic.arm{color:#c9332a;animation:dcPulse 1s infinite;}
+  .dc-voice-banner{position:absolute;left:50%;top:6px;transform:translateX(-50%);max-width:80%;background:var(--dcfg);color:var(--dcbg);font-size:12px;font-weight:700;padding:6px 12px;z-index:5;text-align:center;pointer-events:none;}
   /* Mover (bewegend doel, spraak) */
   .dc-mover-btn{flex:1 1 auto;align-self:stretch;margin:2px 0;background:var(--dcfg);color:var(--dcbg);border:none;font-family:inherit;font-size:13px;font-weight:700;letter-spacing:.05em;min-width:64px;cursor:pointer;}
   .dc-mover-screen{flex:1 1 auto;display:flex;flex-direction:column;min-height:0;padding:8px 14px;gap:6px;overflow:hidden;}

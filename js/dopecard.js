@@ -35,6 +35,7 @@ const DC_DEFAULT_SETTINGS = {
   powderTempC: '',         // '' = gelijk aan de luchttemperatuur
   aeroJump: true,          // aerodynamic jump (verticale sprong door zijwind)
   coriolis: true,
+  voiceOn: true,           // handsfree spraakbesturing (mover mover / wind correctie)
   latitudeDeg: 52.1,       // Nederland
   azimuthDeg: '',          // schietrichting t.o.v. het noorden; '' = onbekend (alleen horizontale Coriolis)
 };
@@ -600,6 +601,8 @@ function dcEnterFullscreen(){
   dcApplyRotation();
   dcRenderFullscreen();
   dcAcquireWakeLock();
+  dcAudioUnlock();
+  dcVoiceStart();
   window.addEventListener('resize', dcOnResize);
   document.addEventListener('visibilitychange', dcOnVisibility);
   dcOrientationMq = window.matchMedia('(orientation: portrait)');
@@ -608,6 +611,7 @@ function dcEnterFullscreen(){
 function dcTeardownFullscreen(){
   if(!dcOverlayEl) return;
   dcStopRecog();
+  dcVoiceStop();
   dcReleaseWakeLock();
   window.removeEventListener('resize', dcOnResize);
   document.removeEventListener('visibilitychange', dcOnVisibility);
@@ -637,6 +641,7 @@ function dcStripHtml(){
   const n = dcTargets.length;
   return `<div class="dc-strip">
     <button class="dc-strip-btn dc-strip-tgt${n===0?' dc-dim':''}" data-act="tgt">TGT<span>${n||''}</span></button>
+    <button class="dc-strip-btn dc-strip-mic${dcVoice.active && !dcVoice.suspended ? ' on' : ''}" data-act="voice">MIC<span>${dcVoice.active ? 'AAN' : 'UIT'}</span></button>
     <button class="dc-strip-btn" data-act="theme">${dcSettings.theme==='day'?'☾':dcSettings.theme==='night'?'NV':'☀'}</button>
     <button class="dc-strip-btn" data-act="settings">⚙</button>
     <button class="dc-strip-btn" data-act="close">✕</button>
@@ -656,6 +661,7 @@ function dcWireStrip(){
         dcSettings.theme = dcSettings.theme==='day' ? 'night' : dcSettings.theme==='night' ? 'nv' : 'day';
         dcSave(DC_SETTINGS_KEY, dcSettings); dcRenderFullscreen();
       }
+      else if(act === 'voice') dcVoiceToggle();
       else if(act === 'settings') dcExitFullscreen('setup');
       else if(act === 'close') dcExitFullscreen('app');
     });
@@ -856,6 +862,7 @@ function dcSpeak(text){
   try {
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
+    dcVoiceMute(); u.onend = dcVoiceUnmute;
     u.lang = 'nl-NL'; u.rate = 1.15;
     const v = window.speechSynthesis.getVoices().find(x => /^nl/i.test(x.lang));
     if(v) u.voice = v;
@@ -881,7 +888,10 @@ function dcSpeakParts(first, second, gapMs){
     window.speechSynthesis.cancel();
     const u1 = mk(first, 1.15);
     let went = false;
-    const next = () => { if(went) return; went = true; if(second) dcSpeakGapTimer = setTimeout(() => { try { window.speechSynthesis.speak(mk(second, 1.15)); } catch(e){} }, gapMs); };
+    dcVoiceMute();
+    const next = () => { if(went) return; went = true;
+      if(second) dcSpeakGapTimer = setTimeout(() => { try { const u2 = mk(second, 1.15); u2.onend = dcVoiceUnmute; window.speechSynthesis.speak(u2); } catch(e){ dcVoiceUnmute(); } }, gapMs);
+      else dcVoiceUnmute(); };
     u1.onend = next;
     setTimeout(next, 1500); // vangnet als 'end' niet afgaat
     window.speechSynthesis.speak(u1);
@@ -897,13 +907,14 @@ function dcMoverSpeakResult(){
 /* ---- Spraak in ---- */
 function dcStopRecog(){
   clearTimeout(dcMoverAutoStopTimer);
-  if(dcRecog){ try { dcRecog.onresult = dcRecog.onerror = dcRecog.onend = null; dcRecog.abort(); } catch(e){} dcRecog = null; }
+  if(dcRecog){ try { dcRecog.onresult = dcRecog.onerror = dcRecog.onend = null; dcRecog.abort(); } catch(e){} dcRecog = null; dcVoiceResume(); }
   if(dcMoverStatus === 'listening') dcMoverStatus = 'idle';
 }
 function dcStartRecog(){
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if(!SR){ dcMoverStatus = 'error'; dcMoverMsg = 'Spraakherkenning niet beschikbaar op dit toestel — vul handmatig in.'; dcMoverRefresh(); return; }
   dcStopRecog();
+  dcVoiceSuspend();
   // Stil "ontgrendelen" van de stem: iOS laat tekst-naar-spraak alleen toe na een tik.
   try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; window.speechSynthesis.speak(u); } catch(e){}
   const rec = new SR();
@@ -955,7 +966,7 @@ function dcStartRecog(){
     dcMoverRefresh();
   };
   rec.onend = () => {
-    if(dcRecog === rec) dcRecog = null;
+    if(dcRecog === rec){ dcRecog = null; dcVoiceResume(); }
     if(!handled && dcMoverStatus === 'listening'){
       // Einde zonder eindresultaat: wat er tot nu toe stond alsnog gebruiken.
       if(dcMoverHeard) apply(dcMoverHeard, true);
@@ -1055,6 +1066,341 @@ function dcOpenMover(){
   dcMoverStatus = 'idle'; dcMoverMsg = ''; dcMoverHeard = '';
   dcGoScreen('mover');
   dcStartRecog();
+}
+
+/* ======================= HANDSFREE SPRAAKBESTURING =======================
+   De telefoon zit aan de pols en de handen zitten aan het wapen: er is geen
+   tik mogelijk. Zodra de Dope Card open is luistert de microfoon (Web Speech
+   API, nl-NL, doorlopend met automatische herstart — iOS stopt een sessie
+   na een stilte of ~1 minuut). Alleen deze zinnen doen iets:
+     "mover mover"    -> piep, MOVER-scherm; daarna de cue ("600 naar rechts
+                         joggen") -> lead wordt teruggesproken
+     "wind correctie" -> piep; daarna "500 meter links 1 punt 2" (de totaal-
+                         hold waarmee je trof) -> de wind op de hele kaart wordt
+                         teruggerekend en aangepast
+     "klaar"          -> terug naar de Dope Card
+     "terug"          -> vorige wind terugzetten (na een wind correctie)
+   Piepen: 1 hoge = herkend/ga praten · 2 korte = niet verstaan · 1 lage = klaar.
+   Tijdens piepen en terugpraten wordt de herkenning genegeerd en daarna
+   schoon herstart, zodat de app zichzelf niet "hoort". */
+const dcVoice = { active:false, suspended:false, rec:null, mode:'idle', ignore:false, execIdx:-1, trigIdx:-1,
+  startedAt:0, backoff:150, autoTimer:null, modeTimer:null, ignoreTimer:null, bannerText:'', bannerTimer:null, windUndo:null, netWarned:false };
+
+/* ---- Piepjes (WebAudio) ---- */
+let dcAudioCtx = null;
+function dcAudioUnlock(){
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return;
+    if(!dcAudioCtx) dcAudioCtx = new AC();
+    if(dcAudioCtx.state === 'suspended') dcAudioCtx.resume();
+  } catch(e){}
+}
+function dcTone(freq, startOffset, dur){
+  if(!dcAudioCtx) return;
+  const t0 = dcAudioCtx.currentTime + startOffset;
+  const osc = dcAudioCtx.createOscillator(), g = dcAudioCtx.createGain();
+  osc.type = 'sine'; osc.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(0.5, t0 + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  osc.connect(g); g.connect(dcAudioCtx.destination);
+  osc.start(t0); osc.stop(t0 + dur + 0.02);
+}
+// ack = 1 hoge piep · err = 2 korte lage · done = 1 lage
+function dcBeep(kind){
+  dcAudioUnlock();
+  if(navigator.vibrate) navigator.vibrate(kind === 'err' ? [30, 40, 30] : 25);
+  if(kind === 'ack') dcTone(1200, 0, 0.14);
+  else if(kind === 'err'){ dcTone(520, 0, 0.09); dcTone(520, 0.15, 0.09); }
+  else dcTone(620, 0, 0.16);
+  dcVoiceMuteFor(kind === 'err' ? 450 : 350);
+}
+
+/* ---- Negeren tijdens piepen/praten ---- */
+function dcVoiceMuteFor(ms){
+  dcVoice.ignore = true;
+  clearTimeout(dcVoice.ignoreTimer);
+  dcVoice.ignoreTimer = setTimeout(() => { dcVoice.ignore = false; }, ms);
+}
+function dcVoiceMute(){ dcVoice.ignore = true; clearTimeout(dcVoice.ignoreTimer); dcVoice.ignoreTimer = setTimeout(dcVoiceUnmute, 7000); }
+function dcVoiceUnmute(){
+  clearTimeout(dcVoice.ignoreTimer);
+  dcVoice.ignoreTimer = setTimeout(() => { dcVoice.ignore = false; dcVoiceRestart(); }, 300); // schone sessie zonder wat de app zelf zei
+}
+
+/* ---- Banner + MIC-knop ---- */
+function dcVoiceRenderBanner(){
+  if(!dcOverlayEl) return;
+  const rotor = dcOverlayEl.querySelector('.dc-rotor') || dcOverlayEl;
+  let b = rotor.querySelector('.dc-voice-banner');
+  if(!dcVoice.bannerText){ if(b) b.remove(); return; }
+  if(!b){ b = document.createElement('div'); b.className = 'dc-voice-banner'; rotor.appendChild(b); }
+  b.textContent = dcVoice.bannerText;
+}
+function dcVoiceBanner(text, ms){
+  dcVoice.bannerText = text; dcVoiceRenderBanner();
+  clearTimeout(dcVoice.bannerTimer);
+  if(ms) dcVoice.bannerTimer = setTimeout(() => { dcVoice.bannerText = ''; dcVoiceRenderBanner(); }, ms);
+}
+function dcVoiceUpdateUi(){
+  if(!dcOverlayEl) return;
+  const btn = dcOverlayEl.querySelector('.dc-strip-mic');
+  if(!btn) return;
+  const on = dcVoice.active && !dcVoice.suspended;
+  btn.classList.toggle('on', on);
+  btn.classList.toggle('arm', on && dcVoice.mode !== 'idle');
+  btn.firstChild.textContent = on ? 'MIC' : 'MIC';
+  btn.lastChild.textContent = !dcVoice.active ? 'UIT' : dcVoice.mode === 'mover' ? 'MOVER' : dcVoice.mode === 'wind' ? 'WIND' : 'AAN';
+}
+
+/* ---- Herkenning: start/stop/herstart ---- */
+function dcVoiceStart(){
+  if(dcSettings.voiceOn === false){ dcVoice.active = false; dcVoiceUpdateUi(); return; }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ dcVoice.active = false; dcVoiceBanner('Spraakbesturing niet beschikbaar op dit toestel', 4000); dcVoiceUpdateUi(); return; }
+  dcVoice.active = true; dcVoice.suspended = false; dcVoice.mode = 'idle';
+  dcVoiceBegin();
+}
+function dcVoiceBegin(){
+  if(!dcVoice.active || dcVoice.suspended || dcVoice.rec || !dcOverlayEl) return;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR) return;
+  const rec = new SR();
+  rec.lang = 'nl-NL'; rec.continuous = true; rec.interimResults = true; rec.maxAlternatives = 3;
+  dcVoice.execIdx = -1; dcVoice.trigIdx = -1;
+  dcVoice.rec = rec; dcVoice.startedAt = Date.now();
+  rec.onresult = (e) => {
+    if(dcVoice.ignore || dcVoice.rec !== rec) return;
+    for(let i = e.resultIndex; i < e.results.length; i++){
+      const r = e.results[i];
+      // Eerste alternatief; bij cue/hold het eerste dat een afstand bevat.
+      let text = r[0].transcript;
+      if(dcVoice.mode !== 'idle'){ for(let k = 0; k < r.length; k++){ if(dcParseMoverSpeech(r[k].transcript).dist != null){ text = r[k].transcript; break; } } }
+      dcVoiceHandle(i, text, r.isFinal);
+    }
+  };
+  rec.onerror = (e) => {
+    if(e.error === 'not-allowed' || e.error === 'service-not-allowed'){
+      dcVoice.active = false; dcVoiceBanner('Microfoon geweigerd — sta de microfoon toe in je toestel-instellingen', 5000); dcVoiceUpdateUi();
+    } else if(e.error === 'network'){
+      dcVoice.backoff = 3000;
+      if(!dcVoice.netWarned){ dcVoice.netWarned = true; dcVoiceBanner('Geen internet — spraakbesturing werkt tijdelijk niet', 4000); }
+    }
+  };
+  rec.onend = () => {
+    if(dcVoice.rec === rec) dcVoice.rec = null;
+    if(!dcVoice.active || dcVoice.suspended) return;
+    // Snel herhalende korte sessies (iets mis) -> rustiger herstarten.
+    const lived = Date.now() - dcVoice.startedAt;
+    dcVoice.backoff = lived < 700 ? Math.min(dcVoice.backoff * 2, 3000) : 150;
+    setTimeout(dcVoiceBegin, dcVoice.backoff);
+  };
+  try { rec.start(); } catch(e){ dcVoice.rec = null; }
+  dcVoiceUpdateUi();
+}
+function dcVoiceRestart(){
+  if(!dcVoice.active || dcVoice.suspended) return;
+  if(dcVoice.rec){ try { dcVoice.rec.abort(); } catch(e){} } else dcVoiceBegin();
+}
+function dcVoiceStop(){
+  dcVoice.active = false;
+  [dcVoice.autoTimer, dcVoice.modeTimer, dcVoice.ignoreTimer, dcVoice.bannerTimer].forEach(clearTimeout);
+  if(dcVoice.rec){ const r = dcVoice.rec; dcVoice.rec = null; r.onresult = r.onerror = r.onend = null; try { r.abort(); } catch(e){} }
+  dcVoice.mode = 'idle'; dcVoice.ignore = false; dcVoice.bannerText = '';
+  dcVoiceUpdateUi();
+}
+// De MOVER-knop (push-to-talk) gebruikt zijn eigen sessie: de doorlopende even pauzeren.
+function dcVoiceSuspend(){
+  dcVoice.suspended = true;
+  if(dcVoice.rec){ const r = dcVoice.rec; dcVoice.rec = null; r.onresult = r.onerror = r.onend = null; try { r.abort(); } catch(e){} }
+  dcVoiceUpdateUi();
+}
+function dcVoiceResume(){
+  if(!dcVoice.suspended) return;
+  dcVoice.suspended = false;
+  setTimeout(dcVoiceBegin, 150);
+  dcVoiceUpdateUi();
+}
+function dcVoiceToggle(){
+  if(dcVoice.active){ dcSettings.voiceOn = false; dcSave(DC_SETTINGS_KEY, dcSettings); dcVoiceStop(); dcVoiceBanner('Spraakbesturing UIT', 1800); }
+  else { dcSettings.voiceOn = true; dcSave(DC_SETTINGS_KEY, dcSettings); dcAudioUnlock(); dcVoiceStart(); dcVoiceBanner('Spraakbesturing AAN — zeg "mover mover" of "wind correctie"', 2500); }
+  dcVoiceUpdateUi();
+}
+
+/* ---- Zinnen -> acties ---- */
+function dcVoiceNorm(raw){ return dcNormalizeSpeech(String(raw || '').replace(/(\d)[.,](\d)/g, '$1 komma $2')); }
+const DC_MOVER_WORD = /\bm(?:oe|ou|oo|o|u)v(?:er|ers|ar|a)s?\b/g;
+function dcSetMode(mode, timeoutMs){
+  dcVoice.mode = mode;
+  clearTimeout(dcVoice.modeTimer);
+  if(timeoutMs) dcVoice.modeTimer = setTimeout(() => {
+    if(dcVoice.mode === 'wind'){ dcBeep('err'); dcVoiceBanner('Wind correctie: niets verstaan', 2500); dcSetMode(dcScreen === 'mover' ? 'mover' : 'idle'); }
+  }, timeoutMs);
+  dcVoiceUpdateUi();
+}
+function dcVoiceHandle(idx, raw, final){
+  const t = dcVoiceNorm(raw);
+  if(!t) return;
+  // 1) korte commando's: de hele zin is dat ene woord
+  if(idx !== dcVoice.execIdx && /^(?:ok(?:e|ay)? )?klaar$/.test(t) && dcScreen === 'mover'){
+    dcVoice.execIdx = idx; dcBeep('done'); dcVoiceLeaveMover(); return;
+  }
+  if(idx !== dcVoice.execIdx && /^terug$/.test(t) && dcVoice.windUndo){
+    dcVoice.execIdx = idx; dcUndoWind(); return;
+  }
+  // 2) triggers
+  const moverHits = (t.match(DC_MOVER_WORD) || []).length;
+  if(moverHits >= 2 && idx !== dcVoice.trigIdx){
+    dcVoice.trigIdx = idx;
+    dcVoiceStartMover();
+  } else if(/\bwind\b.*\bcorrecti?e?s?\b|\bwindcorrecti?e?s?\b/.test(t) && idx !== dcVoice.trigIdx){
+    dcVoice.trigIdx = idx;
+    dcVoiceStartWind();
+  }
+  if(idx === dcVoice.execIdx) return;
+  // 3) inhoud van de cue / de hold (alles ná het triggerwoord)
+  if(dcVoice.mode === 'mover'){
+    const afterTrig = t.replace(/^.*\bm(?:oe|ou|oo|o|u)v(?:er|ers|ar|a)s?\b/, '');
+    dcVoiceMoverCue(idx, afterTrig, final);
+  } else if(dcVoice.mode === 'wind'){
+    const afterTrig = t.replace(/^.*\bcorrecti?e?s?\b/, '').replace(/^.*\bwindcorrecti?e?s?\b/, '');
+    dcVoiceWindCue(idx, afterTrig, final);
+  }
+}
+function dcVoiceStartMover(){
+  dcBeep('ack');
+  if(dcScreen !== 'mover'){ dcMoverStatus = 'listening'; dcMoverMsg = ''; dcMoverHeard = ''; dcGoScreen('mover'); }
+  else { dcMoverStatus = 'listening'; dcMoverHeard = ''; dcMoverRefresh(); }
+  dcSetMode('mover');
+}
+function dcVoiceLeaveMover(){
+  dcSetMode('idle');
+  dcMoverStatus = 'idle';
+  try { window.speechSynthesis.cancel(); } catch(e){}
+  dcGoScreen('dope');
+}
+function dcVoiceStartWind(){
+  dcBeep('ack');
+  dcSetMode('wind', 9000);
+  dcVoiceBanner('WIND CORRECTIE — zeg afstand, richting en hold', 9000);
+}
+// Mover-cue binnen de doorlopende sessie.
+function dcVoiceMoverCue(idx, text, final){
+  const parsed = dcParseMoverSpeech(text);
+  if(parsed.dist != null) dcMover.dist = parsed.dist;
+  if(parsed.dir) dcMover.dir = parsed.dir;
+  if(parsed.speed) dcMover.speed = parsed.speed;
+  dcMoverHeard = text.trim();
+  const run = () => {
+    clearTimeout(dcVoice.autoTimer);
+    if(idx === dcVoice.execIdx) return;
+    dcVoice.execIdx = idx;
+    dcMoverSave();
+    if(dcMover.dist == null || !(dcMover.dist >= DC_MOVER_MIN_M && dcMover.dist <= DC_MOVER_MAX_M) || !parsed.dir){
+      dcBeep('err'); dcMoverStatus = 'error'; dcMoverMsg = parsed.dist == null ? 'Afstand niet verstaan' : 'Richting niet verstaan';
+    } else { dcMoverStatus = 'heard'; dcMoverSpeakResult(); }
+    dcMoverRefresh();
+  };
+  dcMoverRefresh();
+  clearTimeout(dcVoice.autoTimer);
+  const complete = parsed.dist != null && parsed.dir && parsed.speed;
+  if(final && (parsed.dist != null || parsed.dir || parsed.speed)) run();
+  else if(complete) dcVoice.autoTimer = setTimeout(run, 450);
+}
+/* ---- "wind correctie": hold -> werkelijke wind ---- */
+function dcParseHoldSpeech(t){
+  const toks = [];
+  let run = [], runDigits = '';
+  const flush = () => { if(run.length){ toks.push({ t:'n', v:dcNlValue(run.filter(x => x.p).map(x => x.p)), d:runDigits }); run = []; runDigits = ''; } };
+  t.split(' ').forEach(w => {
+    if(/^\d+$/.test(w)){ flush(); toks.push({ t:'n', v:parseInt(w, 10), d:w }); return; }
+    if(w === 'komma' || w === 'punt'){ flush(); toks.push({ t:'k' }); return; }
+    if(w === 'links' || w === 'rechts'){ flush(); toks.push({ t:'dir', v:w === 'rechts' ? 'R' : 'L' }); return; }
+    if(w === 'anderhalf'){ flush(); toks.push({ t:'n', v:1.5, d:'' }); return; }
+    const pcs = dcNlSplit(w);
+    if(pcs){ pcs.forEach(pc => run.push({ p:pc })); if(pcs.length === 1 && DC_NL_UNITS[pcs[0]] != null) runDigits += String(DC_NL_UNITS[pcs[0]]); else runDigits += ''; return; }
+    flush(); toks.push({ t:'x' });
+  });
+  flush();
+  const res = {};
+  const dirTok = toks.filter(x => x.t === 'dir').pop();
+  if(dirTok) res.dir = dirTok.v;
+  const di = toks.findIndex(x => x.t === 'n' && x.v >= DC_MOVER_MIN_M && x.v <= DC_MOVER_MAX_M);
+  if(di >= 0) res.dist = toks[di].v;
+  // hold: het eerstvolgende getal na de afstand (met eventueel "komma/punt" + decimalen)
+  for(let i = di + 1; i < toks.length; i++){
+    if(toks[i].t !== 'n') continue;
+    let v = toks[i].v;
+    if(toks[i + 1] && toks[i + 1].t === 'k' && toks[i + 2] && toks[i + 2].t === 'n'){
+      const frac = toks[i + 2].d || String(toks[i + 2].v);
+      v = v + parseInt(frac, 10) / Math.pow(10, frac.length);
+    }
+    res.hold = v; res.holdComplete = !(toks[i + 1] && toks[i + 1].t === 'k' && !(toks[i + 2] && toks[i + 2].t === 'n'));
+    break;
+  }
+  return res;
+}
+function dcVoiceWindCue(idx, text, final){
+  const p = dcParseHoldSpeech(text);
+  const ok = p.dist != null && p.dir && p.hold != null && p.hold > 0 && p.hold <= 15 && p.holdComplete;
+  clearTimeout(dcVoice.autoTimer);
+  const run = () => {
+    clearTimeout(dcVoice.autoTimer);
+    if(idx === dcVoice.execIdx) return;
+    dcVoice.execIdx = idx;
+    if(!ok || !dcApplyWindCorrection(p.dist, p.dir, p.hold)){
+      dcBeep('err'); dcVoiceBanner('Wind correctie niet verstaan — zeg bv. "500 meter links 1 punt 2"', 3000);
+    }
+    dcSetMode(dcScreen === 'mover' ? 'mover' : 'idle');
+  };
+  // Een afgeronde zin zonder bruikbare inhoud (anders dan alleen het triggerwoord) = direct foutpiep.
+  if(final && text.trim()) run();
+  else if(ok) dcVoice.autoTimer = setTimeout(run, 800); // wacht even: "1" kan nog "1 punt 2" worden
+}
+// Totaalhold (zoals de kaart hem toont) op één afstand -> werkelijke zijwind.
+function dcApplyWindCorrection(dist, dir, hold){
+  const row = dcMoverRow(dist);
+  if(!row || !(row.driftMilPerMps > 0)) return false;
+  const signed = (dir === 'R' ? 1 : -1) * hold;
+  // Spindrift en Coriolis zijn al in de totaalhold verwerkt; de rest is wind.
+  const windHold = signed - (dcSpinHoldSigned(row) || 0) - dcCoriolisHoldSigned(row);
+  const cross = windHold / row.driftMilPerMps; // m/s, + = van rechts
+  const prev = { speedMps: dcWind.speedMps, angleDeg: dcWind.angleDeg };
+  let angle = dcWind.angleDeg;
+  const sin = Math.sin(angle * Math.PI / 180);
+  let speed;
+  if(Math.abs(cross) < 0.05){ speed = 0; }
+  else if(Math.abs(sin) < 0.5 || sin * cross < 0){
+    // Zijwind kan niet met de huidige klokrichting: volle zijwind van de juiste kant.
+    if(Math.abs(sin) >= 0.5 && sin * cross < 0) angle = (360 - angle) % 360; // 3 uur <-> 9 uur spiegelen
+    else angle = cross > 0 ? 90 : 270;
+    speed = Math.abs(cross) / Math.abs(Math.sin(angle * Math.PI / 180));
+  } else speed = Math.abs(cross) / Math.abs(sin);
+  const mph = dcSettings.windUnit === 'mph';
+  const disp = Math.round((mph ? speed * DC_MPH_PER_MS : speed) * 10) / 10;
+  dcVoice.windUndo = prev;
+  dcWind.speedMps = Math.max(0, Math.min(20, mph ? disp / DC_MPH_PER_MS : disp));
+  dcWind.angleDeg = angle;
+  dcSave(DC_WIND_KEY, dcWind);
+  dcBeep('done');
+  dcRenderFullscreen();
+  dcVoiceSpeakWind('Wind');
+  return true;
+}
+function dcVoiceSpeakWind(prefix){
+  const sin = Math.sin(dcWind.angleDeg * Math.PI / 180);
+  const unit = dcSettings.windUnit === 'mph' ? 'mijl per uur' : 'meter per seconde';
+  const side = Math.abs(sin) < 0.05 ? '' : sin > 0 ? ' van rechts' : ' van links';
+  setTimeout(() => dcSpeak(`${prefix} ${dcFmtSpeedMps(dcWind.speedMps).replace('.', ',')} ${unit}${side}.`), 220);
+  dcVoiceBanner(`Wind ${dcFmtSpeedMps(dcWind.speedMps)} ${dcSpeedUnitLabel()} @ ${dcClockLabel()}`, 3500);
+}
+function dcUndoWind(){
+  const u = dcVoice.windUndo; if(!u) return;
+  dcWind.speedMps = u.speedMps; dcWind.angleDeg = u.angleDeg; dcVoice.windUndo = null;
+  dcSave(DC_WIND_KEY, dcWind);
+  dcBeep('done'); dcRenderFullscreen();
+  dcVoiceSpeakWind('Wind terug');
 }
 
 /* ---- Scherm B: Windscherm ---- */
@@ -1252,6 +1598,7 @@ function dcRenderFullscreen(){
   else if(dcScreen === 'angle') dcWireAngleScreen();
   else if(dcScreen === 'mover') dcWireMoverScreen();
   else dcWireTargetScreen();
+  dcVoiceRenderBanner(); dcVoiceUpdateUi();
 }
 
 /* ======================= PRINTEN (armmapje-kaartje) ======================= */
@@ -1469,7 +1816,9 @@ function dcRenderSetup(root){
       <div class="dryfire-mode-toggle" style="flex-wrap:wrap;">
         <label><input type="checkbox" id="dcAeroJump" ${dcSettings.aeroJump!==false?'checked':''}> Aerodynamic jump</label>
         <label><input type="checkbox" id="dcCoriolis" ${dcSettings.coriolis!==false?'checked':''}> Coriolis</label>
+        <label><input type="checkbox" id="dcVoiceOn" ${dcSettings.voiceOn!==false?'checked':''}> Spraakbesturing</label>
       </div>
+      <p class="hint">Spraakbesturing: de microfoon luistert zodra de Dope Card open is (internet nodig; knop MIC rechts zet hem uit). Zeg <strong>"mover mover"</strong> (piep) + bv. "600 naar rechts joggen", of <strong>"wind correctie"</strong> (piep) + "500 meter links 1 punt 2" — de totaalhold waarmee je trof; de wind op de hele kaart wordt dan bijgesteld. "Klaar" = terug naar de kaart, "terug" = vorige wind. Eén hoge piep = begrepen, twee korte = niet verstaan, één lage = verwerkt.</p>
       <p class="hint" id="dcAjHint"></p>
 
       <div id="dcCoriolisWrap" ${dcSettings.coriolis===false?'hidden':''}>
@@ -1564,6 +1913,7 @@ function dcRenderSetup(root){
     dcSettings.powderTempC = pt === '' || isNaN(parseFloat(pt)) ? '' : parseFloat(pt);
     dcSettings.aeroJump = root.querySelector('#dcAeroJump').checked;
     dcSettings.coriolis = root.querySelector('#dcCoriolis').checked;
+    dcSettings.voiceOn = root.querySelector('#dcVoiceOn').checked;
     dcSettings.latitudeDeg = Math.max(-90, Math.min(90, num('#dcLatitude', 52.1)));
     const az = root.querySelector('#dcAzimuth').value.trim();
     dcSettings.azimuthDeg = az === '' || isNaN(parseFloat(az)) ? '' : ((parseFloat(az) % 360) + 360) % 360;
