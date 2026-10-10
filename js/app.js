@@ -1048,6 +1048,10 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v2.14', date:'10-10-2026', items:[
+      'Spraakbesturing op iPhone: de iPhone schrijft het gesproken "punt" als een punt ("links. twee"), waardoor een hold van 0,2 als 2 werd gelezen (en een wind van 28 mph gaf). Nu wordt dat terug een komma: "links punt twee" / "links. twee" = 0,2, "links punt vier" = 0,4. Ook "400m" (zonder spatie) wordt als 400 meter gelezen.',
+      'Verkeerd verstane woorden herkend: "moer moer" = mover mover, "jokken" = joggen, "klaag"/"klaas"/"klar" = klaar.',
+    ]},
     { version:'v2.13', date:'10-10-2026', items:[
       'Spraakbesturing op iPhone verbeterd: "mover mover" wordt ook herkend als de iPhone het anders schrijft (movers, moeder, mouwer, "move over", of verdeeld over twee resultaten), "wind correctie" ook als "windcorrectie" of alleen "correctie", en de herkenning start na elke zin direct opnieuw (voorheen soms seconden doof). Onderaan staat kort wat de app net verstond (🎤 ...), zodat je ziet wat de iPhone hoort.',
       'Wind correctie: een hold van meer dan 6 mil of een onwaarschijnlijke wind (>12 m/s) wordt niet meer toegepast maar geweigerd met een foutpiep en de melding wat er verstaan is ("08" wordt nu 0,8). Dit voorkomt een wind van 44 mph door een verkeerd verstaan getal.',

@@ -827,7 +827,7 @@ function dcParseMoverSpeech(raw){
   while((m = re.exec(t))) last = m[1];
   if(last) res.dir = last === 'rechts' ? 'R' : 'L';
   if(/\bren/.test(t) || /\bsprint/.test(t)) res.speed = 'run';
-  else if(/\bjog/.test(t) || /\bdraf/.test(t)) res.speed = 'jog';
+  else if(/\bjog|\bjokk?|\bjogg|\bdraf|\bjoh?g/.test(t)) res.speed = 'jog';
   else if(/\bsnel|flink|vlot/.test(t)) res.speed = 'fast';
   else if(/\brustig|langzaam|wandel|loopt|lopend|slenter/.test(t)) res.speed = 'slow';
   return res;
@@ -1235,12 +1235,20 @@ function dcVoiceToggle(){
 }
 
 /* ---- Zinnen -> acties ---- */
-function dcVoiceNorm(raw){ return dcNormalizeSpeech(String(raw || '').replace(/(\d)[.,](\d)/g, '$1 komma $2').replace(/(^|\s)[.,](\d)/g, '$1 komma $2')); }
+// iOS schrijft het gesproken "punt" als leesteken ("links. twee") en plakt eenheden aan getallen
+// ("400m"): eerst terug naar woorden, anders blijft er alleen "twee" over.
+function dcVoiceNorm(raw){
+  let r = String(raw || '');
+  r = r.replace(/(\d)[.,](\d)/g, '$1 komma $2').replace(/(^|\s)[.,](\d)/g, '$1 komma $2');
+  r = r.replace(/[.,;:!?]+\s+(?=[\p{L}\d])/gu, ' punt ');
+  r = r.replace(/(\d)(?=[a-zA-Z])/g, '$1 ').replace(/([a-zA-Z])(?=\d)/g, '$1 ');
+  return dcNormalizeSpeech(r);
+}
 // "mover" wordt door de Nederlandse herkenner op iOS vaak anders geschreven
 // (movers, moeder, mouwer, move over, ...): losse vergelijking op afstand.
-const DC_MOVER_ALIASES = new Set(['movers','moeder','mouwer','mauwer','muver','moover','moffer','movar','mover','mowver','moeverr','mooier','mouver']);
+const DC_MOVER_ALIASES = new Set(['moer','moers','movers','moeder','mouwer','mauwer','muver','moover','moffer','movar','mover','mowver','moeverr','mooier','mouver']);
 // Gewone woorden die op "mover" lijken maar het niet zijn ("meter" komt in elk commando voor).
-const DC_MOVER_NOT = new Set(['over','moer','meer','maar','meter','meters','motor','mooi','moeten','meten','weer','mijn','noem','noemen','lever','mover'.slice(0,0)||'lever','nover','rover','boven','dover','hoever','zover']);
+const DC_MOVER_NOT = new Set(['over','meer','maar','meter','meters','motor','mooi','moeten','meten','weer','mijn','noem','noemen','lever','mover'.slice(0,0)||'lever','nover','rover','boven','dover','hoever','zover']);
 function dcLev(a, b){
   const d = []; for(let i = 0; i <= a.length; i++){ d[i] = [i]; } for(let j = 1; j <= b.length; j++) d[0][j] = j;
   for(let i = 1; i <= a.length; i++) for(let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i-1][j] + 1, d[i][j-1] + 1, d[i-1][j-1] + (a[i-1] === b[j-1] ? 0 : 1));
@@ -1270,12 +1278,17 @@ function dcSetMode(mode, timeoutMs){
   }, timeoutMs);
   dcVoiceUpdateUi();
 }
+// "klaar" hoort iOS vaak als "klaag", "klaas", "klar": één letter verschil is goed genoeg.
+function dcIsKlaar(t){
+  const w = t.replace(/^(?:ok(?:e|ay)? )/, '');
+  return !w.includes(' ') && w.length >= 4 && w.length <= 6 && dcLev(w, 'klaar') <= 1;
+}
 function dcVoiceHandle(idx, raw, final, alts){
   const t = dcVoiceNorm(raw);
   if(!t) return;
   const allT = (alts && alts.length ? alts : [raw]).map(dcVoiceNorm);
   // 1) korte commando's: de hele zin is dat ene woord
-  if(idx !== dcVoice.execIdx && /^(?:ok(?:e|ay)? )?klaar$/.test(t) && dcScreen === 'mover'){
+  if(idx !== dcVoice.execIdx && dcIsKlaar(t) && dcScreen === 'mover'){
     dcVoice.execIdx = idx; dcBeep('done'); dcVoiceLeaveMover(); return;
   }
   if(idx !== dcVoice.execIdx && /^terug$/.test(t) && dcVoice.windUndo){
@@ -1386,7 +1399,8 @@ function dcParseHoldSpeech(t){
       if(toks[i + 1] && toks[i + 1].t === 'n'){
         const frac = toks[i + 1].d || String(toks[i + 1].v);
         res.hold = parseInt(frac, 10) / Math.pow(10, frac.length); res.holdComplete = true;
-      } else { res.holdComplete = false; }
+      } else if(i === toks.length - 1){ res.holdComplete = false; break; } // "links punt" -> wacht op het getal
+      else continue; // losse "punt" (bv. "meter punt links") negeren
       break;
     }
     if(toks[i].t !== 'n') continue;
