@@ -1048,6 +1048,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v2.12', date:'10-10-2026', items:[
+      'Wind correctie: een hold onder 1,0 mil kan nu gewoon als "punt acht" (of "komma acht", "nul punt acht") gezegd worden = 0,8.',
+    ]},
     { version:'v2.11', date:'10-10-2026', items:[
       'Dope Card: knop "?" in de rechterstrook met een korte gebruiksaanwijzing (kaart, wind, doelenkaart, mover, wind correctie, piepen en knoppen).',
     ]},

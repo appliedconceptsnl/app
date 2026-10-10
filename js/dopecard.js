@@ -1231,7 +1231,7 @@ function dcVoiceToggle(){
 }
 
 /* ---- Zinnen -> acties ---- */
-function dcVoiceNorm(raw){ return dcNormalizeSpeech(String(raw || '').replace(/(\d)[.,](\d)/g, '$1 komma $2')); }
+function dcVoiceNorm(raw){ return dcNormalizeSpeech(String(raw || '').replace(/(\d)[.,](\d)/g, '$1 komma $2').replace(/(^|\s)[.,](\d)/g, '$1 komma $2')); }
 const DC_MOVER_WORD = /\bm(?:oe|ou|oo|o|u)v(?:er|ers|ar|a)s?\b/g;
 function dcSetMode(mode, timeoutMs){
   dcVoice.mode = mode;
@@ -1332,6 +1332,14 @@ function dcParseHoldSpeech(t){
   if(di >= 0) res.dist = toks[di].v;
   // hold: het eerstvolgende getal na de afstand (met eventueel "komma/punt" + decimalen)
   for(let i = di + 1; i < toks.length; i++){
+    // "punt acht" / "komma twee vijf" zonder getal ervoor = 0,8 / 0,25.
+    if(toks[i].t === 'k' && toks[i - 1] && toks[i - 1].t !== 'n'){
+      if(toks[i + 1] && toks[i + 1].t === 'n'){
+        const frac = toks[i + 1].d || String(toks[i + 1].v);
+        res.hold = parseInt(frac, 10) / Math.pow(10, frac.length); res.holdComplete = true;
+      } else { res.holdComplete = false; }
+      break;
+    }
     if(toks[i].t !== 'n') continue;
     let v = toks[i].v;
     if(toks[i + 1] && toks[i + 1].t === 'k' && toks[i + 2] && toks[i + 2].t === 'n'){
