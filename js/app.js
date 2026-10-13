@@ -1048,6 +1048,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v2.21', date:'13-10-2026', items:[
+      'Milling: een nieuwe waarde intypen bij doelgrootte of gemeten mil werkt nu goed — het veld wordt leeg zodra je erop tikt (oude waarde als grijze placeholder) en nogmaals tikken selecteert alles. Voorheen kwamen je cijfers achter de oude waarde te staan (bijv. ",5" werd "3,6,5"). ",5", "0,5", "6,5" en "6,55" werken; een tweede decimaal wordt ook getoond.',
+    ]},
     { version:'v2.20', date:'13-10-2026', items:[
       'Milling: knop "+ TGT" voegt de gemeten afstand toe aan de doelenkaart (max. 6), zodat je tijdens een stage meerdere doelen kunt opmeten en daarna op de TGT-kaart de elevatie en wind per doel ziet. Op de kaart staat bij elk doel hoe het gemeten is (bv. "0,7 mil @ 0,50 m"). "TGT n ›" opent de doelenkaart direct; een afstand die er al in staat of een volle kaart geeft een melding.',
     ]},

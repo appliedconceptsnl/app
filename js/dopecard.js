@@ -1582,6 +1582,8 @@ let dcMil = Object.assign({ size:1.0, mil:2.0 }, dcSettings.mil || {});
 function dcMilNum(v){ const n = parseFloat(String(v).replace(',', '.')); return isNaN(n) ? null : n; }
 function dcMilSave(){ dcSettings.mil = dcMil; dcSave(DC_SETTINGS_KEY, dcSettings); }
 function dcMilFmt(v, d){ return v.toFixed(d).replace('.', ','); }
+// Gemeten mil: 1 decimaal, of 2 als er echt een tweede decimaal is ingevoerd (6,55).
+function dcMilFmtMil(v){ return dcMilFmt(v, Math.abs(v * 10 - Math.round(v * 10)) > 1e-6 ? 2 : 1); }
 function dcMilDistanceFor(size, mil){ return size / Math.tan(mil / 1000); }
 function dcMilValid(){ return dcMil.size >= 0.05 && dcMil.size <= 10 && dcMil.mil >= 0.1 && dcMil.mil <= 60; }
 // Tabel: tot 750 m de vaste lijst vanaf het begin van de kaart (dichtstbijzijnde rij gemarkeerd).
@@ -1621,7 +1623,7 @@ function dcMilAddTarget(){
   if(dcTargets.length >= DC_MAX_TARGETS){ dcVoiceBanner(`TGT is vol (max ${DC_MAX_TARGETS} doelen) — wis er een of gebruik CLR`, 3500); return; }
   dcTargets.push(d);
   dcSave(DC_TARGETS_KEY, dcTargets);
-  if(!dcNotes[d]){ dcNotes[d] = { desc: `${dcMilFmt(dcMil.mil, 1)} mil @ ${dcMilFmt(dcMil.size, 2)} m` }; dcSaveNotes(); } // zo zie je op de doelenkaart hoe het gemeten is
+  if(!dcNotes[d]){ dcNotes[d] = { desc: `${dcMilFmtMil(dcMil.mil)} mil @ ${dcMilFmt(dcMil.size, 2)} m` }; dcSaveNotes(); } // zo zie je op de doelenkaart hoe het gemeten is
   if(navigator.vibrate) navigator.vibrate(15);
   dcRenderFullscreen();
   dcVoiceBanner(`T${dcTargets.length} toegevoegd: ${d} m`, 2200);
@@ -1640,7 +1642,7 @@ function dcMilResultHtml(){
     } catch(e){}
   }
   return `<div class="dc-mil-d">${dr}<span>m</span></div>${hold}
-    <div class="dc-mil-detail">${dcMilFmt(dcMil.size, 2)} m ÷ ${dcMilFmt(dcMil.mil, 1)} mil · leesfout ±0,1 mil ≈ ±${Math.round(err)} m</div>`;
+    <div class="dc-mil-detail">${dcMilFmt(dcMil.size, 2)} m ÷ ${dcMilFmtMil(dcMil.mil)} mil · leesfout ±0,1 mil ≈ ±${Math.round(err)} m</div>`;
 }
 const DC_MIL_SIGN = '<svg class="dc-mil-sign" viewBox="0 0 28 22" aria-label="mil"><text x="3" y="17" font-size="19" font-weight="700" font-family="IBM Plex Mono, monospace" fill="currentColor">m</text><line x1="6" y1="21" x2="22" y2="2" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>';
 function dcMilTableHtml(){
@@ -1676,7 +1678,7 @@ function dcMilScreenHtml(){
       <div class="dc-mil-label">GEMETEN</div>
       <div class="dc-mil-input">
         <button type="button" class="dc-mover-step" data-act="milminus">&minus;</button>
-        <div class="dc-mil-fieldwrap"><input type="text" inputmode="decimal" class="dc-mil-field" data-role="mil" value="${dcMilFmt(dcMil.mil, 1)}" autocomplete="off"><span class="dc-mil-unit">${DC_MIL_SIGN}</span></div>
+        <div class="dc-mil-fieldwrap"><input type="text" inputmode="decimal" class="dc-mil-field" data-role="mil" value="${dcMilFmtMil(dcMil.mil)}" autocomplete="off"><span class="dc-mil-unit">${DC_MIL_SIGN}</span></div>
         <button type="button" class="dc-mover-step" data-act="milplus">+</button>
       </div>
       <div class="dc-mil-result" data-role="result">${dcMilResultHtml()}</div>
@@ -1697,7 +1699,7 @@ function dcMilRefresh(){
   dcOverlayEl.querySelectorAll('[data-size]').forEach(b => b.classList.toggle('active', Math.abs(dcMil.size - parseFloat(b.dataset.size)) < 1e-9));
   const sf = q('[data-role="size"]'), mf = q('[data-role="mil"]');
   if(sf && document.activeElement !== sf) sf.value = dcMilFmt(dcMil.size, 2);
-  if(mf && document.activeElement !== mf) mf.value = dcMilFmt(dcMil.mil, 1);
+  if(mf && document.activeElement !== mf) mf.value = dcMilFmtMil(dcMil.mil);
 }
 function dcWireMilScreen(){
   dcWireStrip();
@@ -1714,8 +1716,14 @@ function dcWireMilScreen(){
   const bind = (role, key) => {
     const f = dcOverlayEl.querySelector(`[data-role="${role}"]`);
     f.addEventListener('input', () => { const v = dcMilNum(f.value); if(v != null){ dcMil[key] = v; dcMilSave(); } dcMilRefresh(); });
-    f.addEventListener('change', () => { f.value = key === 'size' ? dcMilFmt(dcMil.size, 2) : dcMilFmt(dcMil.mil, 1); });
-    f.addEventListener('focus', () => f.select());
+    const show = () => { f.value = key === 'size' ? dcMilFmt(dcMil.size, 2) : dcMilFmtMil(dcMil.mil); };
+    // Bij een tik wordt het veld leeg (oude waarde als grijze placeholder): je typt gewoon de nieuwe
+    // waarde, ook ",5" of "6,5". (Selecteren-bij-focus werd door de tik zelf weer ongedaan gemaakt,
+    // waardoor je nieuwe cijfers achter de oude waarde kwamen te staan.)
+    f.addEventListener('focus', () => { f.placeholder = f.value; f.value = ''; });
+    f.addEventListener('blur', () => { f.placeholder = ''; show(); });
+    f.addEventListener('click', () => setTimeout(() => { try { f.setSelectionRange(0, f.value.length); } catch(e){} }, 0)); // nogmaals tikken in een actief veld: alles selecteren
+    f.addEventListener('keydown', (e) => { if(e.key === 'Enter'){ f.blur(); } });
   };
   bind('size', 'size'); bind('mil', 'mil');
   dcMilScroll();
