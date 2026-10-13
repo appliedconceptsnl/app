@@ -1276,7 +1276,7 @@ function dcVoiceNorm(raw){
 }
 // "mover" wordt door de Nederlandse herkenner op iOS vaak anders geschreven
 // (movers, moeder, mouwer, move over, ...): losse vergelijking op afstand.
-const DC_MOVER_ALIASES = new Set(['moer','moers','movers','moeder','mouwer','mauwer','muver','moover','moffer','movar','mover','mowver','moeverr','mooier','mouver']);
+const DC_MOVER_ALIASES = new Set(['moe','move','moes','mowe','moo','moeve','mue','moer','moers','movers','moeder','mouwer','mauwer','muver','moover','moffer','movar','mover','mowver','moeverr','mooier','mouver']);
 // Gewone woorden die op "mover" lijken maar het niet zijn ("meter" komt in elk commando voor).
 const DC_MOVER_NOT = new Set(['over','meer','maar','meter','meters','motor','mooi','moeten','meten','weer','mijn','noem','noemen','lever','mover'.slice(0,0)||'lever','nover','rover','boven','dover','hoever','zover']);
 function dcLev(a, b){

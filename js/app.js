@@ -1048,6 +1048,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v2.19', date:'13-10-2026', items:[
+      'Spraakbesturing: "mover mover" wordt ook herkend als "moe moe" of "move move" (zoals de iPhone het vaak hoort).',
+    ]},
     { version:'v2.18', date:'13-10-2026', items:[
       'Milling: is de gemeten afstand groter dan 750 m, dan staat in de tabel rechts de gemeten afstand zelf onderaan (gemarkeerd) en lopen de afstanden daarboven er in stappen van af — de bovenste is dus niet meer 200 m en je afstand valt nooit buiten beeld.',
       'Milling: achter de gemeten waarde staat nu het mil-teken (een m met een streep erdoor) en achter de doelgrootte een "m", zodat in één oogopslag duidelijk is welke waarde de vaste doelgrootte in meters is (bovenste veld).',
