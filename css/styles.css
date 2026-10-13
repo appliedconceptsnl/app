@@ -1022,6 +1022,12 @@
   .dc-mil-label{font-size:10px;letter-spacing:.08em;color:var(--dcdim);margin-top:2px;}
   .dc-mil-input{display:flex;gap:6px;align-items:center;}
   .dc-mil-field{flex:1 1 auto;min-width:0;height:44px;margin:0;padding:0;box-sizing:border-box;font-family:inherit;font-size:24px;font-weight:700;text-align:center;background:none;border:1px solid var(--dcline-strong);border-radius:0;color:var(--dcfg);}
+  .dc-mil-fieldwrap{position:relative;flex:1 1 auto;min-width:0;}
+  .dc-mil-fieldwrap .dc-mil-field{width:100%;padding-right:34px;}
+  .dc-mil-unit{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:16px;font-weight:700;color:var(--dcdim);pointer-events:none;display:flex;align-items:center;}
+  .dc-mil-sign{width:28px;height:22px;display:inline-block;vertical-align:middle;}
+  .dc-mil-thead .dc-mil-sign{width:22px;height:17px;margin-left:2px;}
+  .dc-mil-unit{color:var(--dcfg) !important;}
   .dc-mil-presets{display:flex;gap:6px;}
   .dc-mil-preset{flex:1 1 0;min-height:34px;background:none;border:1px solid var(--dcline-strong);color:var(--dcdim);font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;}
   .dc-mil-preset.active{background:var(--dcfg);color:var(--dcbg);border-color:var(--dcfg);}

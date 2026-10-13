@@ -1048,6 +1048,10 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v2.18', date:'13-10-2026', items:[
+      'Milling: is de gemeten afstand groter dan 750 m, dan staat in de tabel rechts de gemeten afstand zelf onderaan (gemarkeerd) en lopen de afstanden daarboven er in stappen van af — de bovenste is dus niet meer 200 m en je afstand valt nooit buiten beeld.',
+      'Milling: achter de gemeten waarde staat nu het mil-teken (een m met een streep erdoor) en achter de doelgrootte een "m", zodat in één oogopslag duidelijk is welke waarde de vaste doelgrootte in meters is (bovenste veld).',
+    ]},
     { version:'v2.17', date:'13-10-2026', items:[
       'Dope Card: het tandwiel is vervangen door een liniaal-knop "Milling" (afstand meten). Het kruisje (✕) brengt je nu terug naar de Dope Card-instellingen.',
       'Milling-pagina: stel links de doelgrootte in meters in (vaste waarde, met snelkeuze 0,5 / 1,0 / 1,5 / 1,8 m) en de gemeten mil; je krijgt direct de afstand (afstand = grootte ÷ mil × 1000), de leesfout bij ±0,1 mil, en de elevatie en windhold voor die afstand uit de kaart. Rechts staat een tabel met afstanden en bijbehorende gemeten mil (bij de ingestelde doelgrootte), met de dichtstbijzijnde rij gemarkeerd.',

@@ -1584,11 +1584,24 @@ function dcMilSave(){ dcSettings.mil = dcMil; dcSave(DC_SETTINGS_KEY, dcSettings
 function dcMilFmt(v, d){ return v.toFixed(d).replace('.', ','); }
 function dcMilDistanceFor(size, mil){ return size / Math.tan(mil / 1000); }
 function dcMilValid(){ return dcMil.size >= 0.05 && dcMil.size <= 10 && dcMil.mil >= 0.1 && dcMil.mil <= 60; }
-// Rijen voor de tabel: afstanden binnen het bereik van de kaart, met de bijbehorende gemeten mil.
-function dcMilTableRows(){
+// Tabel: tot 750 m de vaste lijst vanaf het begin van de kaart (dichtstbijzijnde rij gemarkeerd).
+// Daarboven zou de gemeten afstand buiten beeld vallen: dan staat de gemeten afstand zelf onderaan
+// en lopen de rijen daarboven er in vaste stappen van af (de bovenste is dus niet meer 200 m).
+const DC_MIL_ANCHOR_M = 750;
+function dcMilStep(){
   const start = Math.max(50, dcSettings.rangeStart || 100), end = Math.max(start + 50, dcSettings.rangeEnd || 1000);
-  const step = Math.max(50, Math.ceil((end - start) / 30 / 25) * 25);
+  return Math.max(50, Math.ceil((end - start) / 30 / 25) * 25);
+}
+function dcMilTableRows(){
+  const start = Math.max(50, dcSettings.rangeStart || 100), end = Math.max(start + 50, dcSettings.rangeEnd || 1000), step = dcMilStep();
+  const cur = dcMilValid() ? dcMilDistanceFor(dcMil.size, dcMil.mil) : null;
   const rows = [];
+  if(cur != null && cur > DC_MIL_ANCHOR_M){
+    const dr = Math.round(cur);
+    for(let d = dr - step; d >= start && rows.length < 40; d -= step) rows.unshift({ d, mil: Math.atan(dcMil.size / d) * 1000 });
+    rows.push({ d: dr, mil: dcMil.mil, actual: true });
+    return rows;
+  }
   for(let d = Math.ceil(start / step) * step; d <= end; d += step) rows.push({ d, mil: Math.atan(dcMil.size / d) * 1000 });
   return rows;
 }
@@ -1608,30 +1621,41 @@ function dcMilResultHtml(){
   return `<div class="dc-mil-d">${dr}<span>m</span></div>${hold}
     <div class="dc-mil-detail">${dcMilFmt(dcMil.size, 2)} m ÷ ${dcMilFmt(dcMil.mil, 1)} mil · leesfout ±0,1 mil ≈ ±${Math.round(err)} m</div>`;
 }
+const DC_MIL_SIGN = '<svg class="dc-mil-sign" viewBox="0 0 28 22" aria-label="mil"><text x="3" y="17" font-size="19" font-weight="700" font-family="IBM Plex Mono, monospace" fill="currentColor">m</text><line x1="6" y1="21" x2="22" y2="2" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>';
 function dcMilTableHtml(){
   const cur = dcMilValid() ? dcMilDistanceFor(dcMil.size, dcMil.mil) : null;
   const rows = dcMilTableRows();
-  let nearest = -1;
-  if(cur != null && rows.length){ const half = rows.length > 1 ? (rows[1].d - rows[0].d) / 2 : 25; let best = Infinity; rows.forEach((r, i) => { const dd = Math.abs(r.d - cur); if(dd < best && dd <= half){ best = dd; nearest = i; } }); } // alleen markeren als de afstand echt bij een rij ligt
-  return `<div class="dc-mil-trow dc-mil-thead"><span>AFSTAND</span><span>GEMETEN MIL</span></div>` +
+  let nearest = rows.findIndex(r => r.actual);
+  if(nearest < 0 && cur != null && rows.length){
+    const half = rows.length > 1 ? (rows[1].d - rows[0].d) / 2 : 25; let best = Infinity;
+    rows.forEach((r, i) => { const dd = Math.abs(r.d - cur); if(dd < best && dd <= half){ best = dd; nearest = i; } }); // alleen markeren als de afstand echt bij een rij ligt
+  }
+  return `<div class="dc-mil-trow dc-mil-thead"><span>AFSTAND</span><span>GEMETEN ${DC_MIL_SIGN}</span></div>` +
     rows.map((r, i) => `<div class="dc-mil-trow${i === nearest ? ' dc-mil-hit' : ''}"><span>${r.d} m</span><span>${dcMilFmt(r.mil, 2)}</span></div>`).join('');
+}
+// Gemeten afstand > 750 m staat onderaan in beeld; anders de tabel vanaf boven.
+function dcMilScroll(){
+  const t = dcOverlayEl && dcOverlayEl.querySelector('[data-role="table"]');
+  if(!t) return;
+  const anchored = dcMilValid() && dcMilDistanceFor(dcMil.size, dcMil.mil) > DC_MIL_ANCHOR_M;
+  t.scrollTop = anchored ? t.scrollHeight : 0;
 }
 function dcMilScreenHtml(){
   const presets = DC_MIL_PRESETS.map(v => `<button type="button" class="dc-mil-preset${Math.abs(dcMil.size - v) < 1e-9 ? ' active' : ''}" data-size="${v}">${dcMilFmt(v, 1)}</button>`).join('');
   return `<div class="dc-main"><div class="dc-mil-screen">
     <div class="dc-mil-left">
       <button class="dc-wind-back" data-act="back">&larr; DOPE</button>
-      <div class="dc-mil-label">DOEL (METER)</div>
+      <div class="dc-mil-label">DOEL (VASTE WAARDE, METER)</div>
       <div class="dc-mil-input">
         <button type="button" class="dc-mover-step" data-act="sizeminus">&minus;</button>
-        <input type="text" inputmode="decimal" class="dc-mil-field" data-role="size" value="${dcMilFmt(dcMil.size, 2)}" autocomplete="off">
+        <div class="dc-mil-fieldwrap"><input type="text" inputmode="decimal" class="dc-mil-field" data-role="size" value="${dcMilFmt(dcMil.size, 2)}" autocomplete="off"><span class="dc-mil-unit">m</span></div>
         <button type="button" class="dc-mover-step" data-act="sizeplus">+</button>
       </div>
       <div class="dc-mil-presets">${presets}</div>
-      <div class="dc-mil-label">GEMETEN (MIL)</div>
+      <div class="dc-mil-label">GEMETEN</div>
       <div class="dc-mil-input">
         <button type="button" class="dc-mover-step" data-act="milminus">&minus;</button>
-        <input type="text" inputmode="decimal" class="dc-mil-field" data-role="mil" value="${dcMilFmt(dcMil.mil, 1)}" autocomplete="off">
+        <div class="dc-mil-fieldwrap"><input type="text" inputmode="decimal" class="dc-mil-field" data-role="mil" value="${dcMilFmt(dcMil.mil, 1)}" autocomplete="off"><span class="dc-mil-unit">${DC_MIL_SIGN}</span></div>
         <button type="button" class="dc-mover-step" data-act="milplus">+</button>
       </div>
       <div class="dc-mil-result" data-role="result">${dcMilResultHtml()}</div>
@@ -1644,6 +1668,7 @@ function dcMilRefresh(){
   const q = sel => dcOverlayEl.querySelector(sel);
   q('[data-role="result"]').innerHTML = dcMilResultHtml();
   q('[data-role="table"]').innerHTML = dcMilTableHtml();
+  dcMilScroll();
   dcOverlayEl.querySelectorAll('[data-size]').forEach(b => b.classList.toggle('active', Math.abs(dcMil.size - parseFloat(b.dataset.size)) < 1e-9));
   const sf = q('[data-role="size"]'), mf = q('[data-role="mil"]');
   if(sf && document.activeElement !== sf) sf.value = dcMilFmt(dcMil.size, 2);
@@ -1666,6 +1691,7 @@ function dcWireMilScreen(){
     f.addEventListener('focus', () => f.select());
   };
   bind('size', 'size'); bind('mil', 'mil');
+  dcMilScroll();
 }
 
 /* ---- Scherm B: Windscherm ---- */
