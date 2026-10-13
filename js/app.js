@@ -1048,6 +1048,10 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v2.17', date:'13-10-2026', items:[
+      'Dope Card: het tandwiel is vervangen door een liniaal-knop "Milling" (afstand meten). Het kruisje (✕) brengt je nu terug naar de Dope Card-instellingen.',
+      'Milling-pagina: stel links de doelgrootte in meters in (vaste waarde, met snelkeuze 0,5 / 1,0 / 1,5 / 1,8 m) en de gemeten mil; je krijgt direct de afstand (afstand = grootte ÷ mil × 1000), de leesfout bij ±0,1 mil, en de elevatie en windhold voor die afstand uit de kaart. Rechts staat een tabel met afstanden en bijbehorende gemeten mil (bij de ingestelde doelgrootte), met de dichtstbijzijnde rij gemarkeerd.',
+    ]},
     { version:'v2.16', date:'10-10-2026', items:[
       'Spraakbesturing op Android (Samsung/Chrome): Chrome knipt één zin in losse stukjes ("300", "300 meter", "300 meter links punt 2") en meldt elk stukje als klaar; de app gaf daardoor meteen "niet verstaan" op het eerste stukje ("300"). Nu worden de stukjes samengevoegd en wordt pas uitgevoerd als afstand, richting en hold compleet zijn; blijft het onvolledig, dan volgt na 3,5 seconde de foutpiep. Ook worden herhalingen van dezelfde zin niet meer als nieuwe commando\'s gezien, en "links.2" (zonder spatie) wordt 0,2.',
     ]},

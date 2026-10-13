@@ -646,8 +646,8 @@ function dcStripHtml(){
     <button class="dc-strip-btn dc-strip-mic${dcVoice.active && !dcVoice.suspended ? ' on' : ''}" data-act="voice">MIC<span>${dcVoice.active ? 'AAN' : 'UIT'}</span></button>
     <button class="dc-strip-btn" data-act="theme">${dcSettings.theme==='day'?'☾':dcSettings.theme==='night'?'NV':'☀'}</button>
     <button class="dc-strip-btn" data-act="help" aria-label="Gebruiksaanwijzing">?</button>
-    <button class="dc-strip-btn" data-act="settings">⚙</button>
-    <button class="dc-strip-btn" data-act="close">✕</button>
+    <button class="dc-strip-btn dc-strip-mil" data-act="mil" aria-label="Milling: afstand meten"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="8" width="20" height="8" rx="1"/><path d="M6 8v3M10 8v4.5M14 8v3M18 8v4.5"/></svg></button>
+    <button class="dc-strip-btn" data-act="close" aria-label="Sluiten (naar Dope Card-instellingen)">✕</button>
   </div>`;
 }
 function dcWireStrip(){
@@ -666,8 +666,8 @@ function dcWireStrip(){
       }
       else if(act === 'voice') dcVoiceToggle();
       else if(act === 'help') dcGoScreen(dcScreen === 'help' ? 'dope' : 'help');
-      else if(act === 'settings') dcExitFullscreen('setup');
-      else if(act === 'close') dcExitFullscreen('app');
+      else if(act === 'mil') dcGoScreen(dcScreen === 'mil' ? 'dope' : 'mil');
+      else if(act === 'close') dcExitFullscreen('setup'); // ✕ = terug naar de Dope Card-instellingen (het tandwiel is daardoor overbodig)
     });
   });
 }
@@ -1558,8 +1558,10 @@ function dcHelpScreenHtml(){
         <p>Zeg <b>"wind correctie"</b> (piep), dan bv. <i>"vijfhonderd meter links 1 punt 2"</i> = de totaalhold waarmee je <b>trof</b>. De app past de wind aan zodat de hele kaart klopt. <b>"Terug"</b> = vorige wind.</p>
         <h4>Piepen</h4>
         <p><b>1 hoge</b> = begrepen, praat nu &middot; <b>2 korte</b> = niet verstaan, zeg het opnieuw &middot; <b>1 lage</b> = verwerkt. Komt de piep niet, herhaal dan.</p>
+        <h4>Afstand meten (liniaal-knop)</h4>
+        <p>Zet de <b>doelgrootte</b> in meters en de <b>gemeten mil</b> in de richtkijker: afstand = grootte &divide; mil &times; 1000. Je ziet meteen elevatie en wind voor die afstand; rechts staat een tabel afstand &harr; mil.</p>
         <h4>Knoppen rechts</h4>
-        <p><b>MIC</b> spraak aan/uit &middot; <b>&#9790;/NV/&#9728;</b> dag-, nacht-, nachtzichtstand &middot; <b>&#9881;</b> instellingen &middot; <b>&times;</b> sluiten.</p>
+        <p><b>MIC</b> spraak aan/uit &middot; <b>&#9790;/NV/&#9728;</b> dag-, nacht-, nachtzichtstand &middot; <b>?</b> deze uitleg &middot; <b>liniaal</b> afstand meten &middot; <b>&times;</b> terug naar de Dope Card-instellingen.</p>
         <p class="dc-help-warn">Trainingshulp op basis van gemiddelde data: controleer altijd met echte schoten. Spraak heeft internet nodig.</p>
       </div>
     </div>
@@ -1568,6 +1570,102 @@ function dcHelpScreenHtml(){
 function dcWireHelpScreen(){
   dcWireStrip();
   dcOverlayEl.querySelectorAll('[data-act="back"]').forEach(b => b.addEventListener('click', () => dcGoScreen('dope')));
+}
+
+/* ======================= MILLING (afstand meten met de mil-relatie) =======================
+   afstand = doelgrootte / tan(gemeten mil / 1000)  — voor kleine hoeken gelijk aan de bekende
+   "doelgrootte (m) x 1000 / mil". Gemeten wordt langs de zichtlijn, dus het resultaat is de
+   (schuine) afstand tot het doel; bij een schuin schot geeft de HOEK-knop op de doelenkaart
+   de bijbehorende elevatie. De uitkomst krijgt meteen elevatie en windhold van de kaart. */
+const DC_MIL_PRESETS = [0.5, 1.0, 1.5, 1.8];
+let dcMil = Object.assign({ size:1.0, mil:2.0 }, dcSettings.mil || {});
+function dcMilNum(v){ const n = parseFloat(String(v).replace(',', '.')); return isNaN(n) ? null : n; }
+function dcMilSave(){ dcSettings.mil = dcMil; dcSave(DC_SETTINGS_KEY, dcSettings); }
+function dcMilFmt(v, d){ return v.toFixed(d).replace('.', ','); }
+function dcMilDistanceFor(size, mil){ return size / Math.tan(mil / 1000); }
+function dcMilValid(){ return dcMil.size >= 0.05 && dcMil.size <= 10 && dcMil.mil >= 0.1 && dcMil.mil <= 60; }
+// Rijen voor de tabel: afstanden binnen het bereik van de kaart, met de bijbehorende gemeten mil.
+function dcMilTableRows(){
+  const start = Math.max(50, dcSettings.rangeStart || 100), end = Math.max(start + 50, dcSettings.rangeEnd || 1000);
+  const step = Math.max(50, Math.ceil((end - start) / 30 / 25) * 25);
+  const rows = [];
+  for(let d = Math.ceil(start / step) * step; d <= end; d += step) rows.push({ d, mil: Math.atan(dcMil.size / d) * 1000 });
+  return rows;
+}
+function dcMilResultHtml(){
+  if(!dcMilValid()) return '<div class="dc-mil-d dc-dim">—</div><div class="dc-mil-detail">Vul doelgrootte (0,05–10 m) en gemeten mil (0,1–60) in.</div>';
+  const d = dcMilDistanceFor(dcMil.size, dcMil.mil);
+  const dr = Math.round(d);
+  // Leesfout: één streepje op de richtkijker is meestal 0,1 mil.
+  const err = Math.abs(dcMilDistanceFor(dcMil.size, Math.max(0.05, dcMil.mil - 0.1)) - dcMilDistanceFor(dcMil.size, dcMil.mil + 0.1)) / 2;
+  let hold = '';
+  if(dr >= 50 && dr <= 2500 && dcCalc){
+    try {
+      const row = dcMoverRow(dr);
+      if(row){ hold = `<div class="dc-mil-hold"><span><b>ELEV</b> ${dcFmtElev(dcTotalElevMil(dr, row, null))}</span><span><b>WIND</b> ${dcFmtCombinedHold(row)}</span></div>`; }
+    } catch(e){}
+  }
+  return `<div class="dc-mil-d">${dr}<span>m</span></div>${hold}
+    <div class="dc-mil-detail">${dcMilFmt(dcMil.size, 2)} m ÷ ${dcMilFmt(dcMil.mil, 1)} mil · leesfout ±0,1 mil ≈ ±${Math.round(err)} m</div>`;
+}
+function dcMilTableHtml(){
+  const cur = dcMilValid() ? dcMilDistanceFor(dcMil.size, dcMil.mil) : null;
+  const rows = dcMilTableRows();
+  let nearest = -1;
+  if(cur != null && rows.length){ const half = rows.length > 1 ? (rows[1].d - rows[0].d) / 2 : 25; let best = Infinity; rows.forEach((r, i) => { const dd = Math.abs(r.d - cur); if(dd < best && dd <= half){ best = dd; nearest = i; } }); } // alleen markeren als de afstand echt bij een rij ligt
+  return `<div class="dc-mil-trow dc-mil-thead"><span>AFSTAND</span><span>GEMETEN MIL</span></div>` +
+    rows.map((r, i) => `<div class="dc-mil-trow${i === nearest ? ' dc-mil-hit' : ''}"><span>${r.d} m</span><span>${dcMilFmt(r.mil, 2)}</span></div>`).join('');
+}
+function dcMilScreenHtml(){
+  const presets = DC_MIL_PRESETS.map(v => `<button type="button" class="dc-mil-preset${Math.abs(dcMil.size - v) < 1e-9 ? ' active' : ''}" data-size="${v}">${dcMilFmt(v, 1)}</button>`).join('');
+  return `<div class="dc-main"><div class="dc-mil-screen">
+    <div class="dc-mil-left">
+      <button class="dc-wind-back" data-act="back">&larr; DOPE</button>
+      <div class="dc-mil-label">DOEL (METER)</div>
+      <div class="dc-mil-input">
+        <button type="button" class="dc-mover-step" data-act="sizeminus">&minus;</button>
+        <input type="text" inputmode="decimal" class="dc-mil-field" data-role="size" value="${dcMilFmt(dcMil.size, 2)}" autocomplete="off">
+        <button type="button" class="dc-mover-step" data-act="sizeplus">+</button>
+      </div>
+      <div class="dc-mil-presets">${presets}</div>
+      <div class="dc-mil-label">GEMETEN (MIL)</div>
+      <div class="dc-mil-input">
+        <button type="button" class="dc-mover-step" data-act="milminus">&minus;</button>
+        <input type="text" inputmode="decimal" class="dc-mil-field" data-role="mil" value="${dcMilFmt(dcMil.mil, 1)}" autocomplete="off">
+        <button type="button" class="dc-mover-step" data-act="milplus">+</button>
+      </div>
+      <div class="dc-mil-result" data-role="result">${dcMilResultHtml()}</div>
+    </div>
+    <div class="dc-mil-right"><div class="dc-mil-table" data-role="table">${dcMilTableHtml()}</div></div>
+  </div></div>${dcStripHtml()}`;
+}
+function dcMilRefresh(){
+  if(!dcOverlayEl || dcScreen !== 'mil') return;
+  const q = sel => dcOverlayEl.querySelector(sel);
+  q('[data-role="result"]').innerHTML = dcMilResultHtml();
+  q('[data-role="table"]').innerHTML = dcMilTableHtml();
+  dcOverlayEl.querySelectorAll('[data-size]').forEach(b => b.classList.toggle('active', Math.abs(dcMil.size - parseFloat(b.dataset.size)) < 1e-9));
+  const sf = q('[data-role="size"]'), mf = q('[data-role="mil"]');
+  if(sf && document.activeElement !== sf) sf.value = dcMilFmt(dcMil.size, 2);
+  if(mf && document.activeElement !== mf) mf.value = dcMilFmt(dcMil.mil, 1);
+}
+function dcWireMilScreen(){
+  dcWireStrip();
+  const on = (sel, fn) => dcOverlayEl.querySelectorAll(sel).forEach(b => b.addEventListener('click', fn));
+  const round = (v, step) => Math.round(v / step) * step;
+  on('[data-act="back"]', () => dcGoScreen('dope'));
+  on('[data-act="sizeminus"]', () => { dcMil.size = Math.max(0.05, round(dcMil.size - 0.05, 0.05)); dcMilSave(); dcMilRefresh(); });
+  on('[data-act="sizeplus"]', () => { dcMil.size = Math.min(10, round(dcMil.size + 0.05, 0.05)); dcMilSave(); dcMilRefresh(); });
+  on('[data-act="milminus"]', () => { dcMil.mil = Math.max(0.1, round(dcMil.mil - 0.1, 0.1)); dcMilSave(); dcMilRefresh(); });
+  on('[data-act="milplus"]', () => { dcMil.mil = Math.min(60, round(dcMil.mil + 0.1, 0.1)); dcMilSave(); dcMilRefresh(); });
+  on('[data-size]', (e) => { dcMil.size = parseFloat(e.currentTarget.dataset.size); dcMilSave(); dcMilRefresh(); });
+  const bind = (role, key) => {
+    const f = dcOverlayEl.querySelector(`[data-role="${role}"]`);
+    f.addEventListener('input', () => { const v = dcMilNum(f.value); if(v != null){ dcMil[key] = v; dcMilSave(); } dcMilRefresh(); });
+    f.addEventListener('change', () => { f.value = key === 'size' ? dcMilFmt(dcMil.size, 2) : dcMilFmt(dcMil.mil, 1); });
+    f.addEventListener('focus', () => f.select());
+  };
+  bind('size', 'size'); bind('mil', 'mil');
 }
 
 /* ---- Scherm B: Windscherm ---- */
@@ -1758,13 +1856,14 @@ function dcRenderFullscreen(){
   if(!dcOverlayEl) return;
   dcOverlayEl.classList.remove('dc-theme-day','dc-theme-night','dc-theme-nv');
   dcOverlayEl.classList.add(dcSettings.theme === 'night' ? 'dc-theme-night' : dcSettings.theme === 'nv' ? 'dc-theme-nv' : 'dc-theme-day');
-  const inner = dcScreen === 'dope' ? dcDopeScreenHtml() : dcScreen === 'wind' ? dcWindScreenHtml() : dcScreen === 'angle' ? dcAngleScreenHtml() : dcScreen === 'mover' ? dcMoverScreenHtml() : dcScreen === 'help' ? dcHelpScreenHtml() : dcTargetScreenHtml();
+  const inner = dcScreen === 'dope' ? dcDopeScreenHtml() : dcScreen === 'wind' ? dcWindScreenHtml() : dcScreen === 'angle' ? dcAngleScreenHtml() : dcScreen === 'mover' ? dcMoverScreenHtml() : dcScreen === 'help' ? dcHelpScreenHtml() : dcScreen === 'mil' ? dcMilScreenHtml() : dcTargetScreenHtml();
   dcOverlayEl.innerHTML = `<div class="dc-rotor">${inner}</div>`;
   if(dcScreen === 'dope') dcWireDopeScreen();
   else if(dcScreen === 'wind') dcWireWindScreen();
   else if(dcScreen === 'angle') dcWireAngleScreen();
   else if(dcScreen === 'mover') dcWireMoverScreen();
   else if(dcScreen === 'help') dcWireHelpScreen();
+  else if(dcScreen === 'mil') dcWireMilScreen();
   else dcWireTargetScreen();
   dcVoiceRenderBanner(); dcVoiceUpdateUi();
 }
