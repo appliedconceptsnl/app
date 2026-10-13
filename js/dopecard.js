@@ -1605,6 +1605,27 @@ function dcMilTableRows(){
   for(let d = Math.ceil(start / step) * step; d <= end; d += step) rows.push({ d, mil: Math.atan(dcMil.size / d) * 1000 });
   return rows;
 }
+// Rij voor een doel: uit de kaarttabel, anders (gemeten afstand) direct doorgerekend.
+function dcRowFor(d){
+  const row = dcTable ? dcTable.get(d) : null;
+  if(row) return row;
+  try { return dcMoverRow(d) || null; } catch(e){ return null; }
+}
+// Meerdere doelen opmeten (stage): voegt de gemeten afstand toe aan de doelenkaart (TGT).
+function dcMilAddTarget(){
+  if(!dcMilValid()) return;
+  const d = Math.round(dcMilDistanceFor(dcMil.size, dcMil.mil));
+  if(!(d >= 50 && d <= 2500)){ dcVoiceBanner('Afstand buiten bereik (50–2500 m)', 2500); return; }
+  const idx = dcTargets.indexOf(d);
+  if(idx >= 0){ dcVoiceBanner(`${d} m staat al in TGT (T${idx + 1})`, 2500); return; }
+  if(dcTargets.length >= DC_MAX_TARGETS){ dcVoiceBanner(`TGT is vol (max ${DC_MAX_TARGETS} doelen) — wis er een of gebruik CLR`, 3500); return; }
+  dcTargets.push(d);
+  dcSave(DC_TARGETS_KEY, dcTargets);
+  if(!dcNotes[d]){ dcNotes[d] = { desc: `${dcMilFmt(dcMil.mil, 1)} mil @ ${dcMilFmt(dcMil.size, 2)} m` }; dcSaveNotes(); } // zo zie je op de doelenkaart hoe het gemeten is
+  if(navigator.vibrate) navigator.vibrate(15);
+  dcRenderFullscreen();
+  dcVoiceBanner(`T${dcTargets.length} toegevoegd: ${d} m`, 2200);
+}
 function dcMilResultHtml(){
   if(!dcMilValid()) return '<div class="dc-mil-d dc-dim">—</div><div class="dc-mil-detail">Vul doelgrootte (0,05–10 m) en gemeten mil (0,1–60) in.</div>';
   const d = dcMilDistanceFor(dcMil.size, dcMil.mil);
@@ -1659,6 +1680,10 @@ function dcMilScreenHtml(){
         <button type="button" class="dc-mover-step" data-act="milplus">+</button>
       </div>
       <div class="dc-mil-result" data-role="result">${dcMilResultHtml()}</div>
+      <div class="dc-mil-addrow">
+        <button type="button" class="dc-mil-add" data-act="addtgt">+ TGT</button>
+        <button type="button" class="dc-mil-tgtopen" data-act="opentgt">TGT <b>${dcTargets.length}</b> &rsaquo;</button>
+      </div>
     </div>
     <div class="dc-mil-right"><div class="dc-mil-table" data-role="table">${dcMilTableHtml()}</div></div>
   </div></div>${dcStripHtml()}`;
@@ -1679,6 +1704,8 @@ function dcWireMilScreen(){
   const on = (sel, fn) => dcOverlayEl.querySelectorAll(sel).forEach(b => b.addEventListener('click', fn));
   const round = (v, step) => Math.round(v / step) * step;
   on('[data-act="back"]', () => dcGoScreen('dope'));
+  on('[data-act="addtgt"]', () => dcMilAddTarget());
+  on('[data-act="opentgt"]', () => dcGoScreen('target'));
   on('[data-act="sizeminus"]', () => { dcMil.size = Math.max(0.05, round(dcMil.size - 0.05, 0.05)); dcMilSave(); dcMilRefresh(); });
   on('[data-act="sizeplus"]', () => { dcMil.size = Math.min(10, round(dcMil.size + 0.05, 0.05)); dcMilSave(); dcMilRefresh(); });
   on('[data-act="milminus"]', () => { dcMil.mil = Math.max(0.1, round(dcMil.mil - 0.1, 0.1)); dcMilSave(); dcMilRefresh(); });
@@ -1760,7 +1787,7 @@ function dcWireWindScreen(){
 /* ---- Scherm C: Target card ---- */
 function dcTargetScreenHtml(){
   const rowsHtml = dcTargets.length ? dcTargets.map((d,i) => {
-    const row = dcTable ? dcTable.get(d) : null;
+    const row = dcRowFor(d); // ook gemeten afstanden (milling) die niet op de kaart staan
     const n = dcNoteFor(d);
     const angle = dcNoteAngle(n);
     // Hoek: exact doorgerekend (niet meer de cosinusregel), zie dcInclinedBaseElev.

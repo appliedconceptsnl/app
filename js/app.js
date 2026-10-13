@@ -1048,6 +1048,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v2.20', date:'13-10-2026', items:[
+      'Milling: knop "+ TGT" voegt de gemeten afstand toe aan de doelenkaart (max. 6), zodat je tijdens een stage meerdere doelen kunt opmeten en daarna op de TGT-kaart de elevatie en wind per doel ziet. Op de kaart staat bij elk doel hoe het gemeten is (bv. "0,7 mil @ 0,50 m"). "TGT n ›" opent de doelenkaart direct; een afstand die er al in staat of een volle kaart geeft een melding.',
+    ]},
     { version:'v2.19', date:'13-10-2026', items:[
       'Spraakbesturing: "mover mover" wordt ook herkend als "moe moe" of "move move" (zoals de iPhone het vaak hoort).',
     ]},

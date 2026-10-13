@@ -1031,6 +1031,9 @@
   .dc-mil-presets{display:flex;gap:6px;}
   .dc-mil-preset{flex:1 1 0;min-height:34px;background:none;border:1px solid var(--dcline-strong);color:var(--dcdim);font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;}
   .dc-mil-preset.active{background:var(--dcfg);color:var(--dcbg);border-color:var(--dcfg);}
+  .dc-mil-addrow{display:flex;gap:6px;margin-top:4px;}
+  .dc-mil-add{flex:1 1 auto;min-height:44px;background:var(--dcfg);color:var(--dcbg);border:none;font-family:inherit;font-size:15px;font-weight:700;letter-spacing:.05em;cursor:pointer;}
+  .dc-mil-tgtopen{flex:0 0 36%;min-height:44px;background:none;border:1px solid var(--dcline-strong);color:var(--dcfg);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;}
   .dc-mil-result{margin-top:auto;border-top:2px solid var(--dcline-strong);padding-top:4px;text-align:center;}
   .dc-mil-d{font-size:clamp(40px,10vw,76px);font-weight:700;line-height:1;}
   .dc-mil-d span{font-size:.38em;margin-left:4px;color:var(--dcdim);}
