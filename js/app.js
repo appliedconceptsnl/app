@@ -1048,6 +1048,9 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v2.22', date:'15-10-2026', items:[
+      'Milling-pagina: past nu op een liggende telefoon (Samsung S25 e.a.). De linkerkant was te hoog, waardoor de knop "+ TGT" en de regel eronder buiten beeld vielen; alles is compacter bij lage schermen (getest van 320 tot 500 px hoogte).',
+    ]},
     { version:'v2.21', date:'13-10-2026', items:[
       'Milling: een nieuwe waarde intypen bij doelgrootte of gemeten mil werkt nu goed — het veld wordt leeg zodra je erop tikt (oude waarde als grijze placeholder) en nogmaals tikken selecteert alles. Voorheen kwamen je cijfers achter de oude waarde te staan (bijv. ",5" werd "3,6,5"). ",5", "0,5", "6,5" en "6,55" werken; een tweede decimaal wordt ook getoond.',
     ]},

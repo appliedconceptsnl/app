@@ -1046,6 +1046,31 @@
   .dc-mil-thead{position:sticky;top:0;background:var(--dcbg);font-size:10px;letter-spacing:.08em;color:var(--dcdim);border-bottom:2px solid var(--dcline-strong);}
   .dc-mil-hit{background:var(--dcfg);color:var(--dcbg);}
   .dc-strip-mil svg{display:block;}
+  .dc-mil-left{overflow-y:auto;-webkit-overflow-scrolling:touch;}
+  /* Liggende telefoon (Samsung S25 ≈ 340–360 px hoog): alles op één scherm, + TGT blijft zichtbaar. */
+  @media (max-height:440px){
+    .dc-mil-left{padding:3px 12px;gap:2px;}
+    .dc-mil-left .dc-wind-back{min-height:28px;padding:0;font-size:13px;}
+    .dc-mil-label{font-size:9px;margin-top:0;line-height:1.1;}
+    .dc-mil-left .dc-mover-step{flex:0 0 38px;width:38px;height:38px;font-size:18px;}
+    .dc-mil-left .dc-mil-field,.dc-overlay .dc-mil-left input.dc-mil-field{height:38px;font-size:22px !important;}
+    .dc-mil-preset{min-height:26px;font-size:11px;}
+    .dc-mil-d{font-size:clamp(32px,12vh,48px);}
+    .dc-mil-hold{font-size:15px;margin-top:0;}
+    .dc-mil-result{padding-top:2px;}
+    .dc-mil-detail{font-size:9px;margin-top:1px;}
+    .dc-mil-add,.dc-mil-tgtopen{min-height:36px;font-size:13px;}
+    .dc-mil-addrow{margin-top:3px;}
+    .dc-mil-trow{padding:5px 14px;font-size:15px;}
+    .dc-mil-thead{font-size:10px;padding:4px 14px;}
+  }
+  @media (max-height:370px){
+    .dc-mil-detail{display:none;}
+    .dc-mil-left .dc-mover-step{flex:0 0 34px;width:34px;height:34px;}
+    .dc-mil-left .dc-mil-field,.dc-overlay .dc-mil-left input.dc-mil-field{height:34px;font-size:20px !important;}
+    .dc-mil-preset{min-height:24px;}
+    .dc-mil-d{font-size:clamp(28px,11vh,40px);}
+  }
   .dc-overlay input.dc-mil-field,.dc-overlay input.dc-mover-dist{background:transparent !important;color:var(--dcfg) !important;font-size:26px !important;font-weight:700 !important;border:1px solid var(--dcline-strong) !important;box-shadow:none !important;text-align:center;}
   /* Mover (bewegend doel, spraak) */
   .dc-mover-btn{flex:1 1 auto;align-self:stretch;margin:2px 0;background:var(--dcfg);color:var(--dcbg);border:none;font-family:inherit;font-size:13px;font-weight:700;letter-spacing:.05em;min-width:64px;cursor:pointer;}
