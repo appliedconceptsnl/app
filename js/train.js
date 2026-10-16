@@ -119,6 +119,35 @@ function trFooter(W, H, name){
   return s;
 }
 
+/* ---- A3 ----
+   Carbine/pistol-bladen hebben geen meetschaal maar wel een vaste schietafstand. Op A3
+   groeit daarom het hele blad mee (×1,41: doelen, tekst, alles) en de afstand op het blad
+   ook (4,5 m -> 6,5 m): dezelfde hoek, dus dezelfde moeilijkheid. De A4-opbouw wordt ongewijzigd
+   getekend en in één groep geschaald. Sniper-bladen (MOA op 100 m, vakjes van 0,1 mil = 1 cm)
+   mogen NIET schalen: daar blijven alle maten exact gelijk en gebruiken ze paper.k alleen om
+   de posities te spreiden en extra mil-vakjes toe te voegen. */
+let trDistK = 1;
+function trM(m){
+  const v = Math.round(m * trDistK * 2) / 2; // op halve meters: net genoeg nauwkeurig (±2 % in hoek)
+  return String(v).replace('.', ',');
+}
+function trBuildSheets(ex, paperKey, safe){
+  const full = PAGE_DIMS[paperKey] || PAGE_DIMS.a4;
+  const base = safe ? printSafePaper(full) : full;
+  const k = base.w / PAGE_DIMS.a4.w; // A4: 1 · A3: 1,414 · iOS-terugval: iets minder
+  if(ex.group === 'carbine' && paperKey !== 'a4'){
+    const bp = { w: base.w / k, h: base.h / k, label: base.label };
+    trDistK = k;
+    try {
+      return ex.build(bp).map(svg => {
+        const inner = svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
+        return `<svg viewBox="0 0 ${base.w.toFixed(4)} ${base.h.toFixed(4)}" width="${base.w}in" height="${base.h}in" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><g transform="scale(${k.toFixed(6)})">${inner}</g></svg>`;
+      });
+    } finally { trDistK = 1; }
+  }
+  return ex.build(Object.assign({}, base, { k: paperKey === 'a4' ? 1 : k }));
+}
+
 // Wrapped, styled text block as native SVG <text> lines.
 //
 // This used to be a <foreignObject> with an HTML <div> laid out at 200 px
@@ -340,7 +369,7 @@ function buildTripleTenSheet(paper){
   const metaX = TR_MARGIN, metaW = 3.15;
   let metaY = 1.5;
   const metaRows = [
-    ['AFSTAND', '6 m'],
+    ['AFSTAND', `${trM(6)} m`],
     ['UITRUSTING', '3 magazijnen van 10 patronen — één in wapen, twee aan riem'],
     ['VUURWIJZE', 'Bij start van de tijdklok: draw en vuur 10 patronen in elke cirkel, in willekeurige volgorde.'],
   ];
@@ -379,7 +408,7 @@ function buildThrottleSheet(paper){
   // H-relative (was a hardcoded y=10.5, tuned only for the full nominal
   // page height) so this stays a safe distance above the footer even when
   // printed at a slightly smaller printSafePaper() size.
-  svg += trText(TR_MARGIN, H-1.1929, 5.0, 0.5, 'AFSTAND: 4,5 m &nbsp;·&nbsp; UITRUSTING: 10 patronen &nbsp;·&nbsp; ELKE MISSER: +1 sec', {fontSize:0.105, color:TR_DIM});
+  svg += trText(TR_MARGIN, H-1.1929, 5.0, 0.5, `AFSTAND: ${trM(4.5)} m &nbsp;·&nbsp; UITRUSTING: 10 patronen &nbsp;·&nbsp; ELKE MISSER: +1 sec`, {fontSize:0.105, color:TR_DIM});
   svg += trFooter(W, H, 'Throttle Control-schijf');
   svg += `</svg>`;
   return svg;
@@ -394,7 +423,7 @@ function buildQuadSheet(paper){
   svg += trBlankCircle(cx, 3.15, 1.5, '');
   svg += trBlankCircle(cx, H-3.6429, 2.0, '');
   const legX = 5.9, legY0 = 1.9;
-  ['5 m', '10 m', '15 m'].forEach((t, i)=>{
+  [5, 10, 15].map(m => `${trM(m)} m`).forEach((t, i)=>{
     const ly = legY0 + i*0.34;
     svg += `<line x1="${legX}" y1="${(ly-0.06).toFixed(4)}" x2="${(legX+0.5).toFixed(4)}" y2="${(ly-0.06).toFixed(4)}" stroke="${TR_INK}" stroke-width="0.012"/>`;
     svg += `<text x="${(legX+0.62).toFixed(4)}" y="${ly.toFixed(4)}" font-size="0.15" font-family="Oswald, sans-serif" font-weight="600" fill="${TR_INK}">${t}</text>`;
@@ -474,12 +503,15 @@ function buildZeroTargetSheet(paper){
   let svg = trPageOpen(paper);
   svg += trHeader(W, 'ZERO TARGET', '100M · FUNDAMENTALS');
   svg += trText(TR_MARGIN, 0.85, W-0.9, 0.85, 'Vuur één schot per aanvinkpunt — geslaagd is elk schot dat binnen de stippellijn van 1 MOA valt. Gebruik per schot een nieuw punt, zo heb je voor elk schot een fris Zero Target, zonder overlappende gaten. Elk vakje van het raster is exact 0,1 mil, zodat je de turret-correctie direct van de schijf afleest.', {fontSize:0.115, lineHeight:1.4});
-  const cols = [W/2-2.55, W/2, W/2+2.55], rows = [3.3, 6.6, H-2.1929];
+  // A3: dezelfde cirkel (1 MOA) en dezelfde vakjes (0,1 mil = 1 cm op 100 m), maar een groter raster
+  // (±4 i.p.v. ±2 vakjes) en meer ruimte tussen de punten.
+  const a3 = (paper.k || 1) > 1.2, gridN = a3 ? 4 : 2, sx = a3 ? 3.7 : 2.55;
+  const cols = [W/2-sx, W/2, W/2+sx], rows = a3 ? [H*0.25, H*0.53, H*0.80] : [3.3, 6.6, H-2.1929];
   const zeroTargetR = moaInAt100m(1)/2; // matches the 1 MOA circle below — keeps the number label clear of it regardless of circle size
   let n = 1;
   rows.forEach(cy=>{
     cols.forEach(cx=>{
-      svg += trMilGrid(cx, cy, 2);
+      svg += trMilGrid(cx, cy, gridN);
       svg += trMoaCircle(cx, cy, 1, {dashed:true, stroke:TR_DIM, dotMoa:0.15});
       svg += `<text x="${cx.toFixed(4)}" y="${(cy-zeroTargetR-0.08).toFixed(4)}" text-anchor="middle" font-size="0.13" font-family="Oswald, sans-serif" font-weight="700" fill="${TR_GRAY}">${n}</text>`;
       n++;
@@ -496,13 +528,14 @@ function buildBipodPressureSheet(paper){
   svg += trHeader(W, 'BIPOD PRESSURE LOAD TEST', '100M · TECHNIEK & POSITIES');
   svg += trText(TR_MARGIN, 0.85, W-0.9, 0.85, 'Consistente belasting van de bipod voorkomt "bipod hop" en houdt de POI stabiel — een andere belasting verschuift de POI, meestal verticaal; richting en grootte verschillen per wapen en bipod. Vuur een groep van 3 schoten per cirkel en vergelijk de POI-verschuiving t.o.v. NORMAAL.', {fontSize:0.115, lineHeight:1.4});
 
-  const cx = W/2, topY = 3.15, botY = 6.95, R_LABEL = 1.5;
+  const pk = paper.k || 1; // posities spreiden op A3, maten (2 MOA) blijven gelijk
+  const cx = W/2, topY = 3.15*pk, botY = 6.95*pk, R_LABEL = 1.5;
   svg += trMoaCircle(cx, topY, 2, {dotMoa:0.3});
   svg += `<text x="${cx.toFixed(4)}" y="${(topY+R_LABEL).toFixed(4)}" text-anchor="middle" font-size="0.16" font-family="Oswald, sans-serif" font-weight="700" fill="${TR_INK}">NORMAAL</text>`;
 
   // 2 MOA = 2.29" wide, so 2.5" spacing leaves ~5 mm between the circles
   // (at 2.3" they touched) while the outer ones stay inside the margins.
-  const cols = [W/2-2.5, W/2, W/2+2.5];
+  const cols = [W/2-2.5*pk, W/2, W/2+2.5*pk];
   const names = ['VOORWAARTS', 'NEUTRAAL', 'ACHTERWAARTS'];
   cols.forEach((cx2, i)=>{
     svg += trMoaCircle(cx2, botY, 2, {dotMoa:0.3});
@@ -529,8 +562,9 @@ function buildNpaNoBagSheet(paper){
   svg += trText(TR_MARGIN, 0.85, W-0.9, 1.05, 'Natural Point of Aim (NPA): bouw je positie, richt, sluit je ogen, adem 1–2 keer rustig uit en ontspan. Open je ogen — staat het richtmiddel nog op het doel? Zo niet: verplaats je hele lichaam/positie (niet de spieren) tot dit wél zo is. Vuur daarna, zónder achterzak/support, één schot per cirkel — begin bij de grootste.', {fontSize:0.115, lineHeight:1.38});
 
   const sizes = [2, 1.2, 0.7, 0.4];
-  const cols = [W/2-1.6, W/2+1.6];
-  const rowsY = [3.4, 5.7, 7.4, 8.7];
+  const pk = paper.k || 1;
+  const cols = [W/2-1.6*pk, W/2+1.6*pk];
+  const rowsY = [3.4, 5.7, 7.4, 8.7].map(v => v*pk);
   cols.forEach((cx, colI)=>{
     sizes.forEach((moa, i)=>{
       // Hourglass capped at ~2/3 of the circle so the 0.4 MOA ring stays
@@ -553,16 +587,17 @@ function buildTripodEvalSheet(paper){
   svg += trText(TR_MARGIN, 0.85, W-0.9, 0.5, 'Sluit aan op de Tripod Training in Dry Fire (Staand/Knielend/Zittend). Drie doelmaten per positie (groot = slow fire · midden = build/break · klein = deploy) — vuur, noteer per poging het resultaat (T/F) in de tabel.', {fontSize:0.115, lineHeight:1.35});
 
   const positions = ['STAAND', 'KNIELEND', 'ZITTEND'];
-  const cols = [W/2-2.55, W/2, W/2+2.55];
-  const tierY = [3.0, 5.2, 7.0];
+  const pk = paper.k || 1;
+  const cols = [W/2-2.55*pk, W/2, W/2+2.55*pk];
+  const tierY = [3.0, 5.2, 7.0].map(v => v*pk);
   const tierMoa = [1.5, 1, 0.6];
   cols.forEach((cx, i)=>{
-    svg += `<text x="${cx.toFixed(4)}" y="1.95" text-anchor="middle" font-size="0.14" font-family="Oswald, sans-serif" font-weight="700" fill="${TR_INK}">${positions[i]}</text>`;
+    svg += `<text x="${cx.toFixed(4)}" y="${(tierY[0]-1.05).toFixed(4)}" text-anchor="middle" font-size="0.14" font-family="Oswald, sans-serif" font-weight="700" fill="${TR_INK}">${positions[i]}</text>`;
     tierMoa.forEach((moa, t)=>{ svg += trMoaCircle(cx, tierY[t], moa, {dotMoa:0.15}); });
   });
 
   // Score table
-  const tableTop = H-3.9929, rowH = 0.4, tableLeft = TR_MARGIN, tableW = W-0.9;
+  const rowH = pk > 1.2 ? 0.5 : 0.4, tableTop = H-1.1929-rowH*7, tableLeft = TR_MARGIN, tableW = W-0.9;
   const colW = tableW/4;
   const rows = ['Slow fire', 'Build/break 1', 'Build/break 2', 'Build/break 3', 'Deploy 1', 'Deploy 2'];
   svg += `<rect x="${tableLeft}" y="${tableTop}" width="${tableW}" height="${rowH*(rows.length+1)}" fill="none" stroke="${TR_INK}" stroke-width="0.012"/>`;
@@ -595,7 +630,8 @@ function buildPositionalCirclesSheet(paper){
   svg += trText(TR_MARGIN, 0.85, W-0.9, 0.55, 'Onopgesteund/semi-opgesteund per positie — probeer je groep (3–5 schoten) binnen de kleinst mogelijke ring te houden.', {fontSize:0.115, lineHeight:1.35});
 
   const names = ['STAAND', 'HOOG KNIELEND', 'LAAG KNIELEND', 'ZITTEND'];
-  const cx = [W/2-2.05, W/2+2.05], cy = [3.5, 8.0];
+  const pk = paper.k || 1;
+  const cx = [W/2-2.05*pk, W/2+2.05*pk], cy = [3.5*pk, 8.0*pk];
   const moaRings = [2, 1.2, 0.6];
   let i = 0;
   cy.forEach(y=>{
@@ -765,6 +801,7 @@ const TRAIN_EXERCISES = [
 let acTrainInited = false;
 let acTrainGroup = 'carbine';
 let acTrainState = { exerciseId:null, pageIdx:0, pagesSvg:[] };
+let acTrainPaperKey = 'a4'; // a4 | a3 — gekozen bij "Print"
 let acTrainSelected = new Set();
 
 function acTrainExercisesInGroup(){
@@ -853,8 +890,8 @@ function acTrainRenderPageTabs(ex){
 function acTrainRenderPage(){
   const pageEl = document.getElementById('pageT');
   if(!pageEl) return;
-  pageEl.style.width = PAGE_DIMS.a4.w + 'in';
-  pageEl.style.height = PAGE_DIMS.a4.h + 'in';
+  pageEl.style.width = PAGE_DIMS[acTrainPaperKey].w + 'in';
+  pageEl.style.height = PAGE_DIMS[acTrainPaperKey].h + 'in';
   pageEl.innerHTML = acTrainState.pagesSvg[acTrainState.pageIdx] || '';
   if(typeof fitPreview === 'function') fitPreview('pageT', 'pageShellT', 'scaleLabelT');
 }
@@ -863,7 +900,7 @@ function acTrainPreview(id){
   const ex = TRAIN_EXERCISES.find(e=>e.id===id);
   if(!ex) return;
   acTrainState.exerciseId = id;
-  acTrainState.pagesSvg = ex.build(PAGE_DIMS.a4);
+  acTrainState.pagesSvg = trBuildSheets(ex, acTrainPaperKey, false);
   acTrainState.pageIdx = 0;
   document.querySelectorAll('.train-item-body').forEach(b=>b.classList.toggle('previewing', b.dataset.id === id));
   acTrainRenderPageTabs(ex);
@@ -893,8 +930,11 @@ function acTrainBuildPrintBatch(){
   ids.forEach(id=>{
     const ex = TRAIN_EXERCISES.find(e=>e.id===id);
     if(!ex) return;
-    const paper = ex.printSafe ? printSafePaper(PAGE_DIMS.a4) : PAGE_DIMS.a4;
-    ex.build(paper).forEach(svg=>{
+    // Op A3 (en met de PDF-export op iPhone) geldt altijd het volle formaat; de kleinere "veilige" maat
+    // is alleen de terugval voor het iOS-printvenster op A4.
+    const safe = !!ex.printSafe && acTrainPaperKey === 'a4';
+    const paper = safe ? printSafePaper(PAGE_DIMS.a4) : PAGE_DIMS[acTrainPaperKey];
+    trBuildSheets(ex, acTrainPaperKey, safe).forEach(svg=>{
       const pageEl = document.createElement('div');
       pageEl.className = 'page';
       pageEl.style.width = paper.w + 'in';
@@ -934,6 +974,34 @@ function acTrainSwitchGroup(group){
   if(!isEmpty && first) acTrainPreview(first.id);
 }
 
+// "Print" vraagt eerst A4 of A3. De bladen worden voor dat formaat opgebouwd (niet in het
+// printmenu vergroot): carbine-bladen groeien mee, sniper-bladen houden hun maten.
+function acTrainChoosePaperThenPrint(){
+  const cur = acTrainPaperKey === 'a3' ? 'a3' : 'a4';
+  const ov = document.createElement('div');
+  ov.className = 'ac-pdf-overlay';
+  ov.innerHTML = `<div class="ac-pdf-box">
+    <div class="ac-pdf-title">Op welk papier print je?</div>
+    <p class="hint"><b>A3, carbine/pistol:</b> het hele blad groeit mee (×1,41) en de afstand op het blad ook — zelfde moeilijkheid, grotere doelen.<br><b>A3, sniper:</b> MOA-cirkels en vakjes (0,1 mil = 1 cm op 100 m) blijven exact even groot; er is meer ruimte en de Zero Target heeft een groter raster. Kies bij het printen hetzelfde papier en print op 100%.</p>
+    <div class="ac-paper-choice">
+      <button type="button" class="printbtn${cur==='a4' ? '' : ' st-btn-secondary'}" data-paper="a4">A4<span>210 × 297 mm</span></button>
+      <button type="button" class="printbtn${cur==='a3' ? '' : ' st-btn-secondary'}" data-paper="a3">A3<span>297 × 420 mm</span></button>
+    </div>
+    <button type="button" class="printbtn st-btn-secondary" data-paper="" style="width:100%;padding:12px;margin-top:10px;">Annuleren</button>
+  </div>`;
+  ov.addEventListener('click', (e)=>{
+    const btn = e.target.closest('[data-paper]');
+    if(!btn && e.target !== ov) return;
+    ov.remove();
+    if(!btn || !btn.dataset.paper) return;
+    acTrainPaperKey = btn.dataset.paper;
+    if(acTrainState.exerciseId) acTrainPreview(acTrainState.exerciseId);
+    acTrainBuildPrintBatch();
+    if(window.AppliedConceptsPrint) window.AppliedConceptsPrint('train-oefenblad', acTrainPaperKey);
+  });
+  document.body.appendChild(ov);
+}
+
 function initTrain(){
   if(acTrainInited) return;
   acTrainInited = true;
@@ -943,10 +1011,7 @@ function initTrain(){
     b.addEventListener('click', ()=>acTrainSwitchGroup(b.dataset.group));
   });
   const printBtn = document.getElementById('printBtnT');
-  if(printBtn) printBtn.addEventListener('click', ()=>{
-    acTrainBuildPrintBatch();
-    if(window.AppliedConceptsPrint) window.AppliedConceptsPrint('train-oefenblad');
-  });
+  if(printBtn) printBtn.addEventListener('click', acTrainChoosePaperThenPrint);
   const selectAllBtn = document.getElementById('trainSelectAll');
   if(selectAllBtn) selectAllBtn.addEventListener('click', ()=>{
     acTrainExercisesInGroup().forEach(ex=>{

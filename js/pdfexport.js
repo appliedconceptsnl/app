@@ -263,9 +263,9 @@
     el.innerHTML = `<div class="ac-pdf-box"><div class="ac-pdf-title">PDF maken…</div><p class="hint">Even geduld — het blad wordt op ware grootte (300 dpi) getekend.</p></div>`;
     try {
       if(!batch) throw new Error('Geen printblad gevonden');
-      const key = source === 'zero-optic-calculator' ? (paperKey || 'a4') : 'a4';
+      const key = (source === 'zero-optic-calculator' || source === 'train-oefenblad') ? (paperKey || 'a4') : 'a4';
       const result = await batchToPdf(batch, key);
-      const name = `applied-concepts-${PDF_FILE_NAMES[source] || 'print'}${source === 'zero-optic-calculator' ? '-' + result.paperLabel : ''}.pdf`;
+      const name = `applied-concepts-${PDF_FILE_NAMES[source] || 'print'}${(source === 'zero-optic-calculator' || source === 'train-oefenblad') ? '-' + result.paperLabel : ''}.pdf`;
       const file = new File([result.bytes], name, { type:'application/pdf' });
       const scaleTip = source === 'dopecard'
         ? 'Print op <strong>100 % / werkelijke grootte</strong> (niet "passend maken") en knip het kaartje uit.'

@@ -1048,6 +1048,10 @@ function initInstallBanner(){
 --------------------------------------------------------------------- */
 try {
   const CHANGELOG = [
+    { version:'v2.23', date:'16-10-2026', items:[
+      'Train: "Print" vraagt nu A4 of A3 (voorbeeld, printvenster en iPhone-PDF volgen die keuze). Carbine/pistol-bladen op A3: het hele blad groeit mee (×1,41, grotere doelen) en de afstand op het blad ook (bv. 4,5 m -> 6,5 m, 6 m -> 8,5 m, 5/10/15 m -> 7/14/21 m), zodat de moeilijkheid gelijk blijft.',
+      'Train A3, sniper-bladen: MOA-cirkels, richtmerken en vakjes blijven exact even groot als op A4 (0,1 mil = 1 cm op 100 m; gecontroleerd). Er is meer ruimte; de Zero Target krijgt een groter raster (±0,4 mil i.p.v. ±0,2 mil) en de Box Test een grotere box (meer mil).',
+    ]},
     { version:'v2.22', date:'15-10-2026', items:[
       'Milling-pagina: past nu op een liggende telefoon (Samsung S25 e.a.). De linkerkant was te hoog, waardoor de knop "+ TGT" en de regel eronder buiten beeld vielen; alles is compacter bij lage schermen (getest van 320 tot 500 px hoogte).',
     ]},
